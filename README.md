@@ -31,8 +31,24 @@ Il primo MVP sara limitato a:
 Il supporto per video liberi, Roux, ZB e altri metodi verra valutato nelle fasi
 successive.
 
+## Video di test
+
+I filmati personali e gli output di ispezione restano locali e non vengono
+caricati su GitHub. Nel repository vengono salvati soltanto gli strumenti di
+analisi e i metadati non sensibili descritti in
+[`docs/test-videos.md`](docs/test-videos.md).
+
 ## Stato del progetto
 
 Il progetto e nella fase iniziale di definizione. La specifica funzionale si
 trova in [`docs/product-scope.md`](docs/product-scope.md).
+
+## Strumenti di sviluppo
+
+Per generare metadati e contact sheet da filmati locali:
+
+```powershell
+python -m pip install -r requirements-dev.txt
+python tools/inspect_videos.py video.mov --output data/private/video-inspection
+```
 
