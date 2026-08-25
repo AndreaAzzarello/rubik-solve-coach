@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   AnalysisResult,
   COLOR_HEX,
@@ -31,6 +31,34 @@ const PHASE_STYLES: Record<Phase, string> = {
   pll: 'bg-emerald-400 text-emerald-950',
   complete: 'bg-white text-slate-950',
 };
+
+const SOLVE_PHASES = ['cross', 'f2l', 'oll', 'pll'] as const;
+
+const PHASE_DESCRIPTIONS: Record<(typeof SOLVE_PHASES)[number], string> = {
+  cross: 'Costruzione e allineamento della croce.',
+  f2l: 'Inserimento delle quattro coppie nei primi due strati.',
+  oll: 'Orientamento dell’ultimo strato.',
+  pll: 'Permutazione finale dei pezzi.',
+};
+
+const PHASE_CARD_STYLES: Record<(typeof SOLVE_PHASES)[number], string> = {
+  cross: 'border-amber-200 bg-amber-50/70 text-amber-950',
+  f2l: 'border-blue-200 bg-blue-50/70 text-blue-950',
+  oll: 'border-violet-200 bg-violet-50/70 text-violet-950',
+  pll: 'border-emerald-200 bg-emerald-50/70 text-emerald-950',
+};
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds)) return 'Durata non disponibile';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.round(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
 
 function CubeFace({ colors }: { colors: CubeColor[] }) {
   return (
@@ -83,6 +111,11 @@ export default function Home() {
   const [stepIndex, setStepIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [videoError, setVideoError] = useState('');
+  const [videoMeta, setVideoMeta] = useState({ duration: 0, width: 0, height: 0 });
+  const [copied, setCopied] = useState(false);
 
   const currentState = analysis.states[stepIndex] ?? analysis.states[0];
   const currentPhase = classifyPhase(currentState, crossColor);
@@ -96,6 +129,27 @@ export default function Home() {
     () => analysis.moves.filter((move) => move.base.endsWith('w') || ['M', 'E', 'S'].includes(move.base)).length,
     [analysis],
   );
+
+  const phaseGroups = useMemo(() => {
+    const groups: Record<(typeof SOLVE_PHASES)[number], string[]> = {
+      cross: [],
+      f2l: [],
+      oll: [],
+      pll: [],
+    };
+
+    analysis.steps.forEach((step) => {
+      const phase = step.phaseBefore === 'complete' ? 'pll' : step.phaseBefore;
+      groups[phase].push(step.move.token);
+    });
+    return groups;
+  }, [analysis]);
+
+  useEffect(() => {
+    return () => {
+      if (videoUrl) URL.revokeObjectURL(videoUrl);
+    };
+  }, [videoUrl]);
 
   useEffect(() => {
     if (!playing) return;
@@ -116,6 +170,7 @@ export default function Home() {
       setStepIndex(0);
       setPlaying(false);
       setError('');
+      setCopied(false);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Impossibile analizzare la sequenza');
     }
@@ -129,6 +184,34 @@ export default function Home() {
   function chooseCross(color: CubeColor) {
     setCrossColor(color);
     runAnalysis(color);
+  }
+
+  function chooseVideo(file: File | null) {
+    if (!file) return;
+    const isVideo = file.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(file.name);
+    if (!isVideo) {
+      setVideoError('Scegli un file video MOV, MP4, M4V o WebM.');
+      return;
+    }
+
+    setVideoFile(file);
+    setVideoUrl(URL.createObjectURL(file));
+    setVideoMeta({ duration: 0, width: 0, height: 0 });
+    setVideoError('');
+  }
+
+  function onVideoInput(event: ChangeEvent<HTMLInputElement>) {
+    chooseVideo(event.target.files?.[0] ?? null);
+  }
+
+  async function copyScramble() {
+    try {
+      await navigator.clipboard.writeText(analysis.scramble);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
   }
 
   const positionLabel = stepIndex === 0
@@ -165,22 +248,91 @@ export default function Home() {
         <div className="grid gap-8 py-10 lg:grid-cols-[minmax(0,0.84fr)_minmax(560px,1.16fr)] lg:items-start lg:gap-12 lg:py-14">
           <section>
             <p className="mb-4 text-xs font-black uppercase tracking-[0.2em] text-blue-600">
-              Dalla notazione alla strategia
+              Dal video alla strategia
             </p>
             <h1 className="max-w-2xl text-4xl font-black leading-[0.98] tracking-[-0.055em] sm:text-6xl">
               Guarda la tua solve con occhi nuovi.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-              Inserisci le mosse, scegli la Cross e ripercorri la risoluzione uno stato alla volta.
+              Carica il filmato, verifica le mosse e ripercorri la risoluzione uno stato alla volta.
             </p>
 
             <form
               onSubmit={submit}
               className="mt-9 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.35)] sm:p-7"
             >
+              <div className="mb-7">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-600">1 · Video</p>
+                    <h2 className="mt-1 text-sm font-extrabold">Registrazione della solve</h2>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                    Sul dispositivo
+                  </span>
+                </div>
+
+                {videoUrl ? (
+                  <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
+                    <video
+                      key={videoUrl}
+                      src={videoUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="aspect-video w-full bg-black object-contain"
+                      onLoadedMetadata={(event) => {
+                        const video = event.currentTarget;
+                        setVideoMeta({
+                          duration: video.duration,
+                          width: video.videoWidth,
+                          height: video.videoHeight,
+                        });
+                      }}
+                    >
+                      Il browser non riesce a riprodurre questo formato video.
+                    </video>
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-slate-300">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold text-white">{videoFile?.name}</p>
+                        <p className="mt-0.5 text-slate-500">
+                          {videoFile ? formatFileSize(videoFile.size) : ''}
+                          {videoMeta.width > 0 ? ` · ${videoMeta.width}×${videoMeta.height} · ${formatDuration(videoMeta.duration)}` : ''}
+                        </p>
+                      </div>
+                      <label htmlFor="video-upload" className="cursor-pointer rounded-lg border border-white/15 px-3 py-2 font-bold transition hover:bg-white/10">
+                        Sostituisci
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="video-upload"
+                    className="mt-3 flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/60 px-5 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50"
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      chooseVideo(event.dataTransfer.files?.[0] ?? null);
+                    }}
+                  >
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-blue-600 text-xl text-white shadow-lg shadow-blue-600/20">↑</span>
+                    <span className="mt-3 text-sm font-black text-slate-950">Carica o trascina il video</span>
+                    <span className="mt-1 text-xs text-slate-500">MOV, MP4, M4V o WebM · il file non viene salvato online</span>
+                  </label>
+                )}
+                <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
+                {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950">
+                  <strong>Analisi assistita:</strong> per non inventare mosse, questa versione calcola scramble e fasi soltanto dalla sequenza confermata qui sotto. Il riconoscimento automatico fotogramma per fotogramma è il prossimo motore da collegare.
+                </div>
+              </div>
+
+              <div className="mb-3 border-t border-slate-100 pt-6">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-600">2 · Verifica</p>
+              </div>
               <div className="flex items-center justify-between gap-4">
                 <label htmlFor="moves" className="text-sm font-extrabold">
-                  Sequenza completa della solve
+                  Sequenza rilevata o trascritta
                 </label>
                 <span className="font-mono text-xs text-slate-400">
                   {analysis.moves.length} mosse analizzate
@@ -236,13 +388,8 @@ export default function Home() {
                 type="submit"
                 className="mt-7 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
               >
-                Analizza la soluzione
+                Conferma e genera l’analisi
               </button>
-
-              <div className="mt-4 flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 px-3 py-2.5 text-xs text-slate-400">
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                Analisi automatica del video: prossimo modulo
-              </div>
             </form>
 
             <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/75 p-4">
@@ -419,6 +566,52 @@ export default function Home() {
             </div>
           </section>
         </div>
+
+        <section className="mb-16 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.35)]">
+          <div className="grid gap-5 border-b border-slate-100 bg-slate-50/70 p-6 sm:grid-cols-[1fr_auto] sm:items-center sm:p-8">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Risultato verificato</p>
+              <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Come è stato risolto il cubo</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Le mosse sono raggruppate automaticamente in base allo stato reale dei pezzi dopo ogni passaggio.
+              </p>
+            </div>
+            <div className="min-w-0 rounded-2xl bg-slate-950 p-4 text-white sm:min-w-[330px]">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-yellow-300">Scramble da riprovare</p>
+                <button
+                  type="button"
+                  onClick={copyScramble}
+                  className="rounded-lg border border-white/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  {copied ? 'Copiato ✓' : 'Copia'}
+                </button>
+              </div>
+              <p className="mt-3 break-words font-mono text-sm font-black leading-6 text-yellow-300">{analysis.scramble}</p>
+              <p className="mt-2 text-[11px] leading-4 text-slate-500">Ricrea esattamente lo stato iniziale dedotto dalla sequenza confermata.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-6 sm:grid-cols-2 sm:p-8 xl:grid-cols-4">
+            {SOLVE_PHASES.map((phase, index) => {
+              const moves = phaseGroups[phase];
+              return (
+                <article key={phase} className={`rounded-2xl border p-5 ${PHASE_CARD_STYLES[phase]}`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-black uppercase tracking-[0.15em] opacity-60">Fase {index + 1}</span>
+                    <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black">{moves.length} mosse</span>
+                  </div>
+                  <h3 className="mt-3 text-xl font-black">{PHASE_LABELS[phase]}</h3>
+                  <p className="mt-1 min-h-10 text-xs leading-5 opacity-70">{PHASE_DESCRIPTIONS[phase]}</p>
+                  <p className="mt-4 min-h-12 break-words font-mono text-sm font-black leading-6">
+                    {moves.length ? moves.join(' ') : '—'}
+                  </p>
+                  {!moves.length ? <p className="mt-1 text-[10px] font-bold uppercase tracking-wide opacity-50">Nessuna mossa assegnata</p> : null}
+                </article>
+              );
+            })}
+          </div>
+        </section>
       </div>
     </main>
   );
