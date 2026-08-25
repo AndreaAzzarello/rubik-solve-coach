@@ -13,7 +13,6 @@ import {
   classifyPhase,
 } from '../lib/cube';
 
-const DEFAULT_SOLUTION = "R U R' U'";
 const crossColors = Object.keys(COLOR_HEX) as CubeColor[];
 
 const PHASE_LABELS: Record<Phase, string> = {
@@ -60,6 +59,46 @@ function formatDuration(seconds: number) {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
+function emptyAnalysis(): AnalysisResult {
+  return {
+    moves: [],
+    scramble: '',
+    states: [CubeState.solved()],
+    steps: [],
+    finalSolved: false,
+  };
+}
+
+function inferCross(algorithm: string) {
+  const candidates = crossColors.map((color) => {
+    const candidateAnalysis = analyzeSolution(algorithm, color);
+    const statuses = candidateAnalysis.states.map((state) => cfopStatus(state, color));
+    const totalMoves = Math.max(1, candidateAnalysis.moves.length);
+    const firstCross = statuses.findIndex((status) => status.crossSolved);
+    const firstF2l = statuses.findIndex((status) => status.f2lSolved);
+    const firstOll = statuses.findIndex((status) => status.f2lSolved && status.ollSolved);
+    const ranks = candidateAnalysis.states.map((state) => {
+      const phase = classifyPhase(state, color);
+      return phase === 'cross' ? 0 : phase === 'f2l' ? 1 : phase === 'oll' ? 2 : phase === 'pll' ? 3 : 4;
+    });
+    const regressions = ranks.slice(1).reduce((total, rank, index) => total + Math.max(0, ranks[index] - rank), 0);
+
+    let score = 0;
+    if (firstCross >= 0) score += 34 - (firstCross / totalMoves) * 18;
+    if (firstF2l >= firstCross && firstF2l >= 0) score += 24 - (firstF2l / totalMoves) * 8;
+    if (firstOll >= firstF2l && firstOll >= 0) score += 18;
+    if (firstCross >= 0 && firstCross <= Math.ceil(totalMoves * 0.4)) score += 12;
+    score -= regressions * 14;
+
+    return { color, analysis: candidateAnalysis, score };
+  }).sort((left, right) => right.score - left.score);
+
+  const best = candidates[0];
+  const gap = Math.max(0, best.score - (candidates[1]?.score ?? best.score));
+  const confidence = Math.round(Math.min(96, Math.max(50, 54 + gap * 3)));
+  return { ...best, confidence };
+}
+
 function CubeFace({ colors }: { colors: CubeColor[] }) {
   return (
     <div className="cube-face" aria-hidden="true">
@@ -103,11 +142,11 @@ function completionLabel(done: boolean, available: boolean) {
 }
 
 export default function Home() {
-  const [solution, setSolution] = useState(DEFAULT_SOLUTION);
-  const [crossColor, setCrossColor] = useState<CubeColor>('white');
-  const [analysis, setAnalysis] = useState<AnalysisResult>(() =>
-    analyzeSolution(DEFAULT_SOLUTION, 'white'),
-  );
+  const [solution, setSolution] = useState('');
+  const [crossColor, setCrossColor] = useState<CubeColor>('yellow');
+  const [crossConfidence, setCrossConfidence] = useState(0);
+  const [analysis, setAnalysis] = useState<AnalysisResult>(emptyAnalysis);
+  const [hasAnalysis, setHasAnalysis] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
@@ -163,10 +202,13 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [analysis.moves.length, playing, stepIndex]);
 
-  function runAnalysis(nextCross = crossColor) {
+  function runAnalysis() {
     try {
-      const result = analyzeSolution(solution, nextCross);
-      setAnalysis(result);
+      const inferred = inferCross(solution);
+      setCrossColor(inferred.color);
+      setCrossConfidence(inferred.confidence);
+      setAnalysis(inferred.analysis);
+      setHasAnalysis(true);
       setStepIndex(0);
       setPlaying(false);
       setError('');
@@ -178,12 +220,14 @@ export default function Home() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (!solution.trim()) {
+      setHasAnalysis(false);
+      setError(videoFile
+        ? 'Il video è stato caricato, ma il decoder automatico delle mosse non è ancora collegato. Nessuna sequenza di esempio verrà usata: inserisci una trascrizione verificata oppure ricarica il filmato nella chat per sviluppare il riconoscimento.'
+        : 'Carica un video oppure inserisci una sequenza di mosse da analizzare.');
+      return;
+    }
     runAnalysis();
-  }
-
-  function chooseCross(color: CubeColor) {
-    setCrossColor(color);
-    runAnalysis(color);
   }
 
   function chooseVideo(file: File | null) {
@@ -198,6 +242,12 @@ export default function Home() {
     setVideoUrl(URL.createObjectURL(file));
     setVideoMeta({ duration: 0, width: 0, height: 0 });
     setVideoError('');
+    setSolution('');
+    setAnalysis(emptyAnalysis());
+    setHasAnalysis(false);
+    setStepIndex(0);
+    setPlaying(false);
+    setError('');
   }
 
   function onVideoInput(event: ChangeEvent<HTMLInputElement>) {
@@ -323,7 +373,7 @@ export default function Home() {
                 <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
                 {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950">
-                  <strong>Analisi assistita:</strong> per non inventare mosse, questa versione calcola scramble e fasi soltanto dalla sequenza confermata qui sotto. Il riconoscimento automatico fotogramma per fotogramma è il prossimo motore da collegare.
+                  <strong>Cross automatica:</strong> non devi più scegliere un colore. Viene dedotto dalla progressione della solve e accompagnato da un livello di affidabilità.
                 </div>
               </div>
 
@@ -356,39 +406,27 @@ export default function Home() {
                 </p>
               )}
 
-              <fieldset className="mt-6">
-                <legend className="text-sm font-extrabold">Colore della Cross</legend>
-                <div className="mt-3 flex flex-wrap gap-2.5">
-                  {crossColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => chooseCross(color)}
-                      aria-label={`Cross ${COLOR_LABELS[color]}`}
-                      aria-pressed={crossColor === color}
-                      title={COLOR_LABELS[color]}
-                      className={`h-10 w-10 rounded-xl transition hover:-translate-y-0.5 ${
-                        crossColor === color
-                          ? 'ring-2 ring-slate-950 ring-offset-2'
-                          : 'ring-1 ring-slate-200'
-                      }`}
-                      style={{
-                        backgroundColor: COLOR_HEX[color],
-                        border: color === 'white' ? '1px solid #cbd5e1' : undefined,
-                      }}
-                    />
-                  ))}
+              <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <p className="text-xs font-black text-slate-950">Cross rilevata automaticamente</p>
+                  <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                    {hasAnalysis
+                      ? `Centro ${COLOR_LABELS[crossColor]} · affidabilità ${crossConfidence}%`
+                      : 'Comparirà dopo una sequenza riconosciuta o confermata.'}
+                  </p>
                 </div>
-                <p className="mt-3 text-xs font-semibold text-slate-500">
-                  Selezionata: {COLOR_LABELS[crossColor]}, orientata sotto per il replay.
-                </p>
-              </fieldset>
+                <span
+                  className="h-9 w-9 shrink-0 rounded-xl border border-slate-300 shadow-sm"
+                  style={{ backgroundColor: hasAnalysis ? COLOR_HEX[crossColor] : '#e2e8f0' }}
+                  aria-hidden="true"
+                />
+              </div>
 
               <button
                 type="submit"
                 className="mt-7 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
               >
-                Conferma e genera l’analisi
+                {videoFile && !solution.trim() ? 'Avvia analisi video' : 'Analizza la soluzione'}
               </button>
             </form>
 
@@ -399,12 +437,17 @@ export default function Home() {
           </section>
 
           <section className="overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950 text-white shadow-[0_35px_90px_-38px_rgba(15,23,42,0.8)]">
+            {hasAnalysis ? (
+              <>
             <div className="grid min-h-[390px] gap-2 border-b border-white/10 bg-[radial-gradient(circle_at_55%_18%,#29458d_0%,#10172d_42%,#080c18_76%)] p-6 sm:grid-cols-[1fr_250px] sm:p-8">
               <div className="flex flex-col">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-300">Replay virtuale</p>
                 <h2 className="mt-2 text-2xl font-black tracking-tight">{positionLabel}</h2>
                 <p className="mt-2 text-sm text-slate-400">
                   Stato: <span className="font-bold text-white">{PHASE_LABELS[currentPhase]}</span>
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Cross dedotta: <span className="font-bold text-slate-300">{COLOR_LABELS[crossColor]}</span> · affidabilità {crossConfidence}%
                 </p>
 
                 <div className="mt-6 flex max-w-[340px] flex-wrap gap-2 font-mono text-sm text-slate-500">
@@ -564,10 +607,29 @@ export default function Home() {
                 ))}
               </div>
             </div>
+              </>
+            ) : (
+              <div className="grid min-h-[620px] place-items-center bg-[radial-gradient(circle_at_50%_20%,#29458d_0%,#10172d_40%,#080c18_76%)] p-8 text-center">
+                <div className="max-w-md">
+                  <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-3xl text-blue-300">▶</div>
+                  <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-blue-300">In attesa dell’analisi</p>
+                  <h2 className="mt-3 text-3xl font-black tracking-tight">
+                    {videoFile ? 'Video pronto.' : 'Carica la tua solve.'}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                    {videoFile
+                      ? 'Premi “Avvia analisi video”. Qui compariranno soltanto le mosse realmente riconosciute o confermate, senza sequenze dimostrative.'
+                      : 'Seleziona un filmato per iniziare. Replay, Cross dedotta, scramble e fasi resteranno vuoti finché non esiste un risultato attendibile.'}
+                  </p>
+                  {videoFile ? <p className="mt-5 truncate rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-slate-300">{videoFile.name}</p> : null}
+                </div>
+              </div>
+            )}
           </section>
         </div>
 
-        <section className="mb-16 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.35)]">
+        {hasAnalysis ? (
+          <section className="mb-16 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.35)]">
           <div className="grid gap-5 border-b border-slate-100 bg-slate-50/70 p-6 sm:grid-cols-[1fr_auto] sm:items-center sm:p-8">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Risultato verificato</p>
@@ -611,7 +673,8 @@ export default function Home() {
               );
             })}
           </div>
-        </section>
+          </section>
+        ) : null}
       </div>
     </main>
   );
