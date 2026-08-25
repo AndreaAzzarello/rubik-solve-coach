@@ -1,0 +1,58 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+.expo/
+.next/
+coverage/
+
+# Android
+.gradle/
+local.properties
+*.apk
+*.aab
+
+# iOS / Xcode
+DerivedData/
+Pods/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Python and computer vision experiments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Large or private datasets and generated models
+data/raw/
+data/private/
+models/generated/
+*.onnx
+*.tflite
+*.mlmodel
+
+# Raw video recordings
+*.mov
+*.mp4
+*.avi
+*.mkv
+
