@@ -85,3 +85,34 @@ di riferimento con:
 - eventuali rotazioni complete del cubo;
 - punti in cui una mossa e volutamente lenta o ambigua.
 
+## FT-001 - Coppie di calibrazione fingertrick
+
+Il 26 agosto 2026 sono state aggiunte cinque coppie di registrazioni guidate.
+Ogni coppia mostra lo stesso gruppo di movimenti prima lentamente e poi
+velocemente. I file restano locali; questa tabella conserva solo metadati
+tecnici e l'abbinamento necessario per ripetere i test.
+
+| Gruppo | Video lento | Durata / fps | Video veloce | Durata / fps |
+| --- | --- | --- | --- | --- |
+| Movimenti base | `IMG_6010.MOV` | 108,470 s / 29,999 | `IMG_6021.MOV` | 28,412 s / 59,975 |
+| Wide move | `IMG_6011.MOV` | 103,217 s / 29,976 | `IMG_6022.MOV` | 31,430 s / 59,975 |
+| Slice move | `IMG_6013.MOV` | 59,135 s / 29,999 | `IMG_6023.MOV` | 30,747 s / 59,974 |
+| Rotazioni complete | `IMG_6015.MOV` | 48,987 s / 59,976 | `IMG_6025.MOV` | 23,277 s / 59,974 |
+| Trigger e fingertrick | `IMG_6017.MOV` | 92,672 s / 59,975 | `IMG_6032.MOV` | 28,178 s / 59,975 |
+
+Tutti i filmati sono verticali a 1080 x 1920. L'inquadratura e stabile, il
+cubo occupa la zona centrale e ogni clip ritorna allo stato risolto. Queste
+caratteristiche hanno guidato il profilo temporale v2:
+
+- ritaglio centrale dedicato al cubo, per ridurre il peso dello sfondo;
+- confronto combinato di luminosita e colore, compensando piccoli cambi di
+  esposizione;
+- campionamento fino a circa 16 fotogrammi al secondo;
+- ricerca di picchi separati anche quando le mosse sono ravvicinate;
+- segnalazione distinta dei movimenti estesi, possibili wide move, rotazioni o
+  regrip.
+
+Le coppie non costituiscono ancora un dataset supervisionato per il nome della
+mossa: per misurare l'accuratezza `U/R/F/...` servono le sequenze esatte oppure
+timestamp annotati. Fino ad allora il decoder propone gli eventi temporali e
+richiede la conferma dell'identita della mossa.

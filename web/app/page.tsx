@@ -19,6 +19,8 @@ const SKIP_EVENT = '__skip__';
 const MOVE_REVIEW_OPTIONS = [
   'U', "U'", 'U2', 'R', "R'", 'R2', 'F', "F'", 'F2',
   'D', "D'", 'D2', 'L', "L'", 'L2', 'B', "B'", 'B2',
+  'Uw', "Uw'", 'Uw2', 'Rw', "Rw'", 'Rw2', 'Fw', "Fw'", 'Fw2',
+  'Dw', "Dw'", 'Dw2', 'Lw', "Lw'", 'Lw2', 'Bw', "Bw'", 'Bw2',
   'M', "M'", 'M2', 'E', "E'", 'E2', 'S', "S'", 'S2',
   'x', "x'", 'x2', 'y', "y'", 'y2', 'z', "z'", 'z2',
 ] as const;
@@ -316,7 +318,7 @@ export default function Home() {
       setDecoderStatus('review');
       setDecoderProgress(1);
       if (!result.events.length) {
-        setError('Non sono stati trovati movimenti abbastanza netti. Prova a restringere l’intervallo alla sola risoluzione.');
+        setError('Non sono stati trovati picchi di movimento separabili. Restringi l’intervallo alla sola risoluzione e mantieni il cubo al centro.');
       }
     } catch (caught) {
       setDecoderStatus('failed');
@@ -499,6 +501,9 @@ export default function Home() {
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950">
                   <strong>Cross automatica:</strong> non devi più scegliere un colore. Viene dedotto dalla progressione della solve e accompagnato da un livello di affidabilità.
                 </div>
+                <div className="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
+                  <strong>Decoder video v2:</strong> calibrato sulle riprese guidate lente a 30 fps e veloci a 60 fps. Analizza soprattutto l’area del cubo e separa i picchi ravvicinati.
+                </div>
 
                 {decoderStatus === 'running' ? (
                   <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
@@ -509,7 +514,7 @@ export default function Home() {
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
                       <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${decoderProgress * 100}%` }} />
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-blue-800">Il video viene elaborato localmente. I filmati lunghi possono richiedere qualche minuto.</p>
+                    <p className="mt-2 text-[11px] leading-4 text-blue-800">Il video viene elaborato localmente con campionamento rapido nell’area centrale. I filmati lunghi possono richiedere qualche minuto.</p>
                   </div>
                 ) : null}
 
@@ -518,7 +523,7 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xs font-black text-slate-950">Eventi da verificare</p>
-                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Il decoder temporale ha trovato {motionEvents.length} movimenti. Tocca il tempo per rivedere il passaggio, poi assegna la mossa o ignoralo.</p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Il decoder ha separato {motionEvents.length} picchi. Tocca il tempo per rivedere il passaggio, poi assegna la mossa o ignoralo.</p>
                       </div>
                       <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
                     </div>
@@ -531,7 +536,10 @@ export default function Home() {
                             className="rounded-lg bg-slate-950 px-2 py-2 font-mono text-[11px] font-black text-white transition hover:bg-blue-700"
                             title="Riproduci questo passaggio"
                           >
-                            {formatDuration(motionEvent.peakTime)}
+                            <span className="block">{formatDuration(motionEvent.peakTime)}</span>
+                            <span className="mt-0.5 block text-[8px] uppercase tracking-wide text-slate-400">
+                              {motionEvent.motionKind === 'global-motion' ? 'esteso' : 'faccia'}
+                            </span>
                           </button>
                           <select
                             value={eventChoices[motionEvent.id] ?? ''}
@@ -611,7 +619,7 @@ export default function Home() {
                   ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
                   : decoderStatus === 'review'
                     ? allEventsReviewed ? 'Genera scramble e fasi' : `Verifica gli eventi · ${reviewedEvents}/${motionEvents.length}`
-                    : videoFile && !solution.trim() ? 'Avvia decoder video' : 'Analizza la soluzione'}
+                    : videoFile && !solution.trim() ? 'Avvia decoder video v2' : 'Analizza la soluzione'}
               </button>
             </form>
 

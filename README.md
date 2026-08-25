@@ -72,8 +72,13 @@ browser. La prima versione permette di:
 - osservare lo stato del cubo e le condizioni Cross, F2L, OLL e PLL;
 - individuare rotazioni complete, wide move e slice move.
 
-Il riconoscimento automatico del video verra collegato a questa interfaccia in
-una fase successiva.
+Il riconoscimento automatico del video viene collegato a questa interfaccia in
+piu fasi. Il decoder temporale v2 e gia attivo: lavora localmente nel
+browser, concentra l'analisi sull'area del cubo, individua picchi di movimento
+anche ravvicinati e segnala quelli estesi, compatibili con wide move, rotazioni
+o variazioni di presa. Il
+nome della mossa resta da confermare finche non sara disponibile un modello
+supervisionato affidabile.
 
 ## Strumenti di sviluppo
 
@@ -82,4 +87,5 @@ Per generare metadati e contact sheet da filmati locali:
 ```powershell
 python -m pip install -r requirements-dev.txt
 python tools/inspect_videos.py video.mov --output data/private/video-inspection
+python tools/calibrate_motion_decoder.py video.mov --output data/private/motion-calibration.json
 ```
