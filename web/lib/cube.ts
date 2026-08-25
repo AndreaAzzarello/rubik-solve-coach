@@ -108,7 +108,7 @@ const LOWERCASE_WIDE: Record<string, string> = {
 };
 
 const CROSS_TO_DOWN_ROTATION: Record<CubeColor, string> = {
-  white: 'x2',
+  white: 'z2',
   yellow: '',
   red: 'z',
   orange: "z'",
@@ -326,4 +326,3 @@ export function analyzeSolution(algorithm: string, crossColor: CubeColor): Analy
     finalSolved: cube.isSolved(),
   };
 }
-

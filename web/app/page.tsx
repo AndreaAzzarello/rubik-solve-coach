@@ -45,12 +45,26 @@ function CubeFace({ colors }: { colors: CubeColor[] }) {
   );
 }
 
-function CubeVisual({ state }: { state: CubeState }) {
+function CubeVisual({ state, crossColor }: { state: CubeState; crossColor: CubeColor }) {
+  const frontColor = state.facelets('F')[4];
+
   return (
-    <div className="cube-stage" aria-label="Anteprima dello stato del cubo">
-      <div className="cube-top"><CubeFace colors={state.facelets('U')} /></div>
-      <div className="cube-left"><CubeFace colors={state.facelets('F')} /></div>
-      <div className="cube-right"><CubeFace colors={state.facelets('R')} /></div>
+    <div
+      className="cube-stage"
+      role="img"
+      aria-label={`Cubo 3D con Cross ${COLOR_LABELS[crossColor]} sotto e centro ${COLOR_LABELS[frontColor]} davanti`}
+    >
+      <div className="cube-float">
+        <div className="cube-model">
+          <div className="cube-side cube-side-top"><CubeFace colors={state.facelets('U')} /></div>
+          <div className="cube-side cube-side-front"><CubeFace colors={state.facelets('F')} /></div>
+          <div className="cube-side cube-side-right"><CubeFace colors={state.facelets('R')} /></div>
+        </div>
+      </div>
+      <div className="cube-caption" aria-hidden="true">
+        <span>↓ {COLOR_LABELS[crossColor]}</span>
+        <span>Fronte · {COLOR_LABELS[frontColor]}</span>
+      </div>
     </div>
   );
 }
@@ -321,7 +335,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <CubeVisual state={currentState} />
+              <CubeVisual state={currentState} crossColor={crossColor} />
             </div>
 
             <div className="grid gap-6 p-6 sm:grid-cols-[0.9fr_1.2fr] sm:p-8">
@@ -409,4 +423,3 @@ export default function Home() {
     </main>
   );
 }
-
