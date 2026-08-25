@@ -60,6 +60,21 @@ Per analizzare una sequenza gia trascritta:
 python -m tools.analyze_algorithm --solution "R U R' U'" --cross-color yellow
 ```
 
+## MVP web
+
+La cartella [`web`](web/) contiene un sito interattivo per provare il motore nel
+browser. La prima versione permette di:
+
+- inserire e validare una sequenza di mosse;
+- scegliere il colore della Cross;
+- ottenere lo scramble inverso;
+- avanzare nel replay mossa per mossa o riprodurlo automaticamente;
+- osservare lo stato del cubo e le condizioni Cross, F2L, OLL e PLL;
+- individuare rotazioni complete, wide move e slice move.
+
+Il riconoscimento automatico del video verra collegato a questa interfaccia in
+una fase successiva.
+
 ## Strumenti di sviluppo
 
 Per generare metadati e contact sheet da filmati locali:

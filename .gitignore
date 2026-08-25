@@ -16,6 +16,7 @@ Thumbs.db
 
 # JavaScript / TypeScript
 node_modules/
+.pnpm-store/
 dist/
 build/
 .expo/
@@ -55,4 +56,3 @@ models/generated/
 *.mp4
 *.avi
 *.mkv
-
