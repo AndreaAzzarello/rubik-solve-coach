@@ -40,8 +40,25 @@ analisi e i metadati non sensibili descritti in
 
 ## Stato del progetto
 
-Il progetto e nella fase iniziale di definizione. La specifica funzionale si
-trova in [`docs/product-scope.md`](docs/product-scope.md).
+Il progetto contiene ora un primo motore matematico di riferimento. Gestisce la
+notazione, lo stato dei 54 sticker, le fasi CFOP, la Cross preferita e la
+ricostruzione dello scramble. I dettagli si trovano in
+[`docs/core-engine.md`](docs/core-engine.md).
+
+La specifica funzionale completa si trova in
+[`docs/product-scope.md`](docs/product-scope.md).
+
+Per eseguire i test del motore:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Per analizzare una sequenza gia trascritta:
+
+```powershell
+python -m tools.analyze_algorithm --solution "R U R' U'" --cross-color yellow
+```
 
 ## Strumenti di sviluppo
 
@@ -51,4 +68,3 @@ Per generare metadati e contact sheet da filmati locali:
 python -m pip install -r requirements-dev.txt
 python tools/inspect_videos.py video.mov --output data/private/video-inspection
 ```
-
