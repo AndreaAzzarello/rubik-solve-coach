@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AnalysisResult,
   COLOR_HEX,
@@ -12,8 +12,16 @@ import {
   cfopStatus,
   classifyPhase,
 } from '../lib/cube';
+import { MotionEvent, decodeVideoMotion } from '../lib/video-decoder';
 
 const crossColors = Object.keys(COLOR_HEX) as CubeColor[];
+const SKIP_EVENT = '__skip__';
+const MOVE_REVIEW_OPTIONS = [
+  'U', "U'", 'U2', 'R', "R'", 'R2', 'F', "F'", 'F2',
+  'D', "D'", 'D2', 'L', "L'", 'L2', 'B', "B'", 'B2',
+  'M', "M'", 'M2', 'E', "E'", 'E2', 'S', "S'", 'S2',
+  'x', "x'", 'x2', 'y', "y'", 'y2', 'z', "z'", 'z2',
+] as const;
 
 const PHASE_LABELS: Record<Phase, string> = {
   cross: 'Cross',
@@ -142,6 +150,7 @@ function completionLabel(done: boolean, available: boolean) {
 }
 
 export default function Home() {
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [solution, setSolution] = useState('');
   const [crossColor, setCrossColor] = useState<CubeColor>('yellow');
   const [crossConfidence, setCrossConfidence] = useState(0);
@@ -154,6 +163,12 @@ export default function Home() {
   const [videoUrl, setVideoUrl] = useState('');
   const [videoError, setVideoError] = useState('');
   const [videoMeta, setVideoMeta] = useState({ duration: 0, width: 0, height: 0 });
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [decoderStatus, setDecoderStatus] = useState<'idle' | 'running' | 'review' | 'failed'>('idle');
+  const [decoderProgress, setDecoderProgress] = useState(0);
+  const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
+  const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
   const [copied, setCopied] = useState(false);
 
   const currentState = analysis.states[stepIndex] ?? analysis.states[0];
@@ -183,6 +198,12 @@ export default function Home() {
     });
     return groups;
   }, [analysis]);
+
+  const reviewedEvents = useMemo(
+    () => motionEvents.filter((event) => eventChoices[event.id]).length,
+    [eventChoices, motionEvents],
+  );
+  const allEventsReviewed = motionEvents.length > 0 && reviewedEvents === motionEvents.length;
 
   useEffect(() => {
     return () => {
@@ -220,11 +241,26 @@ export default function Home() {
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (decoderStatus === 'running') return;
+    if (videoFile && decoderStatus === 'review') {
+      if (!allEventsReviewed) {
+        setError(`Conferma o ignora ancora ${motionEvents.length - reviewedEvents} eventi prima di generare lo scramble.`);
+        return;
+      }
+      if (!solution.trim()) {
+        setError('Tutti gli eventi sono stati ignorati: non esiste una sequenza da analizzare.');
+        return;
+      }
+      runAnalysis();
+      return;
+    }
     if (!solution.trim()) {
-      setHasAnalysis(false);
-      setError(videoFile
-        ? 'Il video è stato caricato, ma il decoder automatico delle mosse non è ancora collegato. Nessuna sequenza di esempio verrà usata: inserisci una trascrizione verificata oppure ricarica il filmato nella chat per sviluppare il riconoscimento.'
-        : 'Carica un video oppure inserisci una sequenza di mosse da analizzare.');
+      if (videoFile) {
+        void runVideoDecoder();
+      } else {
+        setHasAnalysis(false);
+        setError('Carica un video oppure inserisci una sequenza di mosse da analizzare.');
+      }
       return;
     }
     runAnalysis();
@@ -241,12 +277,70 @@ export default function Home() {
     setVideoFile(file);
     setVideoUrl(URL.createObjectURL(file));
     setVideoMeta({ duration: 0, width: 0, height: 0 });
+    setTrimStart(0);
+    setTrimEnd(0);
+    setDecoderStatus('idle');
+    setDecoderProgress(0);
+    setMotionEvents([]);
+    setEventChoices({});
     setVideoError('');
     setSolution('');
     setAnalysis(emptyAnalysis());
     setHasAnalysis(false);
     setStepIndex(0);
     setPlaying(false);
+    setError('');
+  }
+
+  async function runVideoDecoder() {
+    const video = videoRef.current;
+    if (!video || !videoFile) {
+      setError('Carica un video prima di avviare il decoder.');
+      return;
+    }
+
+    try {
+      setDecoderStatus('running');
+      setDecoderProgress(0);
+      setMotionEvents([]);
+      setEventChoices({});
+      setSolution('');
+      setHasAnalysis(false);
+      setError('');
+      const result = await decodeVideoMotion(video, {
+        startTime: trimStart,
+        endTime: trimEnd || video.duration,
+        onProgress: setDecoderProgress,
+      });
+      setMotionEvents(result.events);
+      setDecoderStatus('review');
+      setDecoderProgress(1);
+      if (!result.events.length) {
+        setError('Non sono stati trovati movimenti abbastanza netti. Prova a restringere l’intervallo alla sola risoluzione.');
+      }
+    } catch (caught) {
+      setDecoderStatus('failed');
+      setError(caught instanceof Error ? caught.message : 'Impossibile analizzare il video.');
+    }
+  }
+
+  function seekVideo(time: number) {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = Math.min(Math.max(0, time), video.duration || time);
+    void video.play().catch(() => undefined);
+  }
+
+  function reviewMotionEvent(eventId: number, choice: string) {
+    setEventChoices((current) => {
+      const next = { ...current, [eventId]: choice };
+      const verifiedMoves = motionEvents
+        .map((motionEvent) => next[motionEvent.id])
+        .filter((move): move is string => Boolean(move) && move !== SKIP_EVENT);
+      setSolution(verifiedMoves.join(' '));
+      return next;
+    });
+    setHasAnalysis(false);
     setError('');
   }
 
@@ -323,8 +417,10 @@ export default function Home() {
                 </div>
 
                 {videoUrl ? (
+                  <>
                   <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
                     <video
+                      ref={videoRef}
                       key={videoUrl}
                       src={videoUrl}
                       controls
@@ -338,6 +434,8 @@ export default function Home() {
                           width: video.videoWidth,
                           height: video.videoHeight,
                         });
+                        setTrimStart(0);
+                        setTrimEnd(video.duration);
                       }}
                     >
                       Il browser non riesce a riprodurre questo formato video.
@@ -355,6 +453,32 @@ export default function Home() {
                       </label>
                     </div>
                   </div>
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black text-slate-950">Intervallo della risoluzione</p>
+                        <p className="mt-1 text-[11px] text-slate-500">Riproduci il video e marca l’inizio e la fine della solve.</p>
+                      </div>
+                      <span className="font-mono text-[11px] font-bold text-slate-500">{formatDuration(trimStart)}–{formatDuration(trimEnd)}</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setTrimStart(Math.min(videoRef.current?.currentTime ?? 0, trimEnd))}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black transition hover:border-blue-300"
+                      >
+                        Segna inizio
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTrimEnd(Math.max(videoRef.current?.currentTime ?? videoMeta.duration, trimStart))}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black transition hover:border-blue-300"
+                      >
+                        Segna fine
+                      </button>
+                    </div>
+                  </div>
+                  </>
                 ) : (
                   <label
                     htmlFor="video-upload"
@@ -375,6 +499,55 @@ export default function Home() {
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-950">
                   <strong>Cross automatica:</strong> non devi più scegliere un colore. Viene dedotto dalla progressione della solve e accompagnato da un livello di affidabilità.
                 </div>
+
+                {decoderStatus === 'running' ? (
+                  <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-center justify-between gap-3 text-xs font-black text-blue-950">
+                      <span>Analisi dei fotogrammi</span>
+                      <span>{Math.round(decoderProgress * 100)}%</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
+                      <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${decoderProgress * 100}%` }} />
+                    </div>
+                    <p className="mt-2 text-[11px] leading-4 text-blue-800">Il video viene elaborato localmente. I filmati lunghi possono richiedere qualche minuto.</p>
+                  </div>
+                ) : null}
+
+                {decoderStatus === 'review' && motionEvents.length ? (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-black text-slate-950">Eventi da verificare</p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Il decoder temporale ha trovato {motionEvents.length} movimenti. Tocca il tempo per rivedere il passaggio, poi assegna la mossa o ignoralo.</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
+                    </div>
+                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                      {motionEvents.map((motionEvent) => (
+                        <div key={motionEvent.id} className="grid grid-cols-[72px_1fr] items-center gap-2 rounded-xl bg-slate-50 p-2">
+                          <button
+                            type="button"
+                            onClick={() => seekVideo(motionEvent.start)}
+                            className="rounded-lg bg-slate-950 px-2 py-2 font-mono text-[11px] font-black text-white transition hover:bg-blue-700"
+                            title="Riproduci questo passaggio"
+                          >
+                            {formatDuration(motionEvent.peakTime)}
+                          </button>
+                          <select
+                            value={eventChoices[motionEvent.id] ?? ''}
+                            onChange={(event) => reviewMotionEvent(motionEvent.id, event.target.value)}
+                            className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                            aria-label={`Mossa rilevata a ${formatDuration(motionEvent.peakTime)}`}
+                          >
+                            <option value="">Da confermare · {motionEvent.confidence}%</option>
+                            <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
+                            {MOVE_REVIEW_OPTIONS.map((move) => <option key={move} value={move}>{move}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mb-3 border-t border-slate-100 pt-6">
@@ -385,14 +558,21 @@ export default function Home() {
                   Sequenza rilevata o trascritta
                 </label>
                 <span className="font-mono text-xs text-slate-400">
-                  {analysis.moves.length} mosse analizzate
+                  {solution.trim() ? solution.trim().split(/\s+/).length : 0} mosse in sequenza
                 </span>
               </div>
               <textarea
                 id="moves"
                 className="mt-3 min-h-28 w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 font-mono text-lg font-semibold tracking-wide outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
                 value={solution}
-                onChange={(event) => setSolution(event.target.value)}
+                onChange={(event) => {
+                  setSolution(event.target.value);
+                  setDecoderStatus('idle');
+                  setMotionEvents([]);
+                  setEventChoices({});
+                  setHasAnalysis(false);
+                  setError('');
+                }}
                 spellCheck={false}
                 aria-describedby={error ? 'move-error' : 'move-help'}
               />
@@ -424,9 +604,14 @@ export default function Home() {
 
               <button
                 type="submit"
-                className="mt-7 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+                disabled={decoderStatus === 'running'}
+                className="mt-7 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-wait disabled:opacity-60"
               >
-                {videoFile && !solution.trim() ? 'Avvia analisi video' : 'Analizza la soluzione'}
+                {decoderStatus === 'running'
+                  ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
+                  : decoderStatus === 'review'
+                    ? allEventsReviewed ? 'Genera scramble e fasi' : `Verifica gli eventi · ${reviewedEvents}/${motionEvents.length}`
+                    : videoFile && !solution.trim() ? 'Avvia decoder video' : 'Analizza la soluzione'}
               </button>
             </form>
 
