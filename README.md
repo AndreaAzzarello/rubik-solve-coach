@@ -66,19 +66,30 @@ La cartella [`web`](web/) contiene un sito interattivo per provare il motore nel
 browser. La prima versione permette di:
 
 - inserire e validare una sequenza di mosse;
-- scegliere il colore della Cross;
+- dedurre il colore della Cross dalla progressione della solve;
 - ottenere lo scramble inverso;
 - avanzare nel replay mossa per mossa o riprodurlo automaticamente;
 - osservare lo stato del cubo e le condizioni Cross, F2L, OLL e PLL;
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder temporale v3 e gia attivo: lavora localmente nel
-browser, concentra l'analisi sull'area del cubo, individua picchi di movimento
-anche ravvicinati e segnala quelli estesi, compatibili con wide move, rotazioni
-o variazioni di presa. Il
-nome della mossa resta da confermare finche non sara disponibile un modello
-supervisionato affidabile.
+piu fasi. Il decoder temporale v4 e gia attivo e fonde due canali locali:
+
+- variazione di luminosita e colore nell'area del cubo;
+- traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
+  movimento residuo delle dita.
+
+Una breve finestra temporale collega il fingertrick che inizia prima al
+cambiamento degli sticker che segue. Se il cubo e coperto puo sostenere
+l'evento il canale mani; se le mani escono dal campo resta disponibile il
+canale cubo. L'interfaccia espone per ogni evento la sorgente dell'evidenza e
+la forza dei due segnali. Il video non viene caricato: il browser scarica il
+modello MediaPipe e svolge l'inferenza sul dispositivo.
+
+Il nome della mossa resta da confermare finche non sara disponibile un modello
+supervisionato affidabile per `U/R/F/...`; la traiettoria della mano da sola non
+dimostra quale faccia sia stata ruotata quando orientamento o sticker sono
+ambigui.
 
 Per i video con una sola risoluzione non e necessario marcare manualmente
 l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili

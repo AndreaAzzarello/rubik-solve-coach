@@ -1,11 +1,27 @@
+import {
+  HandDirection,
+  HandSide,
+  createHandMotionTracker,
+} from './hand-motion';
+
 export type MotionSample = {
   time: number;
   difference: number;
   coverage?: number;
   centerBias?: number;
+  cubeDifference?: number;
+  handMotion?: number;
+  fingerMotion?: number;
+  wristMotion?: number;
+  handCount?: number;
+  dominantHand?: HandSide;
+  handDirection?: HandDirection;
+  cubeEvidence?: number;
+  handEvidence?: number;
 };
 
 export type MotionKind = 'face-turn' | 'global-motion';
+export type MotionEvidence = 'cube' | 'hands' | 'combined';
 
 export type MotionEvent = {
   id: number;
@@ -15,6 +31,18 @@ export type MotionEvent = {
   peakDifference: number;
   confidence: number;
   motionKind: MotionKind;
+  evidence: MotionEvidence;
+  cubeStrength: number;
+  handStrength: number;
+  dominantHand: HandSide;
+  handDirection: HandDirection;
+};
+
+export type HandTrackingSummary = {
+  available: boolean;
+  framesWithHands: number;
+  totalFrames: number;
+  message?: string;
 };
 
 export type VideoDecodeResult = {
@@ -23,6 +51,7 @@ export type VideoDecodeResult = {
   threshold: number;
   sampleInterval: number;
   analyzedRegion: 'cube-focus';
+  handTracking: HandTrackingSummary;
 };
 
 export type VideoStageKind = 'scramble' | 'inspection' | 'solve';
@@ -184,6 +213,59 @@ function frameDifference(
   };
 }
 
+function percentile(values: number[], ratio: number) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * ratio)))];
+}
+
+function channelActivity(values: number[], minimumSpread: number) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const quietBand = sorted.slice(0, Math.max(3, Math.ceil(sorted.length * 0.58)));
+  const baseline = median(quietBand);
+  const deviation = median(quietBand.map((value) => Math.abs(value - baseline)));
+  const spread = Math.max(
+    minimumSpread,
+    deviation * 6,
+    percentile(sorted, 0.9) - baseline,
+  );
+  return values.map((value) => Math.max(0, (value - baseline) / spread));
+}
+
+/**
+ * Porta variazione degli sticker e traiettorie delle mani sulla stessa scala.
+ * La finestra anticipata permette a una fingertrick di sostenere la mossa che
+ * diventa visibile sul cubo pochi fotogrammi dopo.
+ */
+export function fuseMotionEvidence(samples: MotionSample[]) {
+  if (!samples.length) return samples;
+  const cubeValues = samples.map((sample) => sample.cubeDifference ?? sample.difference);
+  const handValues = samples.map((sample) => sample.handMotion ?? 0);
+  const cubeActivity = channelActivity(cubeValues, 2.4);
+  const handActivity = channelActivity(handValues, 0.035);
+  const cubeBaseline = median([...cubeValues].sort((left, right) => left - right).slice(0, Math.max(3, Math.ceil(samples.length * 0.58))));
+  const cubeSpread = Math.max(2.8, percentile(cubeValues, 0.9) - cubeBaseline);
+
+  return samples.map((sample, index) => {
+    let handSupport = handActivity[index] ?? 0;
+    // Le dita spesso iniziano 60–180 ms prima che gli sticker cambino.
+    for (let lead = 1; lead <= 3; lead += 1) {
+      handSupport = Math.max(handSupport, (handActivity[index - lead] ?? 0) * (1 - lead * 0.08));
+    }
+    handSupport = Math.max(handSupport, (handActivity[index + 1] ?? 0) * 0.72);
+    const cubeSupport = cubeActivity[index] ?? 0;
+    const primary = Math.max(cubeSupport, handSupport * 0.96);
+    const agreement = Math.min(cubeSupport, handSupport);
+    return {
+      ...sample,
+      cubeDifference: cubeValues[index],
+      cubeEvidence: cubeSupport,
+      handEvidence: handSupport,
+      difference: cubeBaseline + cubeSpread * (primary + agreement * 0.28),
+    };
+  });
+}
+
 function smoothSamples(samples: MotionSample[]) {
   return samples.map((sample, index) => {
     const previous = samples[Math.max(0, index - 1)].difference;
@@ -192,7 +274,7 @@ function smoothSamples(samples: MotionSample[]) {
   });
 }
 
-export function detectMotionEvents(samples: MotionSample[], sampleInterval: number): Omit<VideoDecodeResult, 'sampleInterval' | 'analyzedRegion'> {
+export function detectMotionEvents(samples: MotionSample[], sampleInterval: number): Omit<VideoDecodeResult, 'sampleInterval' | 'analyzedRegion' | 'handTracking'> {
   if (samples.length < 3) return { events: [], samples, threshold: 0 };
 
   const smoothed = smoothSamples(samples);
@@ -249,8 +331,22 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
       && smoothed[endIndex + 1].difference >= releaseThreshold
     ) endIndex += 1;
 
+    const evidenceWindow = smoothed.slice(Math.max(0, startIndex - 3), Math.min(smoothed.length, endIndex + 2));
+    const cubeEvidence = Math.max(0, ...evidenceWindow.map((sample) => sample.cubeEvidence ?? 0));
+    const handEvidence = Math.max(0, ...evidenceWindow.map((sample) => sample.handEvidence ?? 0));
+    const handPeak = [...evidenceWindow].sort(
+      (left, right) => (right.handEvidence ?? 0) - (left.handEvidence ?? 0),
+    )[0];
+    const hasCubeEvidence = cubeEvidence >= 0.38;
+    const hasHandEvidence = handEvidence >= 0.32;
+    const evidence: MotionEvidence = hasCubeEvidence && hasHandEvidence
+      ? 'combined'
+      : hasHandEvidence && (!hasCubeEvidence || handEvidence > cubeEvidence)
+        ? 'hands'
+        : 'cube';
     const strength = (peak.difference - threshold) / Math.max(1, threshold);
     const focusBonus = Math.max(-8, Math.min(10, ((peak.centerBias ?? 1) - 1) * 12));
+    const agreementBonus = evidence === 'combined' ? 9 : evidence === 'hands' ? -4 : 0;
     // A large changed area is a useful warning for wide moves, cube rotations
     // and regrips. It is deliberately a category, not an automatic move label.
     const globalMotion = (peak.coverage ?? 0) >= 0.52;
@@ -260,8 +356,13 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
       end: smoothed[endIndex].time + sampleInterval,
       peakTime: peak.time,
       peakDifference: peak.difference,
-      confidence: Math.round(Math.min(97, Math.max(36, 52 + strength * 54 + focusBonus))),
+      confidence: Math.round(Math.min(98, Math.max(34, 52 + strength * 54 + focusBonus + agreementBonus))),
       motionKind: globalMotion ? 'global-motion' as const : 'face-turn' as const,
+      evidence,
+      cubeStrength: Math.round(Math.min(100, cubeEvidence * 100)),
+      handStrength: Math.round(Math.min(100, handEvidence * 100)),
+      dominantHand: handPeak?.dominantHand ?? 'unknown',
+      handDirection: handPeak?.handDirection ?? 'mixed',
     };
   });
 
@@ -401,6 +502,10 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   canvas.height = portrait ? 128 : 96;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Il browser non supporta l’analisi dei fotogrammi.');
+  const handCanvas = document.createElement('canvas');
+  handCanvas.width = portrait ? 384 : 512;
+  handCanvas.height = portrait ? 512 : 384;
+  const handContext = handCanvas.getContext('2d');
 
   const sourceWidth = video.videoWidth * (portrait ? 0.88 : 0.74);
   const sourceHeight = video.videoHeight * (portrait ? 0.68 : 0.86);
@@ -414,6 +519,15 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   video.pause();
   const samples: MotionSample[] = [];
   let previous: FrameSignature | null = null;
+  let handTracker: Awaited<ReturnType<typeof createHandMotionTracker>> | null = null;
+  let handTrackingMessage: string | undefined;
+  let framesWithHands = 0;
+
+  try {
+    handTracker = await createHandMotionTracker();
+  } catch {
+    handTrackingMessage = 'Il modello mani non è stato caricato: questa analisi usa il solo cambiamento del cubo.';
+  }
 
   try {
     for (let index = 0; index < sampleCount; index += 1) {
@@ -434,23 +548,52 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
       const measurement = previous
         ? frameDifference(previous, current, canvas.width, canvas.height)
         : { score: 0, coverage: 0, centerBias: 1 };
+      let handMeasurement = {
+        handMotion: 0,
+        fingerMotion: 0,
+        wristMotion: 0,
+        handCount: 0,
+        dominantHand: 'unknown' as HandSide,
+        handDirection: 'mixed' as HandDirection,
+      };
+      if (handTracker && handContext) {
+        try {
+          handContext.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, handCanvas.width, handCanvas.height);
+          handMeasurement = handTracker.sample(handCanvas, time * 1000);
+          if (handMeasurement.handCount > 0) framesWithHands += 1;
+        } catch {
+          handTracker.close();
+          handTracker = null;
+          handTrackingMessage = 'Il tracciamento delle mani si è interrotto; il decoder ha continuato con le variazioni del cubo.';
+        }
+      }
       samples.push({
         time,
         difference: measurement.score,
+        cubeDifference: measurement.score,
         coverage: measurement.coverage,
         centerBias: measurement.centerBias,
+        ...handMeasurement,
       });
       previous = current;
       options.onProgress?.((index + 1) / sampleCount);
     }
   } finally {
+    handTracker?.close();
     await waitForSeek(video, originalTime).catch(() => undefined);
     if (!wasPaused) await video.play().catch(() => undefined);
   }
 
+  const fusedSamples = fuseMotionEvidence(samples);
   return {
-    ...detectMotionEvents(samples, sampleInterval),
+    ...detectMotionEvents(fusedSamples, sampleInterval),
     sampleInterval,
     analyzedRegion: 'cube-focus',
+    handTracking: {
+      available: framesWithHands > 0,
+      framesWithHands,
+      totalFrames: sampleCount,
+      message: handTrackingMessage,
+    },
   };
 }

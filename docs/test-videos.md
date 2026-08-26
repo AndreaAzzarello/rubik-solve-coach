@@ -102,7 +102,7 @@ tecnici e l'abbinamento necessario per ripetere i test.
 
 Tutti i filmati sono verticali a 1080 x 1920. L'inquadratura e stabile, il
 cubo occupa la zona centrale e ogni clip ritorna allo stato risolto. Queste
-caratteristiche hanno guidato il profilo temporale v3:
+caratteristiche hanno guidato il profilo temporale v4:
 
 - ritaglio centrale dedicato al cubo, per ridurre il peso dello sfondo;
 - confronto combinato di luminosita e colore, compensando piccoli cambi di
@@ -115,6 +115,13 @@ caratteristiche hanno guidato il profilo temporale v3:
   mosse quando gran parte di un video lungo contiene movimento;
 - segmentazione automatica di scramble probabile, ispezione e solve tramite le
   pause tra i blocchi di attivita.
+- tracciamento MediaPipe di due mani e 21 landmark per mano;
+- separazione tra traslazione del palmo e movimento residuo delle dita;
+- fusione adattiva con gli sticker e finestra anticipata fino a tre campioni,
+  per collegare la preparazione del fingertrick alla rotazione visibile subito
+  dopo;
+- etichetta `cubo`, `mani/dita` o `cubo + dita` su ogni evento, in modo che il
+  fallback sia verificabile dall'utente.
 
 Le coppie non costituiscono ancora un dataset supervisionato per il nome della
 mossa: per misurare l'accuratezza `U/R/F/...` servono le sequenze esatte oppure

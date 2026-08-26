@@ -12,8 +12,10 @@ correggibile e riproducibile.
 ## Flusso principale
 
 1. L'utente registra o importa una solve.
-2. L'app rileva il cubo, i colori visibili e il suo orientamento nello spazio.
-3. Il motore identifica gli stati stabili tra le rotazioni delle facce.
+2. L'app rileva il cubo, i colori visibili, il suo orientamento e 21 landmark
+   per ciascuna mano visibile.
+3. Il motore fonde gli stati del cubo con movimento del palmo e fingertrick,
+   usando ogni canale come fallback dell'altro in caso di occlusione.
 4. Un decoder vincolato dalle regole del cubo seleziona la sequenza di mosse
    compatibile con il video.
 5. L'utente controlla i passaggi incerti tramite video e cubo virtuale.
@@ -84,3 +86,8 @@ Se il video non contiene informazioni sufficienti, l'app non deve inventare una
 mossa. Deve mostrare l'incertezza, presentare le alternative compatibili e
 permettere all'utente di correggere la timeline.
 
+Nel decoder v4 questo principio viene applicato anche alla fusione: la
+concordanza tra cubo e dita aumenta l'affidabilita; un evento sostenuto da un
+solo canale resta visibile ma viene dichiarato come tale. La direzione delle
+dita non viene trasformata automaticamente in una lettera di mossa senza un
+modello supervisionato e un orientamento del cubo sufficientemente certo.

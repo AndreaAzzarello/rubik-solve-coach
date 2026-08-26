@@ -13,6 +13,7 @@ import {
   classifyPhase,
 } from '../lib/cube';
 import {
+  type HandTrackingSummary,
   MotionEvent,
   VideoSegmentation,
   decodeVideoMotion,
@@ -78,6 +79,33 @@ const START_STATE_LABELS = {
   'solved-likely': 'Il video probabilmente parte dal cubo risolto',
   'scrambled-likely': 'Il video probabilmente parte dal cubo già mischiato',
   unknown: 'Stato iniziale ancora da verificare',
+} as const;
+
+const MOTION_EVIDENCE_LABELS = {
+  cube: 'cubo',
+  hands: 'mani/dita',
+  combined: 'cubo + dita',
+} as const;
+
+const MOTION_EVIDENCE_STYLES = {
+  cube: 'bg-amber-100 text-amber-800',
+  hands: 'bg-fuchsia-100 text-fuchsia-800',
+  combined: 'bg-emerald-100 text-emerald-800',
+} as const;
+
+const HAND_SIDE_LABELS = {
+  left: 'mano sx',
+  right: 'mano dx',
+  both: 'entrambe',
+  unknown: 'mano',
+} as const;
+
+const HAND_DIRECTION_LABELS = {
+  left: 'verso sinistra',
+  right: 'verso destra',
+  up: 'verso l’alto',
+  down: 'verso il basso',
+  mixed: 'traiettoria mista',
 } as const;
 
 function formatFileSize(bytes: number) {
@@ -195,6 +223,7 @@ export default function Home() {
   const [allMotionEvents, setAllMotionEvents] = useState<MotionEvent[]>([]);
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
   const [videoSegmentation, setVideoSegmentation] = useState<VideoSegmentation | null>(null);
+  const [handTracking, setHandTracking] = useState<HandTrackingSummary | null>(null);
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
   const [copied, setCopied] = useState(false);
@@ -242,13 +271,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!playing) return;
-    if (stepIndex >= analysis.moves.length) {
-      setPlaying(false);
-      return;
-    }
     const timer = window.setTimeout(() => {
-      setStepIndex((current) => Math.min(current + 1, analysis.moves.length));
-    }, 720);
+      if (stepIndex >= analysis.moves.length) {
+        setPlaying(false);
+      } else {
+        setStepIndex((current) => Math.min(current + 1, analysis.moves.length));
+      }
+    }, stepIndex >= analysis.moves.length ? 0 : 720);
     return () => window.clearTimeout(timer);
   }, [analysis.moves.length, playing, stepIndex]);
 
@@ -313,6 +342,7 @@ export default function Home() {
     setAllMotionEvents([]);
     setMotionEvents([]);
     setVideoSegmentation(null);
+    setHandTracking(null);
     setSelectedWindowId(null);
     setEventChoices({});
     setVideoError('');
@@ -337,6 +367,7 @@ export default function Home() {
       setAllMotionEvents([]);
       setMotionEvents([]);
       setVideoSegmentation(null);
+      setHandTracking(null);
       setSelectedWindowId(null);
       setEventChoices({});
       setSolution('');
@@ -357,6 +388,7 @@ export default function Home() {
       );
       const selectedIds = new Set(defaultWindow?.eventIds ?? result.events.map((event) => event.id));
       setAllMotionEvents(result.events);
+      setHandTracking(result.handTracking);
       setVideoSegmentation(segmentation);
       setSelectedWindowId(defaultWindow?.id ?? null);
       setMotionEvents(result.events.filter((event) => selectedIds.has(event.id)));
@@ -569,19 +601,19 @@ export default function Home() {
                   <strong>Cross automatica:</strong> non devi più scegliere un colore. Viene dedotto dalla progressione della solve e accompagnato da un livello di affidabilità.
                 </div>
                 <div className="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v3:</strong> calibrato sulle riprese lente, veloci e complete. Analizza l’area del cubo e separa automaticamente preparazione e solve.
+                  <strong>Decoder video v4 · doppia evidenza:</strong> confronta il cambiamento del cubo con le traiettorie di mani, dita e polpastrelli, poi separa automaticamente preparazione e solve.
                 </div>
 
                 {decoderStatus === 'running' ? (
                   <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-center justify-between gap-3 text-xs font-black text-blue-950">
-                      <span>Analisi dei fotogrammi</span>
+                      <span>Cubo + tracciamento delle mani</span>
                       <span>{Math.round(decoderProgress * 100)}%</span>
                     </div>
                     <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100">
                       <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${decoderProgress * 100}%` }} />
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-blue-800">Il video viene elaborato localmente con campionamento rapido nell’area centrale. I filmati lunghi possono richiedere qualche minuto.</p>
+                    <p className="mt-2 text-[11px] leading-4 text-blue-800">I fotogrammi restano sul dispositivo. Il decoder segue 21 punti per mano e li confronta con gli sticker; i filmati lunghi possono richiedere qualche minuto.</p>
                   </div>
                 ) : null}
 
@@ -594,6 +626,15 @@ export default function Home() {
                       </div>
                       <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
                     </div>
+                    {handTracking?.available ? (
+                      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] leading-4 text-emerald-900">
+                        <strong>Doppio segnale attivo:</strong> mani presenti in {handTracking.framesWithHands} di {handTracking.totalFrames} fotogrammi campionati. Se gli sticker sono coperti, il picco può essere sostenuto dalle dita; se le mani spariscono, resta valido il cambiamento del cubo.
+                      </div>
+                    ) : handTracking ? (
+                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-950">
+                        <strong>Fallback sul cubo:</strong> {handTracking.message ?? 'le mani non sono rimaste visibili abbastanza a lungo per creare una traiettoria affidabile.'}
+                      </div>
+                    ) : null}
                     {selectedWindow ? (
                       <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -642,7 +683,7 @@ export default function Home() {
                     ) : null}
                     <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
                       {motionEvents.map((motionEvent) => (
-                        <div key={motionEvent.id} className="grid grid-cols-[72px_1fr] items-center gap-2 rounded-xl bg-slate-50 p-2">
+                        <div key={motionEvent.id} className="grid grid-cols-[78px_1fr] items-center gap-2 rounded-xl bg-slate-50 p-2">
                           <button
                             type="button"
                             onClick={() => seekVideo(motionEvent.start)}
@@ -654,19 +695,33 @@ export default function Home() {
                               {motionEvent.motionKind === 'global-motion' ? 'esteso' : 'faccia'}
                             </span>
                           </button>
-                          <select
-                            value={eventChoices[motionEvent.id] ?? ''}
-                            onChange={(event) => reviewMotionEvent(motionEvent.id, event.target.value)}
-                            className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
-                            aria-label={`Mossa rilevata a ${formatDuration(motionEvent.peakTime)}`}
-                          >
-                            <option value="">Da confermare · {motionEvent.confidence}%</option>
-                            <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
-                            {MOVE_REVIEW_OPTIONS.map((move) => <option key={move} value={move}>{move}</option>)}
-                          </select>
+                          <div className="min-w-0">
+                            <select
+                              value={eventChoices[motionEvent.id] ?? ''}
+                              onChange={(event) => reviewMotionEvent(motionEvent.id, event.target.value)}
+                              className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                              aria-label={`Mossa rilevata a ${formatDuration(motionEvent.peakTime)}`}
+                            >
+                              <option value="">Da confermare · {motionEvent.confidence}%</option>
+                              <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
+                              {MOVE_REVIEW_OPTIONS.map((move) => <option key={move} value={move}>{move}</option>)}
+                            </select>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[9px] font-bold text-slate-500">
+                              <span className={`rounded-full px-2 py-0.5 ${MOTION_EVIDENCE_STYLES[motionEvent.evidence]}`}>
+                                {MOTION_EVIDENCE_LABELS[motionEvent.evidence]}
+                              </span>
+                              <span>Cubo {motionEvent.cubeStrength}% · dita {motionEvent.handStrength}%</span>
+                              {motionEvent.evidence !== 'cube' ? (
+                                <span>{HAND_SIDE_LABELS[motionEvent.dominantHand]} · {HAND_DIRECTION_LABELS[motionEvent.handDirection]}</span>
+                              ) : null}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
+                    <p className="mt-3 text-[10px] leading-4 text-slate-500">
+                      Le mani ora migliorano tempi e affidabilità dell’evento. Il nome esatto della mossa (U, R, F…) resta da confermare finché il classificatore non viene addestrato con esempi etichettati mossa per mossa.
+                    </p>
                   </div>
                 ) : null}
               </div>
@@ -692,6 +747,7 @@ export default function Home() {
                   setAllMotionEvents([]);
                   setMotionEvents([]);
                   setVideoSegmentation(null);
+                  setHandTracking(null);
                   setSelectedWindowId(null);
                   setEventChoices({});
                   setHasAnalysis(false);
@@ -735,7 +791,7 @@ export default function Home() {
                   ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
                   : decoderStatus === 'review'
                     ? allEventsReviewed ? 'Genera scramble e fasi' : `Verifica gli eventi · ${reviewedEvents}/${motionEvents.length}`
-                    : videoFile && !solution.trim() ? 'Avvia decoder video v3' : 'Analizza la soluzione'}
+                    : videoFile && !solution.trim() ? 'Avvia decoder video v4' : 'Analizza la soluzione'}
               </button>
             </form>
 
