@@ -90,18 +90,27 @@ anche una sequenza veloce mostra una sola rotazione. Gli eventi con almeno
 l'88% di confidenza e segnali coerenti vengono accettati automaticamente come
 movimenti reali. La rianalisi sposta leggermente istanti di campionamento e area
 osservata, confronta i nuovi picchi con le letture precedenti e aumenta
-l'affidabilita soltanto degli eventi ritrovati; dopo due letture concordi la
-soglia di accettazione scende all'84%. L'interfaccia mostra la confidenza media
-e il numero di letture confrontate; revisione, segmentazione e dati tecnici
-restano disponibili in pannelli richiudibili. Il video non viene caricato: il
-browser scarica il modello MediaPipe e svolge l'inferenza sul dispositivo.
+l'affidabilita soltanto degli eventi ritrovati. Se la prima lettura resta sotto
+l'82%, il browser avvia automaticamente fino a tre letture; il pulsante di
+rianalisi aggiunge poi altre letture alla stessa sovrapposizione. Dopo due
+letture concordi la soglia di accettazione scende all'84%. L'interfaccia mostra
+la confidenza media e il numero di letture confrontate; revisione,
+segmentazione e dati tecnici restano disponibili in pannelli richiudibili. Il
+video non viene caricato: il browser scarica il modello MediaPipe e svolge
+l'inferenza sul dispositivo.
 
 Il nome della mossa resta da confermare finche non sara disponibile un modello
 supervisionato affidabile per `U/R/F/...`; la traiettoria della mano da sola non
 dimostra quale faccia sia stata ruotata quando orientamento o sticker sono
 ambigui. Lo scramble inverso e la suddivisione Cross, F2L, OLL e PLL vengono
 mostrati appena tutti gli eventi hanno una notazione esatta, senza sostituire
-le mosse mancanti con una sequenza di esempio o una stima non verificabile.
+le mosse mancanti con una sequenza di esempio o una stima non verificabile. Al
+termine della lettura, il campo modificabile della sequenza contiene subito una
+posizione per ogni movimento trovato: una mossa confermata usa la sua notazione,
+mentre `?` indica un evento la cui identita U/R/F e ancora da assegnare. Il campo
+puo essere corretto e copiato direttamente. La Cross viene presentata prima
+della sequenza e il relativo indicatore assume il colore dedotto quando la
+notazione e completa.
 
 Per i video con una sola risoluzione non e necessario marcare manualmente
 l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili

@@ -498,7 +498,8 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   // senza far crescere oltre misura l'analisi locale dei filmati lunghi.
   const sampleInterval = Math.max(0.06, duration / 1050);
   const analysisPass = Math.max(0, Math.floor(options.analysisPass ?? 0));
-  const sampleOffset = (analysisPass % 3) * sampleInterval / 3;
+  const samplePhases = [0, 1 / 3, 2 / 3, 1 / 6, 1 / 2, 5 / 6];
+  const sampleOffset = samplePhases[analysisPass % samplePhases.length] * sampleInterval;
   const sampleCount = Math.max(2, Math.floor((duration - sampleOffset) / sampleInterval) + 1);
   const portrait = video.videoHeight >= video.videoWidth;
   const canvas = document.createElement('canvas');
@@ -513,7 +514,8 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
 
   const sourceWidth = video.videoWidth * (portrait ? 0.88 : 0.74);
   const sourceHeight = video.videoHeight * (portrait ? 0.68 : 0.86);
-  const cropJitter = [0, -0.012, 0.012][analysisPass % 3];
+  const cropJitters = [0, -0.012, 0.012, 0.006, -0.006, 0.018];
+  const cropJitter = cropJitters[analysisPass % cropJitters.length];
   const sourceX = Math.max(0, Math.min(
     video.videoWidth - sourceWidth,
     (video.videoWidth - sourceWidth) / 2 + video.videoWidth * cropJitter,
