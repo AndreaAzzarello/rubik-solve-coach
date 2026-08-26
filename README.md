@@ -83,19 +83,25 @@ Una breve finestra temporale collega il fingertrick che inizia prima al
 cambiamento degli sticker che segue. Se il cubo e coperto puo sostenere
 l'evento il canale mani; se le mani escono dal campo resta disponibile il
 canale cubo. L'interfaccia espone per ogni evento la sorgente dell'evidenza e
-la forza dei due segnali. Durante la verifica, ogni evento apre una clip
+la forza dei due segnali. Durante la verifica, ogni evento apre nel pannello a
+larghezza piena una clip
 delimitata dai punti medi tra i picchi adiacenti e riprodotta a `0,40x`, cosi
 anche una sequenza veloce mostra una sola rotazione. Gli eventi con almeno
 l'88% di confidenza e segnali coerenti vengono accettati automaticamente come
-movimenti reali. L'interfaccia mostra la confidenza media dell'intera lettura;
-mini-player, revisione, segmentazione e dati tecnici restano disponibili in
-pannelli compatti e richiudibili. Il video non viene caricato: il browser
-scarica il modello MediaPipe e svolge l'inferenza sul dispositivo.
+movimenti reali. La rianalisi sposta leggermente istanti di campionamento e area
+osservata, confronta i nuovi picchi con le letture precedenti e aumenta
+l'affidabilita soltanto degli eventi ritrovati; dopo due letture concordi la
+soglia di accettazione scende all'84%. L'interfaccia mostra la confidenza media
+e il numero di letture confrontate; revisione, segmentazione e dati tecnici
+restano disponibili in pannelli richiudibili. Il video non viene caricato: il
+browser scarica il modello MediaPipe e svolge l'inferenza sul dispositivo.
 
 Il nome della mossa resta da confermare finche non sara disponibile un modello
 supervisionato affidabile per `U/R/F/...`; la traiettoria della mano da sola non
 dimostra quale faccia sia stata ruotata quando orientamento o sticker sono
-ambigui.
+ambigui. Lo scramble inverso e la suddivisione Cross, F2L, OLL e PLL vengono
+mostrati appena tutti gli eventi hanno una notazione esatta, senza sostituire
+le mosse mancanti con una sequenza di esempio o una stima non verificabile.
 
 Per i video con una sola risoluzione non e necessario marcare manualmente
 l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili

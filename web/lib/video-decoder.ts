@@ -36,6 +36,7 @@ export type MotionEvent = {
   handStrength: number;
   dominantHand: HandSide;
   handDirection: HandDirection;
+  supportingRuns?: number;
 };
 
 export type HandTrackingSummary = {
@@ -82,6 +83,7 @@ export type VideoSegmentation = {
 type DecodeOptions = {
   startTime: number;
   endTime: number;
+  analysisPass?: number;
   onProgress?: (progress: number) => void;
 };
 
@@ -495,7 +497,9 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   // Circa 16 campioni al secondo conservano i picchi delle fingertrick veloci
   // senza far crescere oltre misura l'analisi locale dei filmati lunghi.
   const sampleInterval = Math.max(0.06, duration / 1050);
-  const sampleCount = Math.max(2, Math.floor(duration / sampleInterval) + 1);
+  const analysisPass = Math.max(0, Math.floor(options.analysisPass ?? 0));
+  const sampleOffset = (analysisPass % 3) * sampleInterval / 3;
+  const sampleCount = Math.max(2, Math.floor((duration - sampleOffset) / sampleInterval) + 1);
   const portrait = video.videoHeight >= video.videoWidth;
   const canvas = document.createElement('canvas');
   canvas.width = portrait ? 96 : 128;
@@ -509,10 +513,18 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
 
   const sourceWidth = video.videoWidth * (portrait ? 0.88 : 0.74);
   const sourceHeight = video.videoHeight * (portrait ? 0.68 : 0.86);
-  const sourceX = (video.videoWidth - sourceWidth) / 2;
-  const sourceY = portrait
+  const cropJitter = [0, -0.012, 0.012][analysisPass % 3];
+  const sourceX = Math.max(0, Math.min(
+    video.videoWidth - sourceWidth,
+    (video.videoWidth - sourceWidth) / 2 + video.videoWidth * cropJitter,
+  ));
+  const baseSourceY = portrait
     ? Math.max(0, Math.min(video.videoHeight - sourceHeight, video.videoHeight * 0.08))
     : (video.videoHeight - sourceHeight) / 2;
+  const sourceY = Math.max(0, Math.min(
+    video.videoHeight - sourceHeight,
+    baseSourceY + video.videoHeight * cropJitter * 0.45,
+  ));
 
   const originalTime = video.currentTime;
   const wasPaused = video.paused;
@@ -531,7 +543,7 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
 
   try {
     for (let index = 0; index < sampleCount; index += 1) {
-      const time = Math.min(endTime, startTime + index * sampleInterval);
+      const time = Math.min(endTime, startTime + sampleOffset + index * sampleInterval);
       await waitForSeek(video, time);
       context.drawImage(
         video,

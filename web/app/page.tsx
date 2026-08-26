@@ -118,13 +118,77 @@ type ReviewClip = {
 const AUTO_ACCEPT_CONFIDENCE = 88;
 
 function isAutoAcceptedMotion(event: MotionEvent) {
-  return event.confidence >= AUTO_ACCEPT_CONFIDENCE
+  const requiredConfidence = (event.supportingRuns ?? 1) >= 2 ? 84 : AUTO_ACCEPT_CONFIDENCE;
+  return event.confidence >= requiredConfidence
     && (event.evidence === 'combined' || Math.max(event.cubeStrength, event.handStrength) >= 96);
 }
 
 function average(values: number[]) {
   if (!values.length) return 0;
   return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
+function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: MotionEvent[]) {
+  const usedCurrent = new Set<number>();
+  const consolidated = previousEvents.map((previousEvent) => {
+    let matchIndex = -1;
+    let closestDistance = 0.17;
+    currentEvents.forEach((currentEvent, index) => {
+      if (usedCurrent.has(index)) return;
+      const distance = Math.abs(currentEvent.peakTime - previousEvent.peakTime);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        matchIndex = index;
+      }
+    });
+
+    if (matchIndex < 0) {
+      return {
+        ...previousEvent,
+        confidence: Math.max(34, previousEvent.confidence - 3),
+        supportingRuns: previousEvent.supportingRuns ?? 1,
+      };
+    }
+
+    usedCurrent.add(matchIndex);
+    const currentEvent = currentEvents[matchIndex];
+    const previousRuns = previousEvent.supportingRuns ?? 1;
+    const supportingRuns = previousRuns + 1;
+    const weighted = (previous: number, current: number) => Math.round(
+      (previous * previousRuns + current) / supportingRuns,
+    );
+    const evidence = previousEvent.evidence === currentEvent.evidence
+      ? previousEvent.evidence
+      : 'combined' as const;
+
+    return {
+      ...previousEvent,
+      start: (previousEvent.start * previousRuns + currentEvent.start) / supportingRuns,
+      end: (previousEvent.end * previousRuns + currentEvent.end) / supportingRuns,
+      peakTime: (previousEvent.peakTime * previousRuns + currentEvent.peakTime) / supportingRuns,
+      peakDifference: (previousEvent.peakDifference * previousRuns + currentEvent.peakDifference) / supportingRuns,
+      confidence: Math.min(98, weighted(previousEvent.confidence, currentEvent.confidence) + Math.min(8, supportingRuns * 2)),
+      motionKind: previousEvent.motionKind === 'global-motion' || currentEvent.motionKind === 'global-motion'
+        ? 'global-motion' as const
+        : 'face-turn' as const,
+      evidence,
+      cubeStrength: weighted(previousEvent.cubeStrength, currentEvent.cubeStrength),
+      handStrength: weighted(previousEvent.handStrength, currentEvent.handStrength),
+      dominantHand: currentEvent.handStrength >= previousEvent.handStrength ? currentEvent.dominantHand : previousEvent.dominantHand,
+      handDirection: currentEvent.handStrength >= previousEvent.handStrength ? currentEvent.handDirection : previousEvent.handDirection,
+      supportingRuns,
+    };
+  });
+
+  currentEvents.forEach((event, index) => {
+    if (!usedCurrent.has(index)) {
+      consolidated.push({ ...event, confidence: Math.max(34, event.confidence - 4), supportingRuns: 1 });
+    }
+  });
+
+  return consolidated
+    .sort((left, right) => left.peakTime - right.peakTime)
+    .map((event, index) => ({ ...event, id: index + 1 }));
 }
 
 function formatFileSize(bytes: number) {
@@ -252,6 +316,7 @@ export default function Home() {
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
   const [videoSegmentation, setVideoSegmentation] = useState<VideoSegmentation | null>(null);
   const [handTracking, setHandTracking] = useState<HandTrackingSummary | null>(null);
+  const [analysisRunCount, setAnalysisRunCount] = useState(0);
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
   const [reviewClip, setReviewClip] = useState<ReviewClip | null>(null);
@@ -386,6 +451,7 @@ export default function Home() {
     setMotionEvents([]);
     setVideoSegmentation(null);
     setHandTracking(null);
+    setAnalysisRunCount(0);
     setSelectedWindowId(null);
     setEventChoices({});
     reviewClipRef.current = null;
@@ -406,6 +472,11 @@ export default function Home() {
       return;
     }
 
+    const comparingExistingRun = decoderStatus === 'review' && allMotionEvents.length > 0;
+    const previousEvents = allMotionEvents;
+    const previousHandTracking = handTracking;
+    const nextRunNumber = comparingExistingRun ? analysisRunCount + 1 : 1;
+
     try {
       video.pause();
       reviewVideoRef.current?.pause();
@@ -414,11 +485,13 @@ export default function Home() {
       setReviewClip(null);
       setDecoderStatus('running');
       setDecoderProgress(0);
-      setAllMotionEvents([]);
-      setMotionEvents([]);
-      setVideoSegmentation(null);
-      setHandTracking(null);
-      setSelectedWindowId(null);
+      if (!comparingExistingRun) {
+        setAllMotionEvents([]);
+        setMotionEvents([]);
+        setVideoSegmentation(null);
+        setHandTracking(null);
+        setSelectedWindowId(null);
+      }
       setEventChoices({});
       setSolution('');
       setHasAnalysis(false);
@@ -426,25 +499,35 @@ export default function Home() {
       const result = await decodeVideoMotion(video, {
         startTime: trimStart,
         endTime: trimEnd || video.duration,
+        analysisPass: nextRunNumber - 1,
         onProgress: setDecoderProgress,
       });
+      const comparedEvents = comparingExistingRun
+        ? consolidateMotionEvents(previousEvents, result.events)
+        : result.events.map((event) => ({ ...event, supportingRuns: 1 }));
       const segmentation = inferVideoSegmentation(
-        result.events,
+        comparedEvents,
         trimStart,
         trimEnd || video.duration,
       );
       const defaultWindow = segmentation.windows.find(
         (window) => window.id === segmentation.defaultWindowId,
       );
-      const selectedIds = new Set(defaultWindow?.eventIds ?? result.events.map((event) => event.id));
-      setAllMotionEvents(result.events);
-      setHandTracking(result.handTracking);
+      const selectedIds = new Set(defaultWindow?.eventIds ?? comparedEvents.map((event) => event.id));
+      setAllMotionEvents(comparedEvents);
+      setHandTracking(comparingExistingRun && previousHandTracking ? {
+        available: previousHandTracking.available || result.handTracking.available,
+        framesWithHands: previousHandTracking.framesWithHands + result.handTracking.framesWithHands,
+        totalFrames: previousHandTracking.totalFrames + result.handTracking.totalFrames,
+        message: result.handTracking.message ?? previousHandTracking.message,
+      } : result.handTracking);
       setVideoSegmentation(segmentation);
       setSelectedWindowId(defaultWindow?.id ?? null);
-      setMotionEvents(result.events.filter((event) => selectedIds.has(event.id)));
+      setMotionEvents(comparedEvents.filter((event) => selectedIds.has(event.id)));
+      setAnalysisRunCount(nextRunNumber);
       setDecoderStatus('review');
       setDecoderProgress(1);
-      if (!result.events.length) {
+      if (!comparedEvents.length) {
         setError('Non sono stati trovati picchi di movimento separabili. Restringi l’intervallo alla sola risoluzione e mantieni il cubo al centro.');
       }
     } catch (caught) {
@@ -650,9 +733,9 @@ export default function Home() {
                     className="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-wait disabled:opacity-60"
                   >
                     {decoderStatus === 'running'
-                      ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
+                      ? `${analysisRunCount > 0 ? `Confronto ${analysisRunCount + 1}` : 'Analisi video'} · ${Math.round(decoderProgress * 100)}%`
                       : decoderStatus === 'review'
-                        ? 'Rianalizza il video'
+                        ? `Rianalizza e confronta · passaggio ${analysisRunCount + 1}`
                         : solution.trim() ? 'Analizza la sequenza inserita' : 'Avvia analisi video'}
                   </button>
                   <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-950">
@@ -733,7 +816,7 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xs font-black text-slate-950">Risultato del decoder</p>
-                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Riepilogo immediato della lettura combinata di cubo, mani e dita.</p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Riepilogo combinato di cubo, mani e dita · {analysisRunCount} {analysisRunCount === 1 ? 'lettura' : 'letture'} confrontate.</p>
                       </div>
                       <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-800">{averageDetectionConfidence}%</span>
                     </div>
@@ -757,7 +840,7 @@ export default function Home() {
                       <span><strong className="text-slate-900">Cambiamenti del cubo:</strong> {averageCubeSignal}%</span>
                     </div>
                     <p className="mt-2 text-[10px] leading-4 text-slate-500">
-                      Gli eventi sopra l’{AUTO_ACCEPT_CONFIDENCE}% con evidenza coerente vengono accettati automaticamente come movimenti reali. La percentuale misura il rilevamento del movimento, non ancora l’identità esatta U/R/F.
+                      Gli eventi sopra l’{AUTO_ACCEPT_CONFIDENCE}% con evidenza coerente vengono accettati automaticamente; dopo due letture concordi la soglia scende all’84%. Ogni rianalisi sposta leggermente campionamento e area osservata, poi aumenta la fiducia solo sui picchi ritrovati. La percentuale non identifica ancora U/R/F.
                     </p>
 
                     <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
@@ -765,8 +848,8 @@ export default function Home() {
                         <span>Rivedi clip e assegna i nomi delle mosse</span>
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-600">{uncertainEvents} incerti · apri</span>
                       </summary>
-                    <div className="mt-4 grid gap-4 md:grid-cols-[minmax(210px,0.82fr)_minmax(0,1.18fr)] md:items-start">
-                      <div className="md:sticky md:top-3">
+                    <div className="mt-4">
+                      <div>
                         <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg">
                           <div className="relative bg-black">
                             <video
@@ -824,7 +907,7 @@ export default function Home() {
                           </p>
                         ) : null}
                       </div>
-                      <div className="max-h-[31rem] space-y-2 overflow-y-auto pr-1">
+                      <div className="mt-4 max-h-[31rem] space-y-2 overflow-y-auto border-t border-slate-200 pt-4 pr-1">
                       {motionEvents.map((motionEvent) => (
                         <div
                           key={motionEvent.id}
@@ -867,6 +950,7 @@ export default function Home() {
                                 {MOTION_EVIDENCE_LABELS[motionEvent.evidence]}
                               </span>
                               <span>Cubo {motionEvent.cubeStrength}% · dita {motionEvent.handStrength}%</span>
+                              <span>{motionEvent.supportingRuns ?? 1}× confermato</span>
                               {isAutoAcceptedMotion(motionEvent) ? <span className="text-emerald-700">Accettato ✓</span> : null}
                               {motionEvent.evidence !== 'cube' ? (
                                 <span>{HAND_SIDE_LABELS[motionEvent.dominantHand]} · {HAND_DIRECTION_LABELS[motionEvent.handDirection]}</span>
@@ -939,9 +1023,22 @@ export default function Home() {
                 <label htmlFor="moves" className="text-sm font-extrabold">
                   Sequenza rilevata o trascritta
                 </label>
-                <span className="font-mono text-xs text-slate-400">
-                  {solution.trim() ? solution.trim().split(/\s+/).length : 0} mosse in sequenza
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-slate-400">
+                    {solution.trim() ? solution.trim().split(/\s+/).length : 0} mosse
+                  </span>
+                  {solution.trim() ? (
+                    <button
+                      type="submit"
+                      disabled={Boolean(videoFile && decoderStatus === 'review' && !allEventsReviewed)}
+                      className="rounded-lg bg-slate-950 px-3 py-2 text-[10px] font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {videoFile && decoderStatus === 'review'
+                        ? allEventsReviewed ? 'Genera risultati' : `${motionEvents.length - reviewedEvents} mancanti`
+                        : 'Analizza testo'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <textarea
                 id="moves"
@@ -954,6 +1051,7 @@ export default function Home() {
                   setMotionEvents([]);
                   setVideoSegmentation(null);
                   setHandTracking(null);
+                  setAnalysisRunCount(0);
                   setSelectedWindowId(null);
                   setEventChoices({});
                   setHasAnalysis(false);
@@ -988,17 +1086,6 @@ export default function Home() {
                 />
               </div>
 
-              {!videoFile || (decoderStatus === 'review' && solution.trim()) ? (
-                <button
-                  type="submit"
-                  disabled={Boolean(videoFile && !allEventsReviewed)}
-                  className="mt-7 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-500/20 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {videoFile
-                    ? allEventsReviewed ? 'Genera scramble e fasi' : `Assegna ancora ${motionEvents.length - reviewedEvents} mosse`
-                    : 'Analizza la soluzione'}
-                </button>
-              ) : null}
             </form>
 
             <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/75 p-4">
@@ -1201,14 +1288,30 @@ export default function Home() {
                       : 'Seleziona un filmato per iniziare. Replay, Cross dedotta, scramble e fasi resteranno vuoti finché non esiste un risultato attendibile.'}
                   </p>
                   {decoderStatus === 'review' ? (
-                    <div className="mt-5 grid grid-cols-2 gap-2 text-left">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Affidabilità media</p>
-                        <p className="mt-1 text-xl font-black text-emerald-300">{averageDetectionConfidence}%</p>
+                    <div className="mt-5 text-left">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Affidabilità media</p>
+                          <p className="mt-1 text-xl font-black text-emerald-300">{averageDetectionConfidence}%</p>
+                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Letture confrontate</p>
+                          <p className="mt-1 text-xl font-black text-blue-300">{analysisRunCount}</p>
+                        </div>
                       </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Segnale del cubo</p>
-                        <p className="mt-1 text-xl font-black text-blue-300">{averageCubeSignal}%</p>
+                      <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">Scramble ricostruito</p>
+                        <p className="mt-2 text-xs font-bold leading-5 text-slate-300">
+                          In attesa dell’identità di {motionEvents.length - reviewedEvents} eventi. Lo scramble verrà scritto qui appena la sequenza U/R/F è completa, senza sostituirla con una stima inventata.
+                        </p>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {SOLVE_PHASES.map((phase) => (
+                          <div key={phase} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                            <p className="text-[10px] font-black text-white">{PHASE_LABELS[phase]}</p>
+                            <p className="mt-1 text-[9px] text-slate-600">In attesa delle mosse</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ) : null}
