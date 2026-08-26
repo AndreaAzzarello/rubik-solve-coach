@@ -115,6 +115,18 @@ type ReviewClip = {
   playing: boolean;
 };
 
+const AUTO_ACCEPT_CONFIDENCE = 88;
+
+function isAutoAcceptedMotion(event: MotionEvent) {
+  return event.confidence >= AUTO_ACCEPT_CONFIDENCE
+    && (event.evidence === 'combined' || Math.max(event.cubeStrength, event.handStrength) >= 96);
+}
+
+function average(values: number[]) {
+  if (!values.length) return 0;
+  return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
+}
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -278,6 +290,19 @@ export default function Home() {
     [eventChoices, motionEvents],
   );
   const allEventsReviewed = motionEvents.length > 0 && reviewedEvents === motionEvents.length;
+  const averageDetectionConfidence = useMemo(
+    () => average(motionEvents.map((event) => event.confidence)),
+    [motionEvents],
+  );
+  const averageCubeSignal = useMemo(
+    () => average(motionEvents.map((event) => event.cubeStrength)),
+    [motionEvents],
+  );
+  const autoAcceptedEvents = useMemo(
+    () => motionEvents.filter(isAutoAcceptedMotion),
+    [motionEvents],
+  );
+  const uncertainEvents = motionEvents.length - autoAcceptedEvents.length;
   const selectedWindow = videoSegmentation?.windows.find((window) => window.id === selectedWindowId) ?? null;
 
   useEffect(() => {
@@ -454,12 +479,25 @@ export default function Home() {
   function playMotionEvent(event: MotionEvent) {
     const video = reviewVideoRef.current ?? videoRef.current;
     if (!video) return;
-    const clipStart = Math.max(0, event.start - 0.38);
-    const clipEnd = Math.min(video.duration || event.end + 0.45, event.end + 0.45);
+    const eventIndex = motionEvents.findIndex((candidate) => candidate.id === event.id);
+    const previousEvent = eventIndex > 0 ? motionEvents[eventIndex - 1] : null;
+    const nextEvent = eventIndex >= 0 ? motionEvents[eventIndex + 1] : null;
+    const previousBoundary = previousEvent
+      ? (previousEvent.peakTime + event.peakTime) / 2 + 0.006
+      : event.peakTime - 0.22;
+    const nextBoundary = nextEvent
+      ? (event.peakTime + nextEvent.peakTime) / 2 - 0.006
+      : event.peakTime + 0.26;
+    const clipStart = Math.max(0, event.peakTime - 0.22, previousBoundary);
+    const clipEnd = Math.min(
+      video.duration || event.peakTime + 0.26,
+      event.peakTime + 0.26,
+      Math.max(event.peakTime + 0.035, nextBoundary),
+    );
     const clip = { eventId: event.id, start: clipStart, end: clipEnd, playing: true };
 
     video.pause();
-    video.playbackRate = 0.65;
+    video.playbackRate = 0.4;
     video.currentTime = clipStart;
     reviewClipRef.current = clip;
     setReviewClip(clip);
@@ -605,6 +643,18 @@ export default function Home() {
                       </label>
                     </div>
                   </div>
+                  <button
+                    type={decoderStatus === 'review' ? 'button' : 'submit'}
+                    onClick={decoderStatus === 'review' ? () => { void runVideoDecoder(); } : undefined}
+                    disabled={decoderStatus === 'running'}
+                    className="mt-3 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {decoderStatus === 'running'
+                      ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
+                      : decoderStatus === 'review'
+                        ? 'Rianalizza il video'
+                        : solution.trim() ? 'Analizza la sequenza inserita' : 'Avvia analisi video'}
+                  </button>
                   <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-950">
                     <strong>Una sola solve:</strong> non devi segnare nulla. Il decoder usa tutto il video e cerca automaticamente scramble, ispezione, pausa di partenza e risoluzione.
                   </div>
@@ -682,11 +732,39 @@ export default function Home() {
                   <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-xs font-black text-slate-950">Eventi da verificare</p>
-                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Il decoder ha separato {motionEvents.length} picchi. Premi ▶ per vedere soltanto la mossa interessata: la clip parte poco prima, rallenta e si ferma automaticamente subito dopo.</p>
+                        <p className="text-xs font-black text-slate-950">Risultato del decoder</p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Riepilogo immediato della lettura combinata di cubo, mani e dita.</p>
                       </div>
-                      <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-800">{averageDetectionConfidence}%</span>
                     </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl bg-blue-50 px-3 py-3 text-blue-950">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-blue-600">Movimenti</p>
+                        <p className="mt-1 text-xl font-black">{motionEvents.length}</p>
+                      </div>
+                      <div className="rounded-xl bg-emerald-50 px-3 py-3 text-emerald-950">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">Accettati</p>
+                        <p className="mt-1 text-xl font-black">{autoAcceptedEvents.length}</p>
+                      </div>
+                      <div className="rounded-xl bg-amber-50 px-3 py-3 text-amber-950">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">Da controllare</p>
+                        <p className="mt-1 text-xl font-black">{uncertainEvents}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-600">
+                      <span><strong className="text-slate-900">Affidabilità media:</strong> {averageDetectionConfidence}%</span>
+                      <span><strong className="text-slate-900">Cambiamenti del cubo:</strong> {averageCubeSignal}%</span>
+                    </div>
+                    <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                      Gli eventi sopra l’{AUTO_ACCEPT_CONFIDENCE}% con evidenza coerente vengono accettati automaticamente come movimenti reali. La percentuale misura il rilevamento del movimento, non ancora l’identità esatta U/R/F.
+                    </p>
+
+                    <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[11px] font-black text-slate-800">
+                        <span>Rivedi clip e assegna i nomi delle mosse</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-600">{uncertainEvents} incerti · apri</span>
+                      </summary>
                     <div className="mt-4 grid gap-4 md:grid-cols-[minmax(210px,0.82fr)_minmax(0,1.18fr)] md:items-start">
                       <div className="md:sticky md:top-3">
                         <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg">
@@ -717,7 +795,7 @@ export default function Home() {
                                     Evento {reviewClip.eventId} · {reviewClip.playing ? 'in riproduzione' : 'terminato'}
                                   </p>
                                   <p className="mt-0.5 font-mono text-[9px] text-blue-300">
-                                    {formatPreciseTime(reviewClip.start)}–{formatPreciseTime(reviewClip.end)} · 0,65×
+                                    {formatPreciseTime(reviewClip.start)}–{formatPreciseTime(reviewClip.end)} · 0,40×
                                   </p>
                                 </div>
                                 <button
@@ -753,7 +831,9 @@ export default function Home() {
                           className={`grid grid-cols-[86px_1fr] items-center gap-2 rounded-xl border p-2 transition ${
                             reviewClip?.eventId === motionEvent.id
                               ? 'border-blue-300 bg-blue-50 shadow-sm'
-                              : 'border-transparent bg-slate-50'
+                              : isAutoAcceptedMotion(motionEvent)
+                                ? 'border-emerald-200 bg-emerald-50/60'
+                                : 'border-amber-200 bg-amber-50/50'
                           }`}
                         >
                           <button
@@ -766,7 +846,7 @@ export default function Home() {
                           >
                             <span className="block">▶ {formatPreciseTime(motionEvent.peakTime)}</span>
                             <span className="mt-0.5 block text-[8px] uppercase tracking-wide text-slate-400">
-                              clip · 0,65×
+                              1 mossa · 0,40×
                             </span>
                           </button>
                           <div className="min-w-0">
@@ -776,7 +856,9 @@ export default function Home() {
                               className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
                               aria-label={`Mossa rilevata a ${formatPreciseTime(motionEvent.peakTime)}`}
                             >
-                              <option value="">Da confermare · {motionEvent.confidence}%</option>
+                              <option value="">
+                                {isAutoAcceptedMotion(motionEvent) ? 'Movimento accettato' : 'Da verificare'} · {motionEvent.confidence}%
+                              </option>
                               <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
                               {MOVE_REVIEW_OPTIONS.map((move) => <option key={move} value={move}>{move}</option>)}
                             </select>
@@ -785,6 +867,7 @@ export default function Home() {
                                 {MOTION_EVIDENCE_LABELS[motionEvent.evidence]}
                               </span>
                               <span>Cubo {motionEvent.cubeStrength}% · dita {motionEvent.handStrength}%</span>
+                              {isAutoAcceptedMotion(motionEvent) ? <span className="text-emerald-700">Accettato ✓</span> : null}
                               {motionEvent.evidence !== 'cube' ? (
                                 <span>{HAND_SIDE_LABELS[motionEvent.dominantHand]} · {HAND_DIRECTION_LABELS[motionEvent.handDirection]}</span>
                               ) : null}
@@ -842,8 +925,9 @@ export default function Home() {
                       </details>
                     ) : null}
                     <p className="mt-3 text-[10px] leading-4 text-slate-500">
-                      Le mani ora migliorano tempi e affidabilità dell’evento. Il nome esatto della mossa (U, R, F…) resta da confermare finché il classificatore non viene addestrato con esempi etichettati mossa per mossa.
+                      Le clip sono tagliate a metà strada tra il picco precedente e quello successivo, così non includono più una sequenza di quattro o cinque movimenti.
                     </p>
+                    </details>
                   </div>
                 ) : null}
               </div>
@@ -904,17 +988,17 @@ export default function Home() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={decoderStatus === 'running'}
-                className="mt-7 w-full rounded-2xl bg-blue-600 px-5 py-4 text-sm font-black text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20 disabled:cursor-wait disabled:opacity-60"
-              >
-                {decoderStatus === 'running'
-                  ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
-                  : decoderStatus === 'review'
-                    ? allEventsReviewed ? 'Genera scramble e fasi' : `Verifica gli eventi · ${reviewedEvents}/${motionEvents.length}`
-                    : videoFile && !solution.trim() ? 'Avvia decoder video v4' : 'Analizza la soluzione'}
-              </button>
+              {!videoFile || (decoderStatus === 'review' && solution.trim()) ? (
+                <button
+                  type="submit"
+                  disabled={Boolean(videoFile && !allEventsReviewed)}
+                  className="mt-7 w-full rounded-2xl bg-slate-950 px-5 py-4 text-sm font-black text-white shadow-lg shadow-slate-950/15 transition hover:bg-slate-800 focus:outline-none focus:ring-4 focus:ring-slate-500/20 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {videoFile
+                    ? allEventsReviewed ? 'Genera scramble e fasi' : `Assegna ancora ${motionEvents.length - reviewedEvents} mosse`
+                    : 'Analizza la soluzione'}
+                </button>
+              ) : null}
             </form>
 
             <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50/75 p-4">
@@ -1098,16 +1182,36 @@ export default function Home() {
             ) : (
               <div className="grid min-h-[620px] place-items-center bg-[radial-gradient(circle_at_50%_20%,#29458d_0%,#10172d_40%,#080c18_76%)] p-8 text-center">
                 <div className="max-w-md">
-                  <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-3xl text-blue-300">▶</div>
-                  <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-blue-300">In attesa dell’analisi</p>
+                  <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-3xl text-blue-300">
+                    {decoderStatus === 'review' ? `${averageDetectionConfidence}%` : '▶'}
+                  </div>
+                  <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-blue-300">
+                    {decoderStatus === 'review' ? 'Output temporale del video' : 'In attesa dell’analisi'}
+                  </p>
                   <h2 className="mt-3 text-3xl font-black tracking-tight">
-                    {videoFile ? 'Video pronto.' : 'Carica la tua solve.'}
+                    {decoderStatus === 'review'
+                      ? `${motionEvents.length} movimenti rilevati.`
+                      : videoFile ? 'Video pronto.' : 'Carica la tua solve.'}
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-400">
-                    {videoFile
+                    {decoderStatus === 'review'
+                      ? `${autoAcceptedEvents.length} eventi ad alta affidabilità sono stati accettati automaticamente; ${uncertainEvents} restano disponibili per un controllo facoltativo.`
+                      : videoFile
                       ? 'Premi “Avvia analisi video”. Qui compariranno soltanto le mosse realmente riconosciute o confermate, senza sequenze dimostrative.'
                       : 'Seleziona un filmato per iniziare. Replay, Cross dedotta, scramble e fasi resteranno vuoti finché non esiste un risultato attendibile.'}
                   </p>
+                  {decoderStatus === 'review' ? (
+                    <div className="mt-5 grid grid-cols-2 gap-2 text-left">
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Affidabilità media</p>
+                        <p className="mt-1 text-xl font-black text-emerald-300">{averageDetectionConfidence}%</p>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Segnale del cubo</p>
+                        <p className="mt-1 text-xl font-black text-blue-300">{averageCubeSignal}%</p>
+                      </div>
+                    </div>
+                  ) : null}
                   {videoFile ? <p className="mt-5 truncate rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-slate-300">{videoFile.name}</p> : null}
                 </div>
               </div>

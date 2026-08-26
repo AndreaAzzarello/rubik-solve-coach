@@ -83,13 +83,14 @@ Una breve finestra temporale collega il fingertrick che inizia prima al
 cambiamento degli sticker che segue. Se il cubo e coperto puo sostenere
 l'evento il canale mani; se le mani escono dal campo resta disponibile il
 canale cubo. L'interfaccia espone per ogni evento la sorgente dell'evidenza e
-la forza dei due segnali. Durante la verifica, ogni evento apre una breve clip
-rallentata con margine prima e dopo il picco; la riproduzione si ferma
-automaticamente alla fine della finestra, cosi il movimento da confermare resta
-isolato. Nella postazione di verifica il mini-player resta affiancato all'elenco
-degli eventi e visibile mentre lo si scorre; segmentazione e dati tecnici sono
-raccolti in un pannello richiudibile. Il video non viene caricato: il browser scarica il modello MediaPipe e
-svolge l'inferenza sul dispositivo.
+la forza dei due segnali. Durante la verifica, ogni evento apre una clip
+delimitata dai punti medi tra i picchi adiacenti e riprodotta a `0,40x`, cosi
+anche una sequenza veloce mostra una sola rotazione. Gli eventi con almeno
+l'88% di confidenza e segnali coerenti vengono accettati automaticamente come
+movimenti reali. L'interfaccia mostra la confidenza media dell'intera lettura;
+mini-player, revisione, segmentazione e dati tecnici restano disponibili in
+pannelli compatti e richiudibili. Il video non viene caricato: il browser
+scarica il modello MediaPipe e svolge l'inferenza sul dispositivo.
 
 Il nome della mossa resta da confermare finche non sara disponibile un modello
 supervisionato affidabile per `U/R/F/...`; la traiettoria della mano da sola non
