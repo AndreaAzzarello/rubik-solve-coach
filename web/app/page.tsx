@@ -108,6 +108,13 @@ const HAND_DIRECTION_LABELS = {
   mixed: 'traiettoria mista',
 } as const;
 
+type ReviewClip = {
+  eventId: number;
+  start: number;
+  end: number;
+  playing: boolean;
+};
+
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`;
@@ -118,6 +125,13 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.round(seconds % 60);
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function formatPreciseTime(seconds: number) {
+  if (!Number.isFinite(seconds)) return '0:00.0';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = (seconds % 60).toFixed(1).padStart(4, '0');
+  return `${minutes}:${remainingSeconds}`;
 }
 
 function emptyAnalysis(): AnalysisResult {
@@ -204,6 +218,7 @@ function completionLabel(done: boolean, available: boolean) {
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const reviewClipRef = useRef<ReviewClip | null>(null);
   const [solution, setSolution] = useState('');
   const [crossColor, setCrossColor] = useState<CubeColor>('yellow');
   const [crossConfidence, setCrossConfidence] = useState(0);
@@ -226,6 +241,7 @@ export default function Home() {
   const [handTracking, setHandTracking] = useState<HandTrackingSummary | null>(null);
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
+  const [reviewClip, setReviewClip] = useState<ReviewClip | null>(null);
   const [copied, setCopied] = useState(false);
 
   const currentState = analysis.states[stepIndex] ?? analysis.states[0];
@@ -345,6 +361,8 @@ export default function Home() {
     setHandTracking(null);
     setSelectedWindowId(null);
     setEventChoices({});
+    reviewClipRef.current = null;
+    setReviewClip(null);
     setVideoError('');
     setSolution('');
     setAnalysis(emptyAnalysis());
@@ -362,6 +380,10 @@ export default function Home() {
     }
 
     try {
+      video.pause();
+      video.playbackRate = 1;
+      reviewClipRef.current = null;
+      setReviewClip(null);
       setDecoderStatus('running');
       setDecoderProgress(0);
       setAllMotionEvents([]);
@@ -410,16 +432,47 @@ export default function Home() {
     setSelectedWindowId(windowId);
     setMotionEvents(allMotionEvents.filter((event) => selectedIds.has(event.id)));
     setEventChoices({});
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      video.playbackRate = 1;
+    }
+    reviewClipRef.current = null;
+    setReviewClip(null);
     setSolution('');
     setHasAnalysis(false);
     setError('');
   }
 
-  function seekVideo(time: number) {
+  function playMotionEvent(event: MotionEvent) {
     const video = videoRef.current;
     if (!video) return;
-    video.currentTime = Math.min(Math.max(0, time), video.duration || time);
-    void video.play().catch(() => undefined);
+    const clipStart = Math.max(0, event.start - 0.38);
+    const clipEnd = Math.min(video.duration || event.end + 0.45, event.end + 0.45);
+    const clip = { eventId: event.id, start: clipStart, end: clipEnd, playing: true };
+
+    video.pause();
+    video.playbackRate = 0.65;
+    video.currentTime = clipStart;
+    reviewClipRef.current = clip;
+    setReviewClip(clip);
+    void video.play().catch(() => {
+      const stoppedClip = { ...clip, playing: false };
+      reviewClipRef.current = stoppedClip;
+      setReviewClip(stoppedClip);
+      video.playbackRate = 1;
+    });
+  }
+
+  function stopReviewClipAtEnd(video: HTMLVideoElement) {
+    const clip = reviewClipRef.current;
+    if (!clip?.playing || video.currentTime < clip.end) return;
+    video.pause();
+    video.currentTime = clip.end;
+    video.playbackRate = 1;
+    const stoppedClip = { ...clip, playing: false };
+    reviewClipRef.current = stoppedClip;
+    setReviewClip(stoppedClip);
   }
 
   function reviewMotionEvent(eventId: number, choice: string) {
@@ -518,6 +571,7 @@ export default function Home() {
                       playsInline
                       preload="metadata"
                       className="aspect-video w-full bg-black object-contain"
+                      onTimeUpdate={(event) => stopReviewClipAtEnd(event.currentTarget)}
                       onLoadedMetadata={(event) => {
                         const video = event.currentTarget;
                         setVideoMeta({
@@ -543,6 +597,28 @@ export default function Home() {
                         Sostituisci
                       </label>
                     </div>
+                    {reviewClip ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-blue-950/70 px-4 py-3 text-xs text-blue-100">
+                        <div>
+                          <p className="font-black text-white">
+                            Clip evento {reviewClip.eventId} · {reviewClip.playing ? 'in riproduzione' : 'terminata'}
+                          </p>
+                          <p className="mt-0.5 font-mono text-[10px] text-blue-300">
+                            {formatPreciseTime(reviewClip.start)}–{formatPreciseTime(reviewClip.end)} · rallentata a 0,65×
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const motionEvent = allMotionEvents.find((candidate) => candidate.id === reviewClip.eventId);
+                            if (motionEvent) playMotionEvent(motionEvent);
+                          }}
+                          className="rounded-lg border border-blue-300/30 bg-blue-400/10 px-3 py-2 font-black text-blue-100 transition hover:bg-blue-400/20"
+                        >
+                          ↺ Rivedi clip
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-950">
                     <strong>Una sola solve:</strong> non devi segnare nulla. Il decoder usa tutto il video e cerca automaticamente scramble, ispezione, pausa di partenza e risoluzione.
@@ -622,7 +698,7 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <p className="text-xs font-black text-slate-950">Eventi da verificare</p>
-                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Il decoder ha separato {motionEvents.length} picchi. Tocca il tempo per rivedere il passaggio, poi assegna la mossa o ignoralo.</p>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">Il decoder ha separato {motionEvents.length} picchi. Premi ▶ per vedere soltanto la mossa interessata: la clip parte poco prima, rallenta e si ferma automaticamente subito dopo.</p>
                       </div>
                       <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
                     </div>
@@ -683,16 +759,25 @@ export default function Home() {
                     ) : null}
                     <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
                       {motionEvents.map((motionEvent) => (
-                        <div key={motionEvent.id} className="grid grid-cols-[78px_1fr] items-center gap-2 rounded-xl bg-slate-50 p-2">
+                        <div
+                          key={motionEvent.id}
+                          className={`grid grid-cols-[86px_1fr] items-center gap-2 rounded-xl border p-2 transition ${
+                            reviewClip?.eventId === motionEvent.id
+                              ? 'border-blue-300 bg-blue-50 shadow-sm'
+                              : 'border-transparent bg-slate-50'
+                          }`}
+                        >
                           <button
                             type="button"
-                            onClick={() => seekVideo(motionEvent.start)}
-                            className="rounded-lg bg-slate-950 px-2 py-2 font-mono text-[11px] font-black text-white transition hover:bg-blue-700"
-                            title="Riproduci questo passaggio"
+                            onClick={() => playMotionEvent(motionEvent)}
+                            className={`rounded-lg px-2 py-2 font-mono text-[11px] font-black text-white transition ${
+                              reviewClip?.eventId === motionEvent.id ? 'bg-blue-700' : 'bg-slate-950 hover:bg-blue-700'
+                            }`}
+                            title="Riproduci soltanto questa mossa e fermati alla fine"
                           >
-                            <span className="block">{formatDuration(motionEvent.peakTime)}</span>
+                            <span className="block">▶ {formatPreciseTime(motionEvent.peakTime)}</span>
                             <span className="mt-0.5 block text-[8px] uppercase tracking-wide text-slate-400">
-                              {motionEvent.motionKind === 'global-motion' ? 'esteso' : 'faccia'}
+                              clip · 0,65×
                             </span>
                           </button>
                           <div className="min-w-0">
@@ -700,7 +785,7 @@ export default function Home() {
                               value={eventChoices[motionEvent.id] ?? ''}
                               onChange={(event) => reviewMotionEvent(motionEvent.id, event.target.value)}
                               className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
-                              aria-label={`Mossa rilevata a ${formatDuration(motionEvent.peakTime)}`}
+                              aria-label={`Mossa rilevata a ${formatPreciseTime(motionEvent.peakTime)}`}
                             >
                               <option value="">Da confermare · {motionEvent.confidence}%</option>
                               <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
