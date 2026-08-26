@@ -81,7 +81,9 @@ def detect(samples: list[Sample], sample_interval: float) -> tuple[float, list[d
     quiet = ordered[: max(3, int(np.ceil(len(ordered) * 0.58)))]
     baseline = median(quiet)
     deviation = median([abs(value - baseline) for value in quiet])
-    threshold = max(2.6, baseline + max(1.35, deviation * 4.2))
+    noise_threshold = baseline + max(1.35, deviation * 4.2)
+    activity_ceiling = ordered[int((len(ordered) - 1) * 0.72)]
+    threshold = max(2.6, min(noise_threshold, activity_ceiling))
     radius = max(1, round(0.1 / sample_interval))
     minimum_gap = max(0.14, sample_interval * 1.65)
     candidates: list[int] = []
@@ -145,12 +147,17 @@ def analyze(path: Path) -> dict[str, object]:
 
     actual_interval = every_frames / fps
     threshold, events = detect(samples, actual_interval)
+    differences = np.array([sample.difference for sample in samples[1:]], dtype=np.float32)
     return {
         "file": path.name,
         "duration_seconds": round(duration, 3),
         "fps": round(fps, 3),
         "sample_interval": round(actual_interval, 4),
         "threshold": round(threshold, 3),
+        "difference_percentiles": {
+            str(percentile): round(float(np.percentile(differences, percentile)), 3)
+            for percentile in (5, 10, 20, 35, 50, 75, 90, 95, 99)
+        },
         "event_count": len(events),
         "global_motion_count": sum(event["kind"] == "global-motion" for event in events),
         "events": events,

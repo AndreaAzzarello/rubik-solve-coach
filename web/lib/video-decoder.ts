@@ -25,6 +25,31 @@ export type VideoDecodeResult = {
   analyzedRegion: 'cube-focus';
 };
 
+export type VideoStageKind = 'scramble' | 'inspection' | 'solve';
+
+export type VideoStage = {
+  kind: VideoStageKind;
+  start: number;
+  end: number;
+  eventIds: number[];
+};
+
+export type SolveWindow = {
+  id: number;
+  start: number;
+  end: number;
+  eventIds: number[];
+  confidence: number;
+  startState: 'solved-likely' | 'scrambled-likely' | 'unknown';
+  stages: VideoStage[];
+};
+
+export type VideoSegmentation = {
+  windows: SolveWindow[];
+  defaultWindowId: number | null;
+  pauseThreshold: number;
+};
+
 type DecodeOptions = {
   startTime: number;
   endTime: number;
@@ -175,8 +200,13 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
   const quietBand = sortedDifferences.slice(0, Math.max(3, Math.ceil(sortedDifferences.length * 0.58)));
   const baseline = median(quietBand);
   const deviation = median(quietBand.map((value) => Math.abs(value - baseline)));
-  const threshold = Math.max(2.6, baseline + Math.max(1.35, deviation * 4.2));
-  const releaseThreshold = Math.max(1.8, baseline + Math.max(0.72, deviation * 1.9));
+  const noiseThreshold = baseline + Math.max(1.35, deviation * 4.2);
+  const activityCeiling = sortedDifferences[Math.floor((sortedDifferences.length - 1) * 0.72)];
+  const threshold = Math.max(2.6, Math.min(noiseThreshold, activityCeiling));
+  const releaseThreshold = Math.min(
+    threshold * 0.76,
+    Math.max(1.8, baseline + Math.max(0.72, deviation * 1.9)),
+  );
   const peakRadius = Math.max(1, Math.round(0.1 / sampleInterval));
   const minimumPeakGap = Math.max(0.14, sampleInterval * 1.65);
 
@@ -244,6 +274,110 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
   }
 
   return { events: events.slice(0, 240), samples, threshold };
+}
+
+function groupEventsByPause(events: MotionEvent[], pauseThreshold: number) {
+  const groups: MotionEvent[][] = [];
+  events.forEach((event) => {
+    const current = groups.at(-1);
+    const previous = current?.at(-1);
+    if (!current || !previous || event.peakTime - previous.peakTime > pauseThreshold) {
+      groups.push([event]);
+    } else {
+      current.push(event);
+    }
+  });
+  return groups;
+}
+
+export function inferVideoSegmentation(
+  events: MotionEvent[],
+  rangeStart: number,
+  rangeEnd: number,
+): VideoSegmentation {
+  if (!events.length) return { windows: [], defaultWindowId: null, pauseThreshold: 1.8 };
+
+  const ordered = [...events].sort((left, right) => left.peakTime - right.peakTime);
+  const duration = Math.max(1, rangeEnd - rangeStart);
+  const sessionPauseThreshold = Math.min(45, Math.max(24, duration * 0.18));
+  const sessions = groupEventsByPause(ordered, sessionPauseThreshold);
+  const usableSessions = sessions.filter((session) => session.length >= 4);
+  const candidateSessions = usableSessions.length ? usableSessions : [ordered];
+
+  const windows: SolveWindow[] = candidateSessions.map((session, index) => {
+    const gaps = session.slice(1).map((event, gapIndex) => event.peakTime - session[gapIndex].peakTime);
+    const typicalGap = median(gaps.filter((gap) => gap <= 3.5));
+    const pauseThreshold = Math.min(6, Math.max(1.45, typicalGap * 3.4));
+    const minimumSuffix = Math.max(5, Math.floor(session.length * 0.35));
+    let splitIndex = -1;
+    let selectedPause = 0;
+    let bestSplitScore = 0;
+
+    for (let cut = 1; cut <= session.length - minimumSuffix; cut += 1) {
+      const gap = session[cut].peakTime - session[cut - 1].peakTime;
+      const tail = session.slice(Math.max(0, cut - 4), cut);
+      const extendedRatio = tail.filter((event) => event.motionKind === 'global-motion').length / tail.length;
+      const splitScore = gap + extendedRatio * 2.6 + (cut / session.length) * 0.35;
+      if (gap >= pauseThreshold && splitScore > bestSplitScore) {
+        selectedPause = gap;
+        bestSplitScore = splitScore;
+        splitIndex = cut;
+      }
+    }
+
+    const preparationEvents = splitIndex > 0 ? session.slice(0, splitIndex) : [];
+    const solveEvents = splitIndex > 0 ? session.slice(splitIndex) : session;
+    const start = Math.max(rangeStart, solveEvents[0].start);
+    const end = Math.min(rangeEnd, solveEvents.at(-1)!.end);
+    const solvedStartLikely = preparationEvents.length >= Math.max(8, Math.floor(solveEvents.length * 0.18));
+    const stages: VideoStage[] = [];
+
+    if (solvedStartLikely) {
+      stages.push({
+        kind: 'scramble',
+        start: Math.max(rangeStart, preparationEvents[0].start),
+        end: preparationEvents.at(-1)!.end,
+        eventIds: preparationEvents.map((event) => event.id),
+      });
+    }
+    const inspectionStart = solvedStartLikely
+      ? preparationEvents.at(-1)!.end
+      : Math.max(rangeStart, preparationEvents[0]?.start ?? rangeStart);
+    if (start - inspectionStart >= 0.25 || (!solvedStartLikely && preparationEvents.length)) {
+      stages.push({
+        kind: 'inspection',
+        start: inspectionStart,
+        end: start,
+        eventIds: solvedStartLikely ? [] : preparationEvents.map((event) => event.id),
+      });
+    }
+    stages.push({
+      kind: 'solve',
+      start,
+      end,
+      eventIds: solveEvents.map((event) => event.id),
+    });
+
+    return {
+      id: index + 1,
+      start,
+      end,
+      eventIds: solveEvents.map((event) => event.id),
+      confidence: Math.round(Math.min(94, 56 + solveEvents.length * 0.38 + Math.min(14, selectedPause))),
+      startState: solvedStartLikely
+        ? 'solved-likely' as const
+        : preparationEvents.length
+          ? 'scrambled-likely' as const
+          : 'unknown' as const,
+      stages,
+    };
+  });
+
+  return {
+    windows,
+    defaultWindowId: windows.at(-1)?.id ?? null,
+    pauseThreshold: sessionPauseThreshold,
+  };
 }
 
 export async function decodeVideoMotion(video: HTMLVideoElement, options: DecodeOptions): Promise<VideoDecodeResult> {

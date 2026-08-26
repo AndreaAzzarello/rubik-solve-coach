@@ -73,12 +73,20 @@ browser. La prima versione permette di:
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder temporale v2 e gia attivo: lavora localmente nel
+piu fasi. Il decoder temporale v3 e gia attivo: lavora localmente nel
 browser, concentra l'analisi sull'area del cubo, individua picchi di movimento
 anche ravvicinati e segnala quelli estesi, compatibili con wide move, rotazioni
 o variazioni di presa. Il
 nome della mossa resta da confermare finche non sara disponibile un modello
 supervisionato affidabile.
+
+Per i video con una sola risoluzione non e necessario marcare manualmente
+l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili
+con scramble, ispezione e solve e seleziona l'ultimo blocco come proposta. Nei
+video con piu tentativi l'utente puo scegliere un altro blocco oppure limitare
+manualmente l'intervallo. Sui filmati lunghi la soglia viene limitata rispetto
+alla distribuzione reale del movimento, evitando che scramble e solve vengano
+scambiati per rumore di fondo.
 
 ## Strumenti di sviluppo
 

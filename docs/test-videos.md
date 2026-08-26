@@ -102,7 +102,7 @@ tecnici e l'abbinamento necessario per ripetere i test.
 
 Tutti i filmati sono verticali a 1080 x 1920. L'inquadratura e stabile, il
 cubo occupa la zona centrale e ogni clip ritorna allo stato risolto. Queste
-caratteristiche hanno guidato il profilo temporale v2:
+caratteristiche hanno guidato il profilo temporale v3:
 
 - ritaglio centrale dedicato al cubo, per ridurre il peso dello sfondo;
 - confronto combinato di luminosita e colore, compensando piccoli cambi di
@@ -111,6 +111,10 @@ caratteristiche hanno guidato il profilo temporale v2:
 - ricerca di picchi separati anche quando le mosse sono ravvicinate;
 - segnalazione distinta dei movimenti estesi, possibili wide move, rotazioni o
   regrip.
+- soglia massima legata alla distribuzione dell'attivita, per non perdere le
+  mosse quando gran parte di un video lungo contiene movimento;
+- segmentazione automatica di scramble probabile, ispezione e solve tramite le
+  pause tra i blocchi di attivita.
 
 Le coppie non costituiscono ancora un dataset supervisionato per il nome della
 mossa: per misurare l'accuratezza `U/R/F/...` servono le sequenze esatte oppure

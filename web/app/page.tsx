@@ -12,7 +12,12 @@ import {
   cfopStatus,
   classifyPhase,
 } from '../lib/cube';
-import { MotionEvent, decodeVideoMotion } from '../lib/video-decoder';
+import {
+  MotionEvent,
+  VideoSegmentation,
+  decodeVideoMotion,
+  inferVideoSegmentation,
+} from '../lib/video-decoder';
 
 const crossColors = Object.keys(COLOR_HEX) as CubeColor[];
 const SKIP_EVENT = '__skip__';
@@ -56,6 +61,24 @@ const PHASE_CARD_STYLES: Record<(typeof SOLVE_PHASES)[number], string> = {
   oll: 'border-violet-200 bg-violet-50/70 text-violet-950',
   pll: 'border-emerald-200 bg-emerald-50/70 text-emerald-950',
 };
+
+const VIDEO_STAGE_LABELS = {
+  scramble: 'Scramble probabile',
+  inspection: 'Ispezione e preparazione',
+  solve: 'Solve da verificare',
+} as const;
+
+const VIDEO_STAGE_STYLES = {
+  scramble: 'border-orange-200 bg-orange-50 text-orange-950',
+  inspection: 'border-cyan-200 bg-cyan-50 text-cyan-950',
+  solve: 'border-blue-200 bg-blue-50 text-blue-950',
+} as const;
+
+const START_STATE_LABELS = {
+  'solved-likely': 'Il video probabilmente parte dal cubo risolto',
+  'scrambled-likely': 'Il video probabilmente parte dal cubo già mischiato',
+  unknown: 'Stato iniziale ancora da verificare',
+} as const;
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -169,7 +192,10 @@ export default function Home() {
   const [trimEnd, setTrimEnd] = useState(0);
   const [decoderStatus, setDecoderStatus] = useState<'idle' | 'running' | 'review' | 'failed'>('idle');
   const [decoderProgress, setDecoderProgress] = useState(0);
+  const [allMotionEvents, setAllMotionEvents] = useState<MotionEvent[]>([]);
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
+  const [videoSegmentation, setVideoSegmentation] = useState<VideoSegmentation | null>(null);
+  const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
   const [copied, setCopied] = useState(false);
 
@@ -206,6 +232,7 @@ export default function Home() {
     [eventChoices, motionEvents],
   );
   const allEventsReviewed = motionEvents.length > 0 && reviewedEvents === motionEvents.length;
+  const selectedWindow = videoSegmentation?.windows.find((window) => window.id === selectedWindowId) ?? null;
 
   useEffect(() => {
     return () => {
@@ -283,7 +310,10 @@ export default function Home() {
     setTrimEnd(0);
     setDecoderStatus('idle');
     setDecoderProgress(0);
+    setAllMotionEvents([]);
     setMotionEvents([]);
+    setVideoSegmentation(null);
+    setSelectedWindowId(null);
     setEventChoices({});
     setVideoError('');
     setSolution('');
@@ -304,7 +334,10 @@ export default function Home() {
     try {
       setDecoderStatus('running');
       setDecoderProgress(0);
+      setAllMotionEvents([]);
       setMotionEvents([]);
+      setVideoSegmentation(null);
+      setSelectedWindowId(null);
       setEventChoices({});
       setSolution('');
       setHasAnalysis(false);
@@ -314,7 +347,19 @@ export default function Home() {
         endTime: trimEnd || video.duration,
         onProgress: setDecoderProgress,
       });
-      setMotionEvents(result.events);
+      const segmentation = inferVideoSegmentation(
+        result.events,
+        trimStart,
+        trimEnd || video.duration,
+      );
+      const defaultWindow = segmentation.windows.find(
+        (window) => window.id === segmentation.defaultWindowId,
+      );
+      const selectedIds = new Set(defaultWindow?.eventIds ?? result.events.map((event) => event.id));
+      setAllMotionEvents(result.events);
+      setVideoSegmentation(segmentation);
+      setSelectedWindowId(defaultWindow?.id ?? null);
+      setMotionEvents(result.events.filter((event) => selectedIds.has(event.id)));
       setDecoderStatus('review');
       setDecoderProgress(1);
       if (!result.events.length) {
@@ -324,6 +369,18 @@ export default function Home() {
       setDecoderStatus('failed');
       setError(caught instanceof Error ? caught.message : 'Impossibile analizzare il video.');
     }
+  }
+
+  function selectSolveWindow(windowId: number) {
+    const window = videoSegmentation?.windows.find((candidate) => candidate.id === windowId);
+    if (!window) return;
+    const selectedIds = new Set(window.eventIds);
+    setSelectedWindowId(windowId);
+    setMotionEvents(allMotionEvents.filter((event) => selectedIds.has(event.id)));
+    setEventChoices({});
+    setSolution('');
+    setHasAnalysis(false);
+    setError('');
   }
 
   function seekVideo(time: number) {
@@ -455,31 +512,41 @@ export default function Home() {
                       </label>
                     </div>
                   </div>
-                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-black text-slate-950">Intervallo della risoluzione</p>
-                        <p className="mt-1 text-[11px] text-slate-500">Riproduci il video e marca l’inizio e la fine della solve.</p>
-                      </div>
-                      <span className="font-mono text-[11px] font-bold text-slate-500">{formatDuration(trimStart)}–{formatDuration(trimEnd)}</span>
+                  <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-950">
+                    <strong>Una sola solve:</strong> non devi segnare nulla. Il decoder usa tutto il video e cerca automaticamente scramble, ispezione, pausa di partenza e risoluzione.
+                  </div>
+                  <details className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <summary className="cursor-pointer text-xs font-black text-slate-950">
+                      Più solve nello stesso video o correzione manuale
+                    </summary>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
+                      <p className="text-[11px] leading-4 text-slate-500">Riproduci il video e limita l’analisi solo se la selezione automatica non basta.</p>
+                      <span className="shrink-0 font-mono text-[11px] font-bold text-slate-500">{formatDuration(trimStart)}–{formatDuration(trimEnd)}</span>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="mt-3 grid grid-cols-3 gap-2">
                       <button
                         type="button"
                         onClick={() => setTrimStart(Math.min(videoRef.current?.currentTime ?? 0, trimEnd))}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black transition hover:border-blue-300"
+                        className="rounded-xl border border-slate-200 bg-white px-2 py-2 text-[11px] font-black transition hover:border-blue-300"
                       >
                         Segna inizio
                       </button>
                       <button
                         type="button"
                         onClick={() => setTrimEnd(Math.max(videoRef.current?.currentTime ?? videoMeta.duration, trimStart))}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black transition hover:border-blue-300"
+                        className="rounded-xl border border-slate-200 bg-white px-2 py-2 text-[11px] font-black transition hover:border-blue-300"
                       >
                         Segna fine
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => { setTrimStart(0); setTrimEnd(videoMeta.duration); }}
+                        className="rounded-xl border border-slate-200 bg-white px-2 py-2 text-[11px] font-black transition hover:border-blue-300"
+                      >
+                        Tutto il video
+                      </button>
                     </div>
-                  </div>
+                  </details>
                   </>
                 ) : (
                   <label
@@ -502,7 +569,7 @@ export default function Home() {
                   <strong>Cross automatica:</strong> non devi più scegliere un colore. Viene dedotto dalla progressione della solve e accompagnato da un livello di affidabilità.
                 </div>
                 <div className="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v2:</strong> calibrato sulle riprese guidate lente a 30 fps e veloci a 60 fps. Analizza soprattutto l’area del cubo e separa i picchi ravvicinati.
+                  <strong>Decoder video v3:</strong> calibrato sulle riprese lente, veloci e complete. Analizza l’area del cubo e separa automaticamente preparazione e solve.
                 </div>
 
                 {decoderStatus === 'running' ? (
@@ -527,6 +594,52 @@ export default function Home() {
                       </div>
                       <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
                     </div>
+                    {selectedWindow ? (
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] font-black text-slate-700">{START_STATE_LABELS[selectedWindow.startState]}</p>
+                          <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-500">
+                            stima temporale · {selectedWindow.confidence}%
+                          </span>
+                        </div>
+
+                        {videoSegmentation && videoSegmentation.windows.length > 1 ? (
+                          <div className="mt-3 border-t border-slate-200 pt-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Blocchi compatibili rilevati</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {videoSegmentation.windows.map((window) => (
+                                <button
+                                  key={window.id}
+                                  type="button"
+                                  onClick={() => selectSolveWindow(window.id)}
+                                  className={`rounded-lg border px-2.5 py-2 text-[10px] font-black transition ${
+                                    window.id === selectedWindowId
+                                      ? 'border-blue-500 bg-blue-600 text-white'
+                                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
+                                  }`}
+                                >
+                                  Blocco {window.id} · {formatDuration(window.start)}–{formatDuration(window.end)}
+                                </button>
+                              ))}
+                            </div>
+                            <p className="mt-2 text-[10px] leading-4 text-slate-500">L’ultimo blocco è selezionato automaticamente. Se il video contiene più solve, scegli qui quella da analizzare.</p>
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          {selectedWindow.stages.map((stage) => (
+                            <div key={`${stage.kind}-${stage.start}`} className={`rounded-lg border px-3 py-2 ${VIDEO_STAGE_STYLES[stage.kind]}`}>
+                              <p className="text-[9px] font-black uppercase tracking-[0.1em] opacity-65">{VIDEO_STAGE_LABELS[stage.kind]}</p>
+                              <p className="mt-1 font-mono text-[10px] font-black">{formatDuration(stage.start)}–{formatDuration(stage.end)}</p>
+                              <p className="mt-0.5 text-[9px] opacity-65">{stage.eventIds.length} eventi</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[10px] leading-4 text-slate-500">
+                          La separazione delle fasi usa pause e intensità del movimento. Lo scramble esatto continuerà a essere verificato contro l’inverso delle mosse confermate della solve.
+                        </p>
+                      </div>
+                    ) : null}
                     <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
                       {motionEvents.map((motionEvent) => (
                         <div key={motionEvent.id} className="grid grid-cols-[72px_1fr] items-center gap-2 rounded-xl bg-slate-50 p-2">
@@ -576,7 +689,10 @@ export default function Home() {
                 onChange={(event) => {
                   setSolution(event.target.value);
                   setDecoderStatus('idle');
+                  setAllMotionEvents([]);
                   setMotionEvents([]);
+                  setVideoSegmentation(null);
+                  setSelectedWindowId(null);
                   setEventChoices({});
                   setHasAnalysis(false);
                   setError('');
@@ -619,7 +735,7 @@ export default function Home() {
                   ? `Analisi video · ${Math.round(decoderProgress * 100)}%`
                   : decoderStatus === 'review'
                     ? allEventsReviewed ? 'Genera scramble e fasi' : `Verifica gli eventi · ${reviewedEvents}/${motionEvents.length}`
-                    : videoFile && !solution.trim() ? 'Avvia decoder video v2' : 'Analizza la soluzione'}
+                    : videoFile && !solution.trim() ? 'Avvia decoder video v3' : 'Analizza la soluzione'}
               </button>
             </form>
 
