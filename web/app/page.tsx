@@ -218,6 +218,7 @@ function completionLabel(done: boolean, available: boolean) {
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const reviewVideoRef = useRef<HTMLVideoElement>(null);
   const reviewClipRef = useRef<ReviewClip | null>(null);
   const [solution, setSolution] = useState('');
   const [crossColor, setCrossColor] = useState<CubeColor>('yellow');
@@ -348,6 +349,7 @@ export default function Home() {
       return;
     }
 
+    reviewVideoRef.current?.pause();
     setVideoFile(file);
     setVideoUrl(URL.createObjectURL(file));
     setVideoMeta({ duration: 0, width: 0, height: 0 });
@@ -381,6 +383,7 @@ export default function Home() {
 
     try {
       video.pause();
+      reviewVideoRef.current?.pause();
       video.playbackRate = 1;
       reviewClipRef.current = null;
       setReviewClip(null);
@@ -437,6 +440,10 @@ export default function Home() {
       video.pause();
       video.playbackRate = 1;
     }
+    if (reviewVideoRef.current) {
+      reviewVideoRef.current.pause();
+      reviewVideoRef.current.playbackRate = 1;
+    }
     reviewClipRef.current = null;
     setReviewClip(null);
     setSolution('');
@@ -445,7 +452,7 @@ export default function Home() {
   }
 
   function playMotionEvent(event: MotionEvent) {
-    const video = videoRef.current;
+    const video = reviewVideoRef.current ?? videoRef.current;
     if (!video) return;
     const clipStart = Math.max(0, event.start - 0.38);
     const clipEnd = Math.min(video.duration || event.end + 0.45, event.end + 0.45);
@@ -597,28 +604,6 @@ export default function Home() {
                         Sostituisci
                       </label>
                     </div>
-                    {reviewClip ? (
-                      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-blue-950/70 px-4 py-3 text-xs text-blue-100">
-                        <div>
-                          <p className="font-black text-white">
-                            Clip evento {reviewClip.eventId} · {reviewClip.playing ? 'in riproduzione' : 'terminata'}
-                          </p>
-                          <p className="mt-0.5 font-mono text-[10px] text-blue-300">
-                            {formatPreciseTime(reviewClip.start)}–{formatPreciseTime(reviewClip.end)} · rallentata a 0,65×
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const motionEvent = allMotionEvents.find((candidate) => candidate.id === reviewClip.eventId);
-                            if (motionEvent) playMotionEvent(motionEvent);
-                          }}
-                          className="rounded-lg border border-blue-300/30 bg-blue-400/10 px-3 py-2 font-black text-blue-100 transition hover:bg-blue-400/20"
-                        >
-                          ↺ Rivedi clip
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
                   <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-950">
                     <strong>Una sola solve:</strong> non devi segnare nulla. Il decoder usa tutto il video e cerca automaticamente scramble, ispezione, pausa di partenza e risoluzione.
@@ -702,62 +687,66 @@ export default function Home() {
                       </div>
                       <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-700">{reviewedEvents}/{motionEvents.length}</span>
                     </div>
-                    {handTracking?.available ? (
-                      <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] leading-4 text-emerald-900">
-                        <strong>Doppio segnale attivo:</strong> mani presenti in {handTracking.framesWithHands} di {handTracking.totalFrames} fotogrammi campionati. Se gli sticker sono coperti, il picco può essere sostenuto dalle dita; se le mani spariscono, resta valido il cambiamento del cubo.
-                      </div>
-                    ) : handTracking ? (
-                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] leading-4 text-amber-950">
-                        <strong>Fallback sul cubo:</strong> {handTracking.message ?? 'le mani non sono rimaste visibili abbastanza a lungo per creare una traiettoria affidabile.'}
-                      </div>
-                    ) : null}
-                    {selectedWindow ? (
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-[11px] font-black text-slate-700">{START_STATE_LABELS[selectedWindow.startState]}</p>
-                          <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-500">
-                            stima temporale · {selectedWindow.confidence}%
-                          </span>
-                        </div>
-
-                        {videoSegmentation && videoSegmentation.windows.length > 1 ? (
-                          <div className="mt-3 border-t border-slate-200 pt-3">
-                            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Blocchi compatibili rilevati</p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {videoSegmentation.windows.map((window) => (
-                                <button
-                                  key={window.id}
-                                  type="button"
-                                  onClick={() => selectSolveWindow(window.id)}
-                                  className={`rounded-lg border px-2.5 py-2 text-[10px] font-black transition ${
-                                    window.id === selectedWindowId
-                                      ? 'border-blue-500 bg-blue-600 text-white'
-                                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
-                                  }`}
-                                >
-                                  Blocco {window.id} · {formatDuration(window.start)}–{formatDuration(window.end)}
-                                </button>
-                              ))}
-                            </div>
-                            <p className="mt-2 text-[10px] leading-4 text-slate-500">L’ultimo blocco è selezionato automaticamente. Se il video contiene più solve, scegli qui quella da analizzare.</p>
+                    <div className="mt-4 grid gap-4 md:grid-cols-[minmax(210px,0.82fr)_minmax(0,1.18fr)] md:items-start">
+                      <div className="md:sticky md:top-3">
+                        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-950 shadow-lg">
+                          <div className="relative bg-black">
+                            <video
+                              ref={reviewVideoRef}
+                              key={`review-${videoUrl}`}
+                              src={videoUrl}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="aspect-video w-full bg-black object-contain"
+                              onTimeUpdate={(event) => stopReviewClipAtEnd(event.currentTarget)}
+                            >
+                              Il browser non riesce a riprodurre questo formato video.
+                            </video>
+                            {!reviewClip ? (
+                              <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 p-4 text-center">
+                                <span className="rounded-full bg-black/70 px-3 py-1.5 text-[10px] font-black text-white">Premi ▶ accanto a un evento</span>
+                              </div>
+                            ) : null}
                           </div>
-                        ) : null}
-
-                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                          {selectedWindow.stages.map((stage) => (
-                            <div key={`${stage.kind}-${stage.start}`} className={`rounded-lg border px-3 py-2 ${VIDEO_STAGE_STYLES[stage.kind]}`}>
-                              <p className="text-[9px] font-black uppercase tracking-[0.1em] opacity-65">{VIDEO_STAGE_LABELS[stage.kind]}</p>
-                              <p className="mt-1 font-mono text-[10px] font-black">{formatDuration(stage.start)}–{formatDuration(stage.end)}</p>
-                              <p className="mt-0.5 text-[9px] opacity-65">{stage.eventIds.length} eventi</p>
-                            </div>
-                          ))}
+                          <div className="flex min-h-16 items-center justify-between gap-2 border-t border-white/10 bg-blue-950/70 px-3 py-2 text-blue-100">
+                            {reviewClip ? (
+                              <>
+                                <div className="min-w-0">
+                                  <p className="truncate text-[10px] font-black text-white">
+                                    Evento {reviewClip.eventId} · {reviewClip.playing ? 'in riproduzione' : 'terminato'}
+                                  </p>
+                                  <p className="mt-0.5 font-mono text-[9px] text-blue-300">
+                                    {formatPreciseTime(reviewClip.start)}–{formatPreciseTime(reviewClip.end)} · 0,65×
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const motionEvent = allMotionEvents.find((candidate) => candidate.id === reviewClip.eventId);
+                                    if (motionEvent) playMotionEvent(motionEvent);
+                                  }}
+                                  className="shrink-0 rounded-lg border border-blue-300/30 bg-blue-400/10 px-2.5 py-1.5 text-[9px] font-black text-blue-100 transition hover:bg-blue-400/20"
+                                >
+                                  ↺ Rivedi
+                                </button>
+                              </>
+                            ) : (
+                              <p className="text-[10px] leading-4 text-blue-200">Il filmato resta qui mentre scegli la mossa.</p>
+                            )}
+                          </div>
                         </div>
-                        <p className="mt-2 text-[10px] leading-4 text-slate-500">
-                          La separazione delle fasi usa pause e intensità del movimento. Lo scramble esatto continuerà a essere verificato contro l’inverso delle mosse confermate della solve.
-                        </p>
+                        {handTracking?.available ? (
+                          <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[9px] leading-4 text-emerald-900">
+                            <strong>Doppio segnale attivo:</strong> mani visibili in {handTracking.framesWithHands}/{handTracking.totalFrames} fotogrammi.
+                          </p>
+                        ) : handTracking ? (
+                          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[9px] leading-4 text-amber-950">
+                            <strong>Fallback sul cubo:</strong> {handTracking.message ?? 'mani non visibili abbastanza a lungo.'}
+                          </p>
+                        ) : null}
                       </div>
-                    ) : null}
-                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                      <div className="max-h-[31rem] space-y-2 overflow-y-auto pr-1">
                       {motionEvents.map((motionEvent) => (
                         <div
                           key={motionEvent.id}
@@ -803,7 +792,55 @@ export default function Home() {
                           </div>
                         </div>
                       ))}
+                      </div>
                     </div>
+                    {selectedWindow ? (
+                      <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <summary className="cursor-pointer list-none">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Dettagli del rilevamento</p>
+                              <p className="mt-1 text-[11px] font-black text-slate-700">{START_STATE_LABELS[selectedWindow.startState]}</p>
+                            </div>
+                            <span className="rounded-full bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-500">
+                              Apri · {selectedWindow.confidence}%
+                            </span>
+                          </div>
+                        </summary>
+
+                        {videoSegmentation && videoSegmentation.windows.length > 1 ? (
+                          <div className="mt-3 border-t border-slate-200 pt-3">
+                            <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Blocchi compatibili rilevati</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {videoSegmentation.windows.map((window) => (
+                                <button
+                                  key={window.id}
+                                  type="button"
+                                  onClick={() => selectSolveWindow(window.id)}
+                                  className={`rounded-lg border px-2.5 py-2 text-[10px] font-black transition ${
+                                    window.id === selectedWindowId
+                                      ? 'border-blue-500 bg-blue-600 text-white'
+                                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'
+                                  }`}
+                                >
+                                  Blocco {window.id} · {formatDuration(window.start)}–{formatDuration(window.end)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          {selectedWindow.stages.map((stage) => (
+                            <div key={`${stage.kind}-${stage.start}`} className={`rounded-lg border px-3 py-2 ${VIDEO_STAGE_STYLES[stage.kind]}`}>
+                              <p className="text-[9px] font-black uppercase tracking-[0.1em] opacity-65">{VIDEO_STAGE_LABELS[stage.kind]}</p>
+                              <p className="mt-1 font-mono text-[10px] font-black">{formatDuration(stage.start)}–{formatDuration(stage.end)}</p>
+                              <p className="mt-0.5 text-[9px] opacity-65">{stage.eventIds.length} eventi</p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                     <p className="mt-3 text-[10px] leading-4 text-slate-500">
                       Le mani ora migliorano tempi e affidabilità dell’evento. Il nome esatto della mossa (U, R, F…) resta da confermare finché il classificatore non viene addestrato con esempi etichettati mossa per mossa.
                     </p>

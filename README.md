@@ -86,7 +86,9 @@ canale cubo. L'interfaccia espone per ogni evento la sorgente dell'evidenza e
 la forza dei due segnali. Durante la verifica, ogni evento apre una breve clip
 rallentata con margine prima e dopo il picco; la riproduzione si ferma
 automaticamente alla fine della finestra, cosi il movimento da confermare resta
-isolato. Il video non viene caricato: il browser scarica il modello MediaPipe e
+isolato. Nella postazione di verifica il mini-player resta affiancato all'elenco
+degli eventi e visibile mentre lo si scorre; segmentazione e dati tecnici sono
+raccolti in un pannello richiudibile. Il video non viene caricato: il browser scarica il modello MediaPipe e
 svolge l'inferenza sul dispositivo.
 
 Il nome della mossa resta da confermare finche non sara disponibile un modello
