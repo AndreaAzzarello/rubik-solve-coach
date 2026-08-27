@@ -170,3 +170,13 @@ scartato e non e distribuito come modello. Dimostra che la classificazione
 affidabile richiede allineamento migliore, landmark delle dita, posa del cubo e
 vincoli sullo stato degli sticker; una semplice somiglianza tra fotogrammi non
 e sufficiente.
+
+## Profilo temporale v6
+
+Il decoder non assume piu che ogni massimo locale rappresenti una sola mossa.
+I massimi ravvicinati vengono aggregati in pacchetti temporali con durata
+limitata; ogni pacchetto conserva l'elenco ordinato dei picchi, il numero di
+mosse stimato, la sequenza candidata e i due canali di evidenza. Le rianalisi
+vengono sovrapposte confrontando centro e durata del pacchetto. Questa struttura
+permette ai video veloci di mantenere insieme fingertrick composte e offre una
+correzione manuale dell'intera sottosequenza.

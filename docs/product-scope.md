@@ -86,8 +86,10 @@ Se il video non contiene informazioni sufficienti, l'app non deve inventare una
 mossa. Deve mostrare l'incertezza, presentare le alternative compatibili e
 permettere all'utente di correggere la timeline.
 
-Nel decoder v4 questo principio viene applicato anche alla fusione: la
-concordanza tra cubo e dita aumenta l'affidabilita; un evento sostenuto da un
-solo canale resta visibile ma viene dichiarato come tale. La direzione delle
-dita non viene trasformata automaticamente in una lettera di mossa senza un
-modello supervisionato e un orientamento del cubo sufficientemente certo.
+Nel decoder v6 questo principio viene applicato anche alla fusione: la
+concordanza tra cubo e dita aumenta l'affidabilita; un pacchetto sostenuto da un
+solo canale resta visibile ma viene dichiarato come tale. Picchi ravvicinati
+restano nello stesso intervallo e generano una sequenza candidata, non una falsa
+corrispondenza obbligatoria `un picco = una mossa`. Le lettere automatiche sono
+presentate come ipotesi modificabili finche orientamento e stato degli sticker
+non forniscono una verifica sufficiente.

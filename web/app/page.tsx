@@ -25,14 +25,6 @@ import {
 
 const crossColors = Object.keys(COLOR_HEX) as CubeColor[];
 const SKIP_EVENT = '__skip__';
-const MOVE_REVIEW_OPTIONS = [
-  'U', "U'", 'U2', 'R', "R'", 'R2', 'F', "F'", 'F2',
-  'D', "D'", 'D2', 'L', "L'", 'L2', 'B', "B'", 'B2',
-  'Uw', "Uw'", 'Uw2', 'Rw', "Rw'", 'Rw2', 'Fw', "Fw'", 'Fw2',
-  'Dw', "Dw'", 'Dw2', 'Lw', "Lw'", 'Lw2', 'Bw', "Bw'", 'Bw2',
-  'M', "M'", 'M2', 'E', "E'", 'E2', 'S', "S'", 'S2',
-  'x', "x'", 'x2', 'y', "y'", 'y2', 'z', "z'", 'z2',
-] as const;
 
 const PHASE_LABELS: Record<Phase, string> = {
   cross: 'Cross',
@@ -133,11 +125,24 @@ function average(values: number[]) {
   return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
 }
 
+function packetMoveCount(events: MotionEvent[]) {
+  return events.reduce((total, packet) => total + packet.moveCountEstimate, 0);
+}
+
+function weightedNotationConfidence(events: MotionEvent[]) {
+  const moves = packetMoveCount(events);
+  if (!moves) return 0;
+  return Math.round(events.reduce(
+    (total, packet) => total + packet.candidateConfidence * packet.moveCountEstimate,
+    0,
+  ) / moves);
+}
+
 function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: MotionEvent[]) {
   const usedCurrent = new Set<number>();
   const consolidated = previousEvents.map((previousEvent) => {
     let matchIndex = -1;
-    let closestDistance = 0.17;
+    let closestDistance = Math.max(0.48, (previousEvent.end - previousEvent.start) * 0.65);
     currentEvents.forEach((currentEvent, index) => {
       if (usedCurrent.has(index)) return;
       const distance = Math.abs(currentEvent.peakTime - previousEvent.peakTime);
@@ -186,6 +191,7 @@ function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: M
       dominantHand: currentEvent.handStrength >= previousEvent.handStrength ? currentEvent.dominantHand : previousEvent.dominantHand,
       handDirection: currentEvent.handStrength >= previousEvent.handStrength ? currentEvent.handDirection : previousEvent.handDirection,
       candidateMove: sameCandidate ? previousEvent.candidateMove : preferredCandidate.candidateMove,
+      candidateMoves: sameCandidate ? previousEvent.candidateMoves : preferredCandidate.candidateMoves,
       candidateConfidence: sameCandidate
         ? Math.min(82, weighted(previousEvent.candidateConfidence, currentEvent.candidateConfidence) + 4)
         : Math.max(24, preferredCandidate.candidateConfidence - 8),
@@ -194,6 +200,14 @@ function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: M
         ...currentEvent.candidateAlternatives,
         ...(sameCandidate ? [] : [previousEvent.candidateMove, currentEvent.candidateMove]),
       ])).filter((move) => move !== preferredCandidate.candidateMove).slice(0, 3),
+      internalPeakTimes: sameCandidate
+        ? previousEvent.internalPeakTimes.map((time, peakIndex) => (
+          (time * previousRuns + (currentEvent.internalPeakTimes[peakIndex] ?? time)) / supportingRuns
+        ))
+        : preferredCandidate.internalPeakTimes,
+      moveCountEstimate: sameCandidate
+        ? Math.round((previousEvent.moveCountEstimate * previousRuns + currentEvent.moveCountEstimate) / supportingRuns)
+        : preferredCandidate.moveCountEstimate,
       supportingRuns,
     };
   });
@@ -227,7 +241,7 @@ function remapEventChoices(
     const choice = previousChoices[previousEvent.id];
     if (!choice) return;
     let matchIndex = -1;
-    let closestDistance = 0.18;
+    let closestDistance = Math.max(0.52, (previousEvent.end - previousEvent.start) * 0.7);
     nextEvents.forEach((nextEvent, index) => {
       if (usedNext.has(index)) return;
       const distance = Math.abs(nextEvent.peakTime - previousEvent.peakTime);
@@ -436,11 +450,12 @@ export default function Home() {
     () => motionEvents.filter(isAutoAcceptedMotion),
     [motionEvents],
   );
-  const uncertainEvents = motionEvents.length - autoAcceptedEvents.length;
+  const uncertainPackets = motionEvents.length - autoAcceptedEvents.length;
   const averageNotationConfidence = useMemo(
-    () => average(motionEvents.map((event) => event.candidateConfidence)),
+    () => weightedNotationConfidence(motionEvents),
     [motionEvents],
   );
+  const detectedMoveCount = useMemo(() => packetMoveCount(motionEvents), [motionEvents]);
   const manuallyReviewedEvents = useMemo(
     () => motionEvents.filter((event) => eventChoices[event.id] && eventChoices[event.id] !== SKIP_EVENT).length,
     [eventChoices, motionEvents],
@@ -505,7 +520,7 @@ export default function Home() {
     if (decoderStatus === 'running') return;
     if (videoFile && decoderStatus === 'review') {
       if (!solution.trim()) {
-        setError('Tutti gli eventi sono stati ignorati: non esiste una sequenza da analizzare.');
+        setError('Tutti i pacchetti sono stati ignorati: non esiste una sequenza da analizzare.');
         return;
       }
       runAnalysis(solution, manuallyReviewedEvents === motionEvents.length ? 'video-reviewed' : 'video-estimate');
@@ -659,7 +674,7 @@ export default function Home() {
         runAnalysis(
           detectedSequence,
           'video-estimate',
-          average(selectedEvents.map((event) => event.candidateConfidence)),
+          weightedNotationConfidence(selectedEvents),
         );
       }
       if (!comparedEvents.length) {
@@ -697,7 +712,7 @@ export default function Home() {
       runAnalysis(
         detectedSequence,
         'video-estimate',
-        average(selectedEvents.map((event) => event.candidateConfidence)),
+        weightedNotationConfidence(selectedEvents),
       );
     } else {
       setHasAnalysis(false);
@@ -711,17 +726,13 @@ export default function Home() {
     const eventIndex = motionEvents.findIndex((candidate) => candidate.id === event.id);
     const previousEvent = eventIndex > 0 ? motionEvents[eventIndex - 1] : null;
     const nextEvent = eventIndex >= 0 ? motionEvents[eventIndex + 1] : null;
-    const previousBoundary = previousEvent
-      ? (previousEvent.peakTime + event.peakTime) / 2 + 0.006
-      : event.peakTime - 0.22;
-    const nextBoundary = nextEvent
-      ? (event.peakTime + nextEvent.peakTime) / 2 - 0.006
-      : event.peakTime + 0.26;
-    const clipStart = Math.max(0, event.peakTime - 0.22, previousBoundary);
+    const previousBoundary = previousEvent ? (previousEvent.end + event.start) / 2 + 0.006 : event.start - 0.08;
+    const nextBoundary = nextEvent ? (event.end + nextEvent.start) / 2 - 0.006 : event.end + 0.08;
+    const clipStart = Math.max(0, event.start - 0.08, previousBoundary);
     const clipEnd = Math.min(
-      video.duration || event.peakTime + 0.26,
-      event.peakTime + 0.26,
-      Math.max(event.peakTime + 0.035, nextBoundary),
+      video.duration || event.end + 0.08,
+      event.end + 0.08,
+      Math.max(event.end + 0.035, nextBoundary),
     );
     const clip = { eventId: event.id, start: clipStart, end: clipEnd, playing: true };
 
@@ -759,11 +770,23 @@ export default function Home() {
       runAnalysis(
         nextSequence,
         reviewedCount === motionEvents.length ? 'video-reviewed' : 'video-estimate',
-        average(motionEvents.map((event) => next[event.id] ? 100 : event.candidateConfidence)),
+        weightedNotationConfidence(motionEvents.map((event) => (
+          next[event.id] && next[event.id] !== SKIP_EVENT
+            ? { ...event, candidateConfidence: 100 }
+            : event
+        ))),
       );
     } else {
       setHasAnalysis(false);
     }
+    setError('');
+  }
+
+  function updatePacketDraft(eventId: number, choice: string) {
+    const next = { ...eventChoices, [eventId]: choice };
+    setEventChoices(next);
+    setSolution(sequenceFromMotionEvents(motionEvents, next));
+    setHasAnalysis(false);
     setError('');
   }
 
@@ -953,7 +976,7 @@ export default function Home() {
                 <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
                 {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v5 · osservazione + nomenclatura:</strong> usa i fotogrammi stabili prima della solve per censire i colori, separa scramble/ispezione e propone una lettera per ogni rotazione combinando posizione del cambiamento, cubo e dita.
+                  <strong>Decoder video v6 · pacchetti temporali:</strong> ogni finestra conserva tutti i picchi interni, anche quando tra due fotogrammi avvengono più mosse. I pacchetti vengono poi allineati tra le rianalisi e concatenati nell’output finale.
                 </div>
 
                 {decoderStatus === 'running' ? (
@@ -983,16 +1006,16 @@ export default function Home() {
 
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="rounded-xl bg-blue-50 px-3 py-3 text-blue-950">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-blue-600">Movimenti</p>
+                        <p className="text-[9px] font-black uppercase tracking-wide text-blue-600">Pacchetti</p>
                         <p className="mt-1 text-xl font-black">{motionEvents.length}</p>
                       </div>
                       <div className="rounded-xl bg-emerald-50 px-3 py-3 text-emerald-950">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">Accettati</p>
-                        <p className="mt-1 text-xl font-black">{autoAcceptedEvents.length}</p>
+                        <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">Mosse interne</p>
+                        <p className="mt-1 text-xl font-black">{detectedMoveCount}</p>
                       </div>
                       <div className="rounded-xl bg-amber-50 px-3 py-3 text-amber-950">
-                        <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">Da controllare</p>
-                        <p className="mt-1 text-xl font-black">{uncertainEvents}</p>
+                        <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">Pacchetti incerti</p>
+                        <p className="mt-1 text-xl font-black">{uncertainPackets}</p>
                       </div>
                       <div className="rounded-xl bg-violet-50 px-3 py-3 text-violet-950">
                         <p className="text-[9px] font-black uppercase tracking-wide text-violet-700">Notazione stimata</p>
@@ -1004,7 +1027,7 @@ export default function Home() {
                       <span><strong className="text-slate-900">Cambiamenti del cubo:</strong> {averageCubeSignal}%</span>
                     </div>
                     <p className="mt-2 text-[10px] leading-4 text-slate-500">
-                      La prima percentuale misura se il movimento esiste; “notazione stimata” misura quanto è plausibile la lettera proposta. Le letture ripetute vengono sovrapposte e una correzione manuale sostituisce sempre la proposta automatica.
+                      La prima percentuale misura se il pacchetto esiste; “notazione stimata” pesa tutte le mosse contenute. Le letture ripetute confrontano intervalli sovrapposti, senza pretendere che ogni picco corrisponda sempre a una sola mossa.
                     </p>
 
                     {observationSummary ? (
@@ -1049,8 +1072,8 @@ export default function Home() {
 
                     <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[11px] font-black text-slate-800">
-                        <span>Rivedi le lettere proposte e correggi solo se serve</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-600">{uncertainEvents} incerti · apri</span>
+                        <span>Rivedi i pacchetti di mosse e correggi solo se serve</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-600">{uncertainPackets} incerti · apri</span>
                       </summary>
                     <div className="mt-4">
                       <div>
@@ -1070,7 +1093,7 @@ export default function Home() {
                             </video>
                             {!reviewClip ? (
                               <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 p-4 text-center">
-                                <span className="rounded-full bg-black/70 px-3 py-1.5 text-[10px] font-black text-white">Premi ▶ accanto a un evento</span>
+                                <span className="rounded-full bg-black/70 px-3 py-1.5 text-[10px] font-black text-white">Premi ▶ accanto a un pacchetto</span>
                               </div>
                             ) : null}
                           </div>
@@ -1079,7 +1102,7 @@ export default function Home() {
                               <>
                                 <div className="min-w-0">
                                   <p className="truncate text-[10px] font-black text-white">
-                                    Evento {reviewClip.eventId} · {reviewClip.playing ? 'in riproduzione' : 'terminato'}
+                                    Pacchetto {reviewClip.eventId} · {reviewClip.playing ? 'in riproduzione' : 'terminato'}
                                   </p>
                                   <p className="mt-0.5 font-mono text-[9px] text-blue-300">
                                     {formatPreciseTime(reviewClip.start)}–{formatPreciseTime(reviewClip.end)} · 0,40×
@@ -1097,7 +1120,7 @@ export default function Home() {
                                 </button>
                               </>
                             ) : (
-                              <p className="text-[10px] leading-4 text-blue-200">Il filmato resta qui mentre scegli la mossa.</p>
+                              <p className="text-[10px] leading-4 text-blue-200">Il filmato resta qui mentre controlli il pacchetto.</p>
                             )}
                           </div>
                         </div>
@@ -1129,23 +1152,31 @@ export default function Home() {
                             className={`rounded-lg px-2 py-2 font-mono text-[11px] font-black text-white transition ${
                               reviewClip?.eventId === motionEvent.id ? 'bg-blue-700' : 'bg-slate-950 hover:bg-blue-700'
                             }`}
-                            title="Riproduci soltanto questa mossa e fermati alla fine"
+                            title="Riproduci tutte le mosse contenute in questo pacchetto"
                           >
                             <span className="block">▶ {formatPreciseTime(motionEvent.peakTime)}</span>
                             <span className="mt-0.5 block text-[8px] uppercase tracking-wide text-slate-400">
-                              1 mossa · 0,40×
+                              {motionEvent.moveCountEstimate} {motionEvent.moveCountEstimate === 1 ? 'mossa' : 'mosse'} · 0,40×
                             </span>
                           </button>
                           <div className="min-w-0">
-                            <select
-                              value={eventChoices[motionEvent.id] ?? motionEvent.candidateMove}
-                              onChange={(event) => reviewMotionEvent(motionEvent.id, event.target.value)}
-                              className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
-                              aria-label={`Mossa rilevata a ${formatPreciseTime(motionEvent.peakTime)}`}
-                            >
-                              <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
-                              {MOVE_REVIEW_OPTIONS.map((move) => <option key={move} value={move}>{move}</option>)}
-                            </select>
+                            <div className="flex gap-2">
+                              <input
+                                value={eventChoices[motionEvent.id] === SKIP_EVENT ? '' : eventChoices[motionEvent.id] ?? motionEvent.candidateMove}
+                                onChange={(event) => updatePacketDraft(motionEvent.id, event.target.value)}
+                                onBlur={(event) => reviewMotionEvent(motionEvent.id, event.currentTarget.value.trim() || SKIP_EVENT)}
+                                className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 font-mono text-xs font-bold outline-none focus:border-blue-500"
+                                aria-label={`Sequenza del pacchetto a ${formatPreciseTime(motionEvent.peakTime)}`}
+                                spellCheck={false}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => reviewMotionEvent(motionEvent.id, SKIP_EVENT)}
+                                className="shrink-0 rounded-lg border border-slate-200 bg-white px-2 text-[9px] font-black text-slate-500 hover:border-red-200 hover:text-red-600"
+                              >
+                                Ignora
+                              </button>
+                            </div>
                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[9px] font-bold text-slate-500">
                               <span className={`rounded-full px-2 py-0.5 ${MOTION_EVIDENCE_STYLES[motionEvent.evidence]}`}>
                                 {MOTION_EVIDENCE_LABELS[motionEvent.evidence]}
@@ -1153,8 +1184,8 @@ export default function Home() {
                               <span>Cubo {motionEvent.cubeStrength}% · dita {motionEvent.handStrength}%</span>
                               <span className="text-violet-700">
                                 {eventChoices[motionEvent.id]
-                                  ? 'Corretta manualmente'
-                                  : `Ipotesi ${motionEvent.candidateMove} · ${motionEvent.candidateConfidence}%`}
+                                  ? eventChoices[motionEvent.id] === SKIP_EVENT ? 'Pacchetto ignorato' : 'Corretto manualmente'
+                                  : `Pacchetto ${motionEvent.candidateMove} · ${motionEvent.candidateConfidence}%`}
                               </span>
                               {!eventChoices[motionEvent.id] && motionEvent.candidateAlternatives.length ? (
                                 <span>alternative {motionEvent.candidateAlternatives.join(' / ')}</span>
@@ -1211,14 +1242,18 @@ export default function Home() {
                             <div key={`${stage.kind}-${stage.start}`} className={`rounded-lg border px-3 py-2 ${VIDEO_STAGE_STYLES[stage.kind]}`}>
                               <p className="text-[9px] font-black uppercase tracking-[0.1em] opacity-65">{VIDEO_STAGE_LABELS[stage.kind]}</p>
                               <p className="mt-1 font-mono text-[10px] font-black">{formatDuration(stage.start)}–{formatDuration(stage.end)}</p>
-                              <p className="mt-0.5 text-[9px] opacity-65">{stage.eventIds.length} eventi</p>
+                              <p className="mt-0.5 text-[9px] opacity-65">
+                                {stage.eventIds.length} pacchetti · {allMotionEvents
+                                  .filter((packet) => stage.eventIds.includes(packet.id))
+                                  .reduce((total, packet) => total + packet.moveCountEstimate, 0)} mosse stimate
+                              </p>
                             </div>
                           ))}
                         </div>
                       </details>
                     ) : null}
                     <p className="mt-3 text-[10px] leading-4 text-slate-500">
-                      Le clip sono tagliate a metà strada tra il picco precedente e quello successivo, così non includono più una sequenza di quattro o cinque movimenti.
+                      Ogni clip mostra ora l’intera finestra temporale: i picchi molto vicini restano nello stesso pacchetto e vengono elaborati insieme, invece di essere forzati in clip artificialmente singole.
                     </p>
                     </details>
                   </div>
@@ -1308,7 +1343,7 @@ export default function Home() {
               ) : (
                 <p id="move-help" className="mt-2 text-xs leading-5 text-slate-400">
                   {decoderStatus === 'review'
-                    ? `La sequenza contiene subito le lettere proposte dal video: puoi copiarla, modificarla qui o correggere una singola clip. Affidabilità nomenclatura ${averageNotationConfidence}%.`
+                    ? `La sequenza nasce dalla concatenazione dei pacchetti: puoi copiarla, modificarla qui o correggere l’intera finestra temporale. Affidabilità nomenclatura ${averageNotationConfidence}%.`
                     : 'Supporta mosse standard, prime, doppie, wide, M/E/S e rotazioni x/y/z.'}
                 </p>
               )}
@@ -1508,12 +1543,12 @@ export default function Home() {
                   </p>
                   <h2 className="mt-3 text-3xl font-black tracking-tight">
                     {decoderStatus === 'review'
-                      ? `${motionEvents.length} movimenti rilevati.`
+                      ? `${motionEvents.length} pacchetti · ${detectedMoveCount} mosse stimate.`
                       : videoFile ? 'Video pronto.' : 'Carica la tua solve.'}
                   </h2>
                   <p className="mt-3 text-sm leading-6 text-slate-400">
                     {decoderStatus === 'review'
-                      ? `${autoAcceptedEvents.length} eventi ad alta affidabilità sono stati accettati automaticamente; ${uncertainEvents} restano disponibili per un controllo facoltativo.`
+                      ? `${autoAcceptedEvents.length} pacchetti ad alta affidabilità sono stati accettati automaticamente; ${uncertainPackets} restano disponibili per un controllo facoltativo.`
                       : videoFile
                       ? 'Premi “Avvia analisi video”. Qui compariranno soltanto le mosse realmente riconosciute o confermate, senza sequenze dimostrative.'
                       : 'Seleziona un filmato per iniziare. Replay, Cross dedotta, scramble e fasi resteranno vuoti finché non esiste un risultato attendibile.'}

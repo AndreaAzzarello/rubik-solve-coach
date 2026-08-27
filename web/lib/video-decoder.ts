@@ -42,6 +42,9 @@ export type MotionEvent = {
   candidateMove: string;
   candidateConfidence: number;
   candidateAlternatives: string[];
+  candidateMoves: string[];
+  internalPeakTimes: number[];
+  moveCountEstimate: number;
   supportingRuns?: number;
 };
 
@@ -427,6 +430,63 @@ function smoothSamples(samples: MotionSample[]) {
   });
 }
 
+function packMotionEvents(events: MotionEvent[], sampleInterval: number) {
+  if (!events.length) return events;
+  const maximumGap = Math.min(0.62, Math.max(0.3, sampleInterval * 6.2));
+  const maximumPacketDuration = 1.35;
+  const groups: MotionEvent[][] = [];
+
+  events.forEach((event) => {
+    const current = groups.at(-1);
+    const previous = current?.at(-1);
+    const packetStart = current?.[0].start ?? event.start;
+    const belongsToCurrent = Boolean(
+      current
+      && previous
+      && event.start - previous.end <= maximumGap
+      && event.end - packetStart <= maximumPacketDuration,
+    );
+    if (belongsToCurrent) current!.push(event);
+    else groups.push([event]);
+  });
+
+  return groups.map((group, packetIndex) => {
+    const strongest = [...group].sort((left, right) => right.peakDifference - left.peakDifference)[0];
+    const candidateMoves = group.flatMap((event) => event.candidateMoves);
+    const confidence = Math.round(group.reduce((total, event) => total + event.confidence, 0) / group.length);
+    const candidateConfidence = Math.round(
+      group.reduce((total, event) => total + event.candidateConfidence, 0) / group.length,
+    );
+    const cubeStrength = Math.max(...group.map((event) => event.cubeStrength));
+    const handStrength = Math.max(...group.map((event) => event.handStrength));
+    const directions = new Set(group.map((event) => event.handDirection));
+    const hands = new Set(group.map((event) => event.dominantHand).filter((hand) => hand !== 'unknown'));
+    const hasCube = group.some((event) => event.evidence === 'cube' || event.evidence === 'combined');
+    const hasHands = group.some((event) => event.evidence === 'hands' || event.evidence === 'combined');
+    return {
+      ...strongest,
+      id: packetIndex + 1,
+      start: group[0].start,
+      end: group.at(-1)!.end,
+      confidence: Math.min(98, confidence + Math.min(6, group.length - 1)),
+      motionKind: group.some((event) => event.motionKind === 'global-motion')
+        ? 'global-motion' as const
+        : 'face-turn' as const,
+      evidence: hasCube && hasHands ? 'combined' as const : hasHands ? 'hands' as const : 'cube' as const,
+      cubeStrength,
+      handStrength,
+      dominantHand: hands.size > 1 ? 'both' as const : group.find((event) => event.dominantHand !== 'unknown')?.dominantHand ?? 'unknown',
+      handDirection: directions.size === 1 ? group[0].handDirection : 'mixed' as const,
+      candidateMove: candidateMoves.join(' '),
+      candidateMoves,
+      candidateConfidence: Math.max(24, candidateConfidence - Math.max(0, group.length - 2) * 2),
+      candidateAlternatives: Array.from(new Set(group.flatMap((event) => event.candidateAlternatives))).slice(0, 5),
+      internalPeakTimes: group.flatMap((event) => event.internalPeakTimes),
+      moveCountEstimate: candidateMoves.length,
+    };
+  });
+}
+
 export function detectMotionEvents(samples: MotionSample[], sampleInterval: number): Omit<VideoDecodeResult, 'sampleInterval' | 'analyzedRegion' | 'handTracking'> {
   if (samples.length < 3) return { events: [], samples, threshold: 0 };
 
@@ -467,7 +527,7 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
   });
   selectedPeaks.sort((left, right) => left.time - right.time);
 
-  const events = selectedPeaks.map((peak, index) => {
+  const atomicEvents = selectedPeaks.map((peak, index) => {
     const peakIndex = smoothed.indexOf(peak);
     const maximumRadius = Math.max(2, Math.ceil(0.75 / sampleInterval));
     let startIndex = peakIndex;
@@ -523,18 +583,21 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
       dominantHand: handPeak?.dominantHand ?? 'unknown',
       handDirection: handPeak?.handDirection ?? 'mixed',
       ...moveCandidate,
+      candidateMoves: [moveCandidate.candidateMove],
+      internalPeakTimes: [peak.time],
+      moveCountEstimate: 1,
     };
   });
 
-  for (let index = 0; index < events.length - 1; index += 1) {
-    if (events[index].end > events[index + 1].start) {
-      const midpoint = (events[index].peakTime + events[index + 1].peakTime) / 2;
-      events[index].end = midpoint;
-      events[index + 1].start = midpoint;
+  for (let index = 0; index < atomicEvents.length - 1; index += 1) {
+    if (atomicEvents[index].end > atomicEvents[index + 1].start) {
+      const midpoint = (atomicEvents[index].peakTime + atomicEvents[index + 1].peakTime) / 2;
+      atomicEvents[index].end = midpoint;
+      atomicEvents[index + 1].start = midpoint;
     }
   }
 
-  return { events: events.slice(0, 240), samples, threshold };
+  return { events: packMotionEvents(atomicEvents, sampleInterval).slice(0, 160), samples, threshold };
 }
 
 export function summarizeCubeObservation(
@@ -604,14 +667,19 @@ export function inferVideoSegmentation(
   const duration = Math.max(1, rangeEnd - rangeStart);
   const sessionPauseThreshold = Math.min(45, Math.max(24, duration * 0.18));
   const sessions = groupEventsByPause(ordered, sessionPauseThreshold);
-  const usableSessions = sessions.filter((session) => session.length >= 4);
+  const usableSessions = sessions.filter((session) => (
+    session.reduce((total, packet) => total + packet.moveCountEstimate, 0) >= 4
+  ));
   const candidateSessions = usableSessions.length ? usableSessions : [ordered];
 
   const windows: SolveWindow[] = candidateSessions.map((session, index) => {
     const gaps = session.slice(1).map((event, gapIndex) => event.peakTime - session[gapIndex].peakTime);
     const typicalGap = median(gaps.filter((gap) => gap <= 3.5));
     const pauseThreshold = Math.min(6, Math.max(1.45, typicalGap * 3.4));
-    const minimumSuffix = Math.max(5, Math.floor(session.length * 0.35));
+    const minimumSuffix = Math.min(
+      Math.max(2, Math.floor(session.length * 0.3)),
+      Math.max(1, session.length - 1),
+    );
     let splitIndex = -1;
     let selectedPause = 0;
     let bestSplitScore = 0;
@@ -632,7 +700,9 @@ export function inferVideoSegmentation(
     const solveEvents = splitIndex > 0 ? session.slice(splitIndex) : session;
     const start = Math.max(rangeStart, solveEvents[0].start);
     const end = Math.min(rangeEnd, solveEvents.at(-1)!.end);
-    const solvedStartLikely = preparationEvents.length >= Math.max(8, Math.floor(solveEvents.length * 0.18));
+    const preparationMoveCount = preparationEvents.reduce((total, packet) => total + packet.moveCountEstimate, 0);
+    const solveMoveCount = solveEvents.reduce((total, packet) => total + packet.moveCountEstimate, 0);
+    const solvedStartLikely = preparationMoveCount >= Math.max(8, Math.floor(solveMoveCount * 0.18));
     const stages: VideoStage[] = [];
 
     if (solvedStartLikely) {
@@ -684,7 +754,7 @@ export function inferVideoSegmentation(
       start,
       end,
       eventIds: solveEvents.map((event) => event.id),
-      confidence: Math.round(Math.min(94, 56 + solveEvents.length * 0.38 + Math.min(14, selectedPause))),
+      confidence: Math.round(Math.min(94, 56 + solveMoveCount * 0.38 + Math.min(14, selectedPause))),
       startState: solvedStartLikely
         ? 'solved-likely' as const
         : preparationEvents.length

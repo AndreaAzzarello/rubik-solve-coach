@@ -73,24 +73,24 @@ browser. La prima versione permette di:
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder video v5 e attivo e fonde due canali locali:
+piu fasi. Il decoder video v6 e attivo e fonde due canali locali:
 
 - variazione di luminosita e colore nell'area del cubo;
 - traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
   movimento residuo delle dita.
 
 Una breve finestra temporale collega il fingertrick che inizia prima al
-cambiamento degli sticker che segue. Se il cubo e coperto puo sostenere
-l'evento il canale mani; se le mani escono dal campo resta disponibile il
-canale cubo. L'interfaccia espone per ogni evento la sorgente dell'evidenza e
-la forza dei due segnali. Durante la verifica, ogni evento apre nel pannello a
-larghezza piena una clip
-delimitata dai punti medi tra i picchi adiacenti e riprodotta a `0,40x`, cosi
-anche una sequenza veloce mostra una sola rotazione. Gli eventi con almeno
-l'88% di confidenza e segnali coerenti vengono accettati automaticamente come
-movimenti reali. La rianalisi sposta leggermente istanti di campionamento e area
-osservata, confronta i nuovi picchi con le letture precedenti e aumenta
-l'affidabilita soltanto degli eventi ritrovati. Se la prima lettura resta sotto
+cambiamento degli sticker che segue. Se il cubo e coperto puo sostenere il
+pacchetto il canale mani; se le mani escono dal campo resta disponibile il
+canale cubo. I picchi distanti al massimo circa 0,62 secondi vengono conservati
+nella stessa finestra, fino a 1,35 secondi: una fingertrick veloce puo quindi
+produrre un pacchetto di piu mosse invece di essere forzata in eventi singoli.
+Ogni pacchetto espone la sorgente dell'evidenza, il numero di mosse interne, la
+sequenza proposta e la relativa clip completa a `0,40x`.
+
+La rianalisi sposta leggermente istanti di campionamento e area osservata,
+allinea le finestre temporali sovrapposte e aumenta l'affidabilita soltanto dei
+pacchetti ritrovati. Se la prima lettura resta sotto
 l'82%, il browser avvia automaticamente fino a tre letture; il pulsante di
 rianalisi aggiunge poi altre letture alla stessa sovrapposizione. Dopo due
 letture concordi la soglia di accettazione scende all'84%. L'interfaccia mostra
@@ -99,14 +99,15 @@ segmentazione e dati tecnici restano disponibili in pannelli richiudibili. Il
 video non viene caricato: il browser scarica il modello MediaPipe e svolge
 l'inferenza sul dispositivo.
 
-Il v5 separa esplicitamente l'intervallo di osservazione/preparazione dalla
+Il v6 separa esplicitamente l'intervallo di osservazione/preparazione dalla
 solve. Nei fotogrammi stabili precedenti alla partenza censisce i sei colori e
 mostra quanto materiale utile ha realmente osservato; le rotazioni di
-preparazione restano fuori dalla sequenza della solve. Per ogni evento della
-solve propone subito una notazione modificabile combinando posizione spaziale
-del cambiamento, traiettoria delle dita e variazione del cubo. Il campo non e
-piu riempito di `?`: replay, scramble inverso e divisione Cross/F2L/OLL/PLL
-appaiono al termine dell'analisi e si aggiornano quando viene corretta una clip.
+preparazione restano fuori dalla sequenza della solve. Per ogni pacchetto della
+solve propone una sequenza modificabile combinando tutti i picchi interni,
+posizione spaziale del cambiamento, traiettoria delle dita e variazione del
+cubo. I pacchetti vengono concatenati nel campo finale senza `?`: replay,
+scramble inverso e divisione Cross/F2L/OLL/PLL appaiono al termine dell'analisi
+e si aggiornano quando viene corretta una finestra.
 
 La UI mantiene separate due affidabilita: esistenza del movimento e identita
 della notazione. Una proposta automatica non viene presentata come verificata:
