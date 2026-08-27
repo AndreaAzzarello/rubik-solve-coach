@@ -24,6 +24,10 @@ import {
   inferVideoSegmentation,
   summarizeCubeObservation,
 } from '../lib/video-decoder';
+import {
+  createScrambleFromInspection,
+  type InspectionScramble,
+} from '../lib/inspection-solver';
 
 const crossColors = Object.keys(COLOR_HEX) as CubeColor[];
 const SKIP_EVENT = '__skip__';
@@ -383,6 +387,7 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const reviewVideoRef = useRef<HTMLVideoElement>(null);
   const reviewClipRef = useRef<ReviewClip | null>(null);
+  const inspectionSolveGenerationRef = useRef(0);
   const [solution, setSolution] = useState('');
   const [crossColor, setCrossColor] = useState<CubeColor>('yellow');
   const [crossConfidence, setCrossConfidence] = useState(0);
@@ -408,6 +413,8 @@ export default function Home() {
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
   const [videoSamples, setVideoSamples] = useState<MotionSample[]>([]);
   const [observationSummary, setObservationSummary] = useState<CubeObservationSummary | null>(null);
+  const [inspectionScramble, setInspectionScramble] = useState<InspectionScramble | null>(null);
+  const [inspectionSolveStatus, setInspectionSolveStatus] = useState<'idle' | 'solving' | 'ready' | 'failed'>('idle');
   const [pllColorSummary, setPllColorSummary] = useState<PllColorSummary | null>(null);
   const [analysisSource, setAnalysisSource] = useState<'manual' | 'video-estimate' | 'video-reviewed'>('manual');
   const [reviewClip, setReviewClip] = useState<ReviewClip | null>(null);
@@ -464,20 +471,8 @@ export default function Home() {
     () => motionEvents.filter((event) => eventChoices[event.id] && eventChoices[event.id] !== SKIP_EVENT).length,
     [eventChoices, motionEvents],
   );
+  const effectiveScramble = inspectionScramble?.verified ? inspectionScramble.scramble : analysis.scramble;
   const selectedWindow = videoSegmentation?.windows.find((window) => window.id === selectedWindowId) ?? null;
-  const stageSequences = useMemo(() => {
-    const result = { scramble: '', inspection: '', solve: '' };
-    selectedWindow?.stages.forEach((stage) => {
-      const ids = new Set(stage.eventIds);
-      result[stage.kind] = allMotionEvents
-        .filter((event) => ids.has(event.id))
-        .map((event) => eventChoices[event.id] || event.candidateMove)
-        .filter((move) => move !== SKIP_EVENT)
-        .join(' ');
-    });
-    return result;
-  }, [allMotionEvents, eventChoices, selectedWindow]);
-
   useEffect(() => {
     return () => {
       if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -503,6 +498,11 @@ export default function Home() {
     pllHint: PllColorSummary | null = null,
   ) {
     try {
+      if (source === 'manual') {
+        inspectionSolveGenerationRef.current += 1;
+        setInspectionScramble(null);
+        setInspectionSolveStatus('idle');
+      }
       const usePllHint = source !== 'manual'
         && Boolean(pllHint)
         && (pllHint?.confidence ?? 0) >= PLL_CROSS_CONFIDENCE;
@@ -559,6 +559,27 @@ export default function Home() {
     runAnalysis(solution, 'manual');
   }
 
+  async function updateInspectionScramble(summary: CubeObservationSummary) {
+    const generation = ++inspectionSolveGenerationRef.current;
+    setInspectionScramble(null);
+    if (!summary.reconstruction.completeFacelets) {
+      setInspectionSolveStatus('idle');
+      return;
+    }
+    setInspectionSolveStatus('solving');
+    try {
+      const reconstructed = await createScrambleFromInspection(summary.reconstruction.completeFacelets);
+      if (generation !== inspectionSolveGenerationRef.current) return;
+      if (!reconstructed.verified) throw new Error('Lo scramble non riproduce lo stato osservato.');
+      setInspectionScramble(reconstructed);
+      setInspectionSolveStatus('ready');
+    } catch {
+      if (generation !== inspectionSolveGenerationRef.current) return;
+      setInspectionScramble(null);
+      setInspectionSolveStatus('failed');
+    }
+  }
+
   function chooseVideo(file: File | null) {
     if (!file) return;
     const isVideo = file.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(file.name);
@@ -584,6 +605,9 @@ export default function Home() {
     setEventChoices({});
     setVideoSamples([]);
     setObservationSummary(null);
+    inspectionSolveGenerationRef.current += 1;
+    setInspectionScramble(null);
+    setInspectionSolveStatus('idle');
     setPllColorSummary(null);
     setAnalysisSource('manual');
     setSequenceCopied(false);
@@ -632,6 +656,9 @@ export default function Home() {
         setEventChoices({});
         setVideoSamples([]);
         setObservationSummary(null);
+        inspectionSolveGenerationRef.current += 1;
+        setInspectionScramble(null);
+        setInspectionSolveStatus('idle');
         setPllColorSummary(null);
         setSolution('');
       }
@@ -695,6 +722,7 @@ export default function Home() {
       setMotionEvents(selectedEvents);
       setVideoSamples(latestSamples);
       setObservationSummary(observation);
+      void updateInspectionScramble(observation);
       setPllColorSummary(pllSummary);
       setEventChoices(remappedChoices);
       setSolution(detectedSequence);
@@ -743,8 +771,10 @@ export default function Home() {
       window.start,
       Math.min(trimEnd || videoMeta.duration, window.end + 1.25),
     );
+    const observation = summarizeCubeObservation(videoSamples, trimStart, window.start);
     setSolution(detectedSequence);
-    setObservationSummary(summarizeCubeObservation(videoSamples, trimStart, window.start));
+    setObservationSummary(observation);
+    void updateInspectionScramble(observation);
     setPllColorSummary(pllSummary);
     if (detectedSequence) {
       runAnalysis(
@@ -836,7 +866,7 @@ export default function Home() {
 
   async function copyScramble() {
     try {
-      await navigator.clipboard.writeText(analysis.scramble);
+      await navigator.clipboard.writeText(effectiveScramble);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -1016,7 +1046,7 @@ export default function Home() {
                 <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
                 {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v8 · pacchetti + doppie mosse:</strong> ogni finestra conserva tutti i picchi interni, ricompone due quarti di giro uguali in R2 (e equivalenti) e usa il colore PLL per proporre la Cross opposta. Le letture vengono sovrapposte e concatenate nell’output finale.
+                  <strong>Decoder video v9 · ispezione completa + pacchetti:</strong> durante l’ispezione fonde le facce viste in tutti i fotogrammi stabili, ricostruisce angoli e spigoli con i vincoli fisici del 3×3 e genera lo scramble soltanto se lo stato è univoco. Dalla partenza della solve continua a combinare cambiamenti del cubo e movimenti delle mani.
                 </div>
 
                 {decoderStatus === 'running' ? (
@@ -1073,39 +1103,64 @@ export default function Home() {
                     {observationSummary ? (
                       <div className="mt-3 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-cyan-950">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-800">Scansione durante l’osservazione</p>
-                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black">{observationSummary.confidence}%</span>
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-800">Ricostruzione dello stato iniziale</p>
+                          <span className={`rounded-full px-2 py-1 text-[10px] font-black ${
+                            observationSummary.reconstruction.status === 'complete'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : observationSummary.reconstruction.status === 'invalid'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-white text-cyan-900'
+                          }`}>
+                            {observationSummary.reconstruction.status === 'complete'
+                              ? 'Completo'
+                              : observationSummary.reconstruction.status === 'invalid'
+                                ? 'Da rileggere'
+                                : 'Parziale'}
+                          </span>
                         </div>
                         <p className="mt-1 text-[11px] leading-4">
-                          {observationSummary.stableFrames} fotogrammi stabili · {observationSummary.detectedColors.length}/6 colori distinti · intervallo {formatPreciseTime(observationSummary.start)}–{formatPreciseTime(observationSummary.end)}.
+                          Tutta l’ispezione {formatPreciseTime(observationSummary.start)}–{formatPreciseTime(observationSummary.end)} viene usata come scansione: {observationSummary.stableFrames} fotogrammi stabili confrontati.
                         </p>
-                        <div className="mt-2 flex gap-1.5">
-                          {crossColors.map((color) => (
-                            <span
-                              key={color}
-                              className={`h-5 w-5 rounded-md border border-black/10 ${observationSummary.detectedColors.includes(color) ? '' : 'opacity-20 grayscale'}`}
-                              style={{ backgroundColor: COLOR_HEX[color] }}
-                              title={`${COLOR_LABELS[color]} ${observationSummary.detectedColors.includes(color) ? 'osservato' : 'non ancora osservato'}`}
-                            />
-                          ))}
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                          <div className="rounded-lg bg-white/75 px-2.5 py-2">
+                            <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Facce lette</p>
+                            <p className="mt-1 text-lg font-black">{observationSummary.reconstruction.observedFaces.length}/6</p>
+                          </div>
+                          <div className="rounded-lg bg-white/75 px-2.5 py-2">
+                            <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Caselle viste</p>
+                            <p className="mt-1 text-lg font-black">{observationSummary.reconstruction.observedFacelets}/48</p>
+                          </div>
+                          <div className="rounded-lg bg-white/75 px-2.5 py-2">
+                            <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Angoli risolti</p>
+                            <p className="mt-1 text-lg font-black">{observationSummary.reconstruction.resolvedCorners}/8</p>
+                          </div>
+                          <div className="rounded-lg bg-white/75 px-2.5 py-2">
+                            <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Spigoli risolti</p>
+                            <p className="mt-1 text-lg font-black">{observationSummary.reconstruction.resolvedEdges}/12</p>
+                          </div>
                         </div>
                         <p className="mt-2 text-[10px] leading-4 text-cyan-800">
-                          {observationSummary.patternStatus === 'usable'
-                            ? 'Copertura utile per controllare il pattern iniziale; la validazione sticker-per-sticker resta distinta dalla notazione proposta.'
-                            : 'Copertura ancora parziale: il decoder usa ciò che vede senza dichiarare completo un pattern non osservato.'}
+                          {observationSummary.reconstruction.message} {observationSummary.reconstruction.inferredFacelets > 0
+                            ? `${observationSummary.reconstruction.inferredFacelets} caselle mancanti sono state dedotte in modo univoco dai pezzi già osservati.`
+                            : ''}
                         </p>
-                        {stageSequences.scramble ? (
-                          <div className="mt-2 rounded-lg bg-white/70 px-2.5 py-2">
-                            <p className="text-[9px] font-black uppercase tracking-wide text-orange-700">Scramble visto prima dell’ispezione</p>
-                            <p className="mt-1 max-h-12 overflow-hidden break-words font-mono text-[10px] font-bold leading-4">{stageSequences.scramble}</p>
+                        {inspectionSolveStatus === 'solving' ? (
+                          <div className="mt-2 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 text-blue-900">
+                            <p className="text-[9px] font-black uppercase tracking-wide">Calcolo dello scramble verificato…</p>
                           </div>
                         ) : null}
+                        {inspectionScramble?.verified ? (
+                          <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-emerald-950">
+                            <p className="text-[9px] font-black uppercase tracking-wide text-emerald-700">Scramble esatto · bianco sopra, verde davanti</p>
+                            <p className="mt-1 break-words font-mono text-[10px] font-black leading-4">{inspectionScramble.scramble || 'Cubo già risolto'}</p>
+                            <p className="mt-1 text-[9px] leading-4 text-emerald-800">Rieseguito virtualmente e confrontato casella per casella con lo stato ricostruito.</p>
+                          </div>
+                        ) : inspectionSolveStatus === 'failed' ? (
+                          <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-2 text-[9px] font-bold leading-4 text-red-800">Lo stato era completo, ma il controllo dello scramble non è passato: il risultato non viene pubblicato come esatto.</p>
+                        ) : null}
                         <div className="mt-2 rounded-lg bg-white/70 px-2.5 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Rotazioni di osservazione/preparazione</p>
-                          <p className="mt-1 break-words font-mono text-[10px] font-bold leading-4">
-                            {stageSequences.inspection || 'Nessuna rotazione separata con sufficiente evidenza'}
-                          </p>
-                          <p className="mt-1 text-[9px] leading-4 text-cyan-800">Queste rotazioni orientano la lettura; non vengono più conteggiate come mosse della solve.</p>
+                          <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Ispezione separata dalla solve</p>
+                          <p className="mt-1 text-[9px] leading-4 text-cyan-800">Le rotazioni x/y/z di questa parte servono soltanto a mostrare nuove facce. Non entrano nella sequenza R/L/U/D/F/B; la notazione parte dalla pausa e dall’orientamento scelto per iniziare.</p>
                         </div>
                       </div>
                     ) : null}
@@ -1530,12 +1585,16 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-xs font-bold text-slate-400">Scramble {analysisSource === 'video-estimate' ? 'stimato' : 'ricostruito'}</p>
+                  <p className="text-xs font-bold text-slate-400">Scramble {inspectionScramble?.verified ? 'verificato dai colori' : analysisSource === 'video-estimate' ? 'stimato' : 'ricostruito'}</p>
                   <p className="mt-2 break-words font-mono text-sm font-bold leading-6 text-yellow-300">
-                    {analysis.scramble}
+                    {effectiveScramble || 'Cubo già risolto'}
                   </p>
                   <p className="mt-2 text-[11px] leading-4 text-slate-500">
-                    {analysisSource === 'video-estimate'
+                    {inspectionScramble?.verified
+                      ? 'Derivato dallo stato letto durante l’ispezione e verificato riproducendo tutte le 54 caselle nella convenzione bianco sopra, verde davanti.'
+                      : inspectionSolveStatus === 'solving'
+                        ? 'Stato completo trovato: sto calcolando e verificando lo scramble che lo riproduce.'
+                        : analysisSource === 'video-estimate'
                       ? 'Inverso delle lettere proposte dal decoder: correggendo una clip si aggiorna subito.'
                       : 'Inverso esatto della sequenza inserita.'}
                   </p>
@@ -1636,9 +1695,9 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
-                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">Scramble stimato</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">Stato iniziale</p>
                         <p className="mt-2 text-xs font-bold leading-5 text-slate-300">
-                          La sequenza proposta viene ora scritta automaticamente e il suo inverso alimenta subito replay e fasi. Le clip restano disponibili per correggere le ipotesi meno sicure.
+                          L’ispezione ricostruisce i colori indipendentemente dalle mosse proposte. Finché mancano pezzi resta visibile la stima inversa; uno scramble “verificato” compare solo dopo un controllo completo delle 54 caselle.
                         </p>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1681,9 +1740,13 @@ export default function Home() {
                   {copied ? 'Copiato ✓' : 'Copia'}
                 </button>
               </div>
-              <p className="mt-3 break-words font-mono text-sm font-black leading-6 text-yellow-300">{analysis.scramble}</p>
+              <p className="mt-3 break-words font-mono text-sm font-black leading-6 text-yellow-300">{effectiveScramble || 'Cubo già risolto'}</p>
               <p className="mt-2 text-[11px] leading-4 text-slate-500">
-                {analysisSource === 'video-estimate'
+                {inspectionScramble?.verified
+                  ? 'Scramble calcolato dallo stato colore completo e verificato in orientamento standard: bianco sopra e verde davanti.'
+                  : inspectionSolveStatus === 'solving'
+                    ? 'Stato colore completo: calcolo e verifica dello scramble in corso.'
+                    : analysisSource === 'video-estimate'
                   ? `Ricrea lo stato implicato dalla notazione stimata (${averageNotationConfidence}%): controlla le clip a bassa confidenza prima di considerarlo definitivo.`
                   : 'Ricrea esattamente lo stato iniziale dedotto dalla sequenza confermata.'}
               </p>

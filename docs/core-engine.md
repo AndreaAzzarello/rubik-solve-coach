@@ -74,13 +74,15 @@ Lo schema potra essere sostituito durante la calibrazione video.
 
 ## Limiti attuali
 
-- Gli stati vengono prodotti applicando mosse legali a un cubo risolto; manca
-  ancora il validatore completo per uno stato letto direttamente dalla camera.
+- Il validatore di uno stato letto dalla camera controlla pezzi, orientamenti e
+  parita, ma puo completare le caselle nascoste soltanto quando esiste una sola
+  configurazione compatibile con quanto osservato.
 - La timeline classifica gli stati ma non riconosce ancora singoli casi OLL o
   PLL.
 - Non vengono ancora assegnati timestamp alle mosse.
 - Roux, ZB e metodi ibridi non sono ancora implementati.
-- Lo scramble ricostruito non pretende di essere lo scramble minimo.
+- Lo scramble ricostruito riproduce esattamente lo stato letto ma non pretende
+  di essere il minimo assoluto in HTM o QTM.
 
 ## Collegamento futuro con il video
 
@@ -92,4 +94,3 @@ che:
 2. concordano con gli sticker visibili;
 3. restano compatibili con gli stati osservati successivamente;
 4. terminano nello stato risolto dichiarato dal video.
-

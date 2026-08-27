@@ -3,6 +3,11 @@ import {
   HandSide,
   createHandMotionTracker,
 } from './hand-motion';
+import {
+  type FaceGridObservation,
+  type InspectionReconstruction,
+  reconstructInspectionState,
+} from './inspection-state';
 
 export type MotionSample = {
   time: number;
@@ -22,6 +27,7 @@ export type MotionSample = {
   changeCentroidY?: number;
   visibleColors?: ObservedColorCoverage;
   topFaceColors?: ObservedColorCoverage;
+  faceGrids?: FaceGridObservation[];
 };
 
 export type MotionKind = 'face-turn' | 'global-motion';
@@ -61,6 +67,7 @@ export type CubeObservationSummary = {
   coverage: ObservedColorCoverage;
   confidence: number;
   patternStatus: 'usable' | 'partial' | 'insufficient';
+  reconstruction: InspectionReconstruction;
 };
 
 export type PllColorSummary = {
@@ -126,6 +133,7 @@ type FrameSignature = {
   chromaRed: Uint8Array;
   visibleColors: ObservedColorCoverage;
   topFaceColors: ObservedColorCoverage;
+  faceGrids: Array<Omit<FaceGridObservation, 'time'>>;
 };
 
 type DifferenceMeasurement = {
@@ -144,6 +152,15 @@ const OPPOSITE_COLOR: Record<ObservedCubeColor, ObservedCubeColor> = {
   orange: 'red',
   green: 'blue',
   blue: 'green',
+};
+
+type StickerComponent = {
+  color: ObservedCubeColor;
+  area: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 function emptyColorCoverage(): ObservedColorCoverage {
@@ -182,6 +199,158 @@ const median = (values: number[]) => {
   const middle = Math.floor(sorted.length / 2);
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 };
+
+function stickerComponents(labels: Int8Array, width: number, height: number) {
+  const visited = new Uint8Array(labels.length);
+  const queue = new Int32Array(labels.length);
+  const components: StickerComponent[] = [];
+  for (let seed = 0; seed < labels.length; seed += 1) {
+    const label = labels[seed];
+    if (label < 0 || visited[seed]) continue;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = seed;
+    visited[seed] = 1;
+    let area = 0;
+    let sumX = 0;
+    let sumY = 0;
+    let minimumX = width;
+    let maximumX = 0;
+    let minimumY = height;
+    let maximumY = 0;
+    while (head < tail) {
+      const index = queue[head++];
+      const x = index % width;
+      const y = Math.floor(index / width);
+      area += 1;
+      sumX += x;
+      sumY += y;
+      minimumX = Math.min(minimumX, x);
+      maximumX = Math.max(maximumX, x);
+      minimumY = Math.min(minimumY, y);
+      maximumY = Math.max(maximumY, y);
+      const neighbors = [index - 1, index + 1, index - width, index + width];
+      neighbors.forEach((neighbor, direction) => {
+        if (neighbor < 0 || neighbor >= labels.length || visited[neighbor] || labels[neighbor] !== label) return;
+        if (direction === 0 && x === 0) return;
+        if (direction === 1 && x === width - 1) return;
+        visited[neighbor] = 1;
+        queue[tail++] = neighbor;
+      });
+    }
+    const componentWidth = maximumX - minimumX + 1;
+    const componentHeight = maximumY - minimumY + 1;
+    const fill = area / Math.max(1, componentWidth * componentHeight);
+    const aspect = componentWidth / Math.max(1, componentHeight);
+    if (
+      area >= 4
+      && area <= width * height * 0.055
+      && componentWidth >= 2
+      && componentHeight >= 2
+      && aspect >= 0.32
+      && aspect <= 3.1
+      && fill >= 0.28
+    ) {
+      components.push({
+        color: OBSERVED_COLORS[label],
+        area,
+        x: sumX / area,
+        y: sumY / area,
+        width: componentWidth,
+        height: componentHeight,
+      });
+    }
+  }
+  return components;
+}
+
+function detectFaceGrids(labels: Int8Array, width: number, height: number) {
+  const components = stickerComponents(labels, width, height);
+  if (components.length < 6) return [];
+  const areas = components.map((component) => component.area);
+  const typicalArea = median(areas);
+  const usable = components.filter((component) => (
+    component.area >= typicalArea * 0.22 && component.area <= typicalArea * 4.5
+  ));
+  const candidates: Array<Omit<FaceGridObservation, 'time'> & { score: number }> = [];
+
+  usable.forEach((center) => {
+    const vectors = usable
+      .filter((component) => component !== center)
+      .map((component) => ({
+        component,
+        dx: component.x - center.x,
+        dy: component.y - center.y,
+        length: Math.hypot(component.x - center.x, component.y - center.y),
+      }))
+      .filter((vector) => vector.length >= 2.4 && vector.length <= Math.min(width, height) * 0.34);
+    // The cube may be held at any roll angle during inspection. Candidate
+    // axes therefore come from the nearest sticker centroids, not only from
+    // vectors pointing right/down in image coordinates.
+    const basisVectors = [...vectors]
+      .sort((left, right) => left.length - right.length)
+      .slice(0, 14);
+
+    basisVectors.forEach((right) => basisVectors.forEach((down) => {
+      if (right.component === down.component) return;
+      const cosine = Math.abs((right.dx * down.dx + right.dy * down.dy) / (right.length * down.length));
+      const determinant = right.dx * down.dy - right.dy * down.dx;
+      const ratio = right.length / down.length;
+      if (cosine > 0.64 || determinant <= 1.8 || ratio < 0.42 || ratio > 2.4) return;
+      const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.43);
+      const used = new Set<StickerComponent>();
+      const colors = Array<ObservedCubeColor | null>(9).fill(null);
+      let visibleCells = 0;
+      let residual = 0;
+      for (let row = -1; row <= 1; row += 1) {
+        for (let column = -1; column <= 1; column += 1) {
+          const targetX = center.x + right.dx * column + down.dx * row;
+          const targetY = center.y + right.dy * column + down.dy * row;
+          let best: StickerComponent | null = null;
+          let bestDistance = tolerance;
+          usable.forEach((component) => {
+            if (used.has(component)) return;
+            const distance = Math.hypot(component.x - targetX, component.y - targetY);
+            if (distance < bestDistance) {
+              best = component;
+              bestDistance = distance;
+            }
+          });
+          if (best) {
+            used.add(best);
+            colors[(row + 1) * 3 + column + 1] = best.color;
+            visibleCells += 1;
+            residual += bestDistance / tolerance;
+          }
+        }
+      }
+      if (visibleCells < 6 || colors[4] !== center.color) return;
+      const fit = Math.max(0, 1 - residual / visibleCells);
+      const score = visibleCells / 9 * 0.78 + fit * 0.22;
+      candidates.push({
+        centerColor: center.color,
+        colors,
+        visibleCells,
+        confidence: Math.round(Math.min(94, Math.max(42, score * 100))),
+        score,
+      });
+    }));
+  });
+
+  const bestByCenter = new Map<ObservedCubeColor, (typeof candidates)[number]>();
+  candidates.sort((left, right) => right.score - left.score).forEach((candidate) => {
+    if (!bestByCenter.has(candidate.centerColor)) bestByCenter.set(candidate.centerColor, candidate);
+  });
+  return [...bestByCenter.values()]
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 3)
+    .map((candidate) => ({
+      centerColor: candidate.centerColor,
+      colors: candidate.colors,
+      visibleCells: candidate.visibleCells,
+      confidence: candidate.confidence,
+    }));
+}
 
 function waitForSeek(video: HTMLVideoElement, time: number) {
   return new Promise<void>((resolve, reject) => {
@@ -224,6 +393,8 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
   const chromaRed = new Uint8Array(size);
   const colorCounts = emptyColorCoverage();
   const topColorCounts = emptyColorCoverage();
+  const pixelLabels = new Int8Array(size);
+  pixelLabels.fill(-1);
   let classifiedPixels = 0;
   let classifiedTopPixels = 0;
 
@@ -240,6 +411,7 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
     if (x >= width * 0.12 && x <= width * 0.88 && y >= height * 0.12 && y <= height * 0.88) {
       const color = rgbToObservedColor(red, green, blue);
       if (color) {
+        pixelLabels[target] = OBSERVED_COLORS.indexOf(color);
         colorCounts[color] += 1;
         classifiedPixels += 1;
         if (x >= width * 0.22 && x <= width * 0.78 && y >= height * 0.18 && y <= height * 0.52) {
@@ -256,7 +428,14 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
     visibleColors[color] = colorCounts[color] / Math.max(1, classifiedPixels);
     topFaceColors[color] = topColorCounts[color] / Math.max(1, classifiedTopPixels);
   });
-  return { luma, chromaBlue, chromaRed, visibleColors, topFaceColors };
+  return {
+    luma,
+    chromaBlue,
+    chromaRed,
+    visibleColors,
+    topFaceColors,
+    faceGrids: detectFaceGrids(pixelLabels, width, height),
+  };
 }
 
 function frameDifference(
@@ -652,6 +831,9 @@ export function summarizeCubeObservation(
   const stableLimit = Math.max(2.4, percentile(differences, 0.42));
   const stable = selected.filter((sample) => (sample.cubeDifference ?? sample.difference) <= stableLimit);
   const useful = stable.length >= 3 ? stable : selected;
+  const reconstruction = reconstructInspectionState(
+    useful.flatMap((sample) => sample.faceGrids ?? []),
+  );
   const coverage = emptyColorCoverage();
   useful.forEach((sample) => {
     OBSERVED_COLORS.forEach((color) => {
@@ -667,7 +849,10 @@ export function summarizeCubeObservation(
   ));
   const frameScore = Math.min(24, useful.length * 0.55);
   const colorScore = detectedColors.length / OBSERVED_COLORS.length * 66;
-  const confidence = Math.round(Math.min(92, frameScore + colorScore));
+  const confidence = Math.round(Math.min(96, Math.max(
+    frameScore + colorScore,
+    reconstruction.confidence,
+  )));
   return {
     start,
     end,
@@ -676,11 +861,12 @@ export function summarizeCubeObservation(
     detectedColors,
     coverage,
     confidence,
-    patternStatus: detectedColors.length === 6 && stable.length >= 18
+    patternStatus: reconstruction.status === 'complete'
       ? 'usable'
-      : detectedColors.length >= 4 && stable.length >= 8
+      : reconstruction.status === 'partial' || (detectedColors.length >= 4 && stable.length >= 8)
         ? 'partial'
         : 'insufficient',
+    reconstruction,
   };
 }
 
@@ -967,6 +1153,7 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
         changeCentroidY: measurement.changeCentroidY,
         visibleColors: current.visibleColors,
         topFaceColors: current.topFaceColors,
+        faceGrids: current.faceGrids.map((grid) => ({ ...grid, time })),
         ...handMeasurement,
       });
       previous = current;

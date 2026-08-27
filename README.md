@@ -73,7 +73,7 @@ browser. La prima versione permette di:
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder video v8 e attivo e fonde due canali locali:
+piu fasi. Il decoder video v9 e attivo e fonde due canali locali:
 
 - variazione di luminosita e colore nell'area del cubo;
 - traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
@@ -118,6 +118,22 @@ progressione della sequenza, senza forzare l'indizio cromatico.
 
 Il v8 ricompone inoltre due quarti di giro consecutivi uguali nella notazione
 doppia (`R R` o `R' R'` diventano `R2`) prima di creare i pacchetti finali.
+
+Il v9 usa invece l'intero intervallo precedente alla partenza come scansione
+dello stato iniziale. Cerca griglie 3x3 nei fotogrammi stabili, allinea e fonde
+piu viste della stessa faccia e riporta separatamente facce, caselle, angoli e
+spigoli risolti. Le caselle coperte vengono inferite solo quando unicita dei
+pezzi, somma degli orientamenti e parita delle permutazioni lasciano un unico
+stato legale. Soltanto in quel caso il sito calcola uno scramble nella
+convenzione bianco sopra e verde davanti e lo verifica riproducendo lo stato
+casella per casella. Una lettura parziale resta esplicitamente ambigua. Dettagli
+e fonti sono in [`docs/inspection-reconstruction.md`](docs/inspection-reconstruction.md).
+
+Per verificare il ricostruttore TypeScript:
+
+```powershell
+pnpm --dir web test:inspection
+```
 
 ## Benchmark supervisionato
 

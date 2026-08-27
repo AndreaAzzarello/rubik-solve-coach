@@ -187,6 +187,22 @@ export class CubeState {
     return new CubeState(stickers);
   }
 
+  static fromFacelets(facelets: Record<Face, CubeColor[]>): CubeState {
+    const stickers: Sticker[] = [];
+    (Object.keys(FACE_NORMALS) as Face[]).forEach((face) => {
+      if (facelets[face]?.length !== 9) throw new Error(`Faccia ${face} incompleta`);
+      const normal = FACE_NORMALS[face];
+      facelets[face].forEach((color, index) => {
+        stickers.push({
+          position: faceletPosition(face, Math.floor(index / 3), index % 3),
+          normal,
+          color,
+        });
+      });
+    });
+    return new CubeState(stickers);
+  }
+
   clone(): CubeState {
     return new CubeState(this.stickers.map((sticker) => ({ ...sticker, position: [...sticker.position] as Vector, normal: [...sticker.normal] as Vector })));
   }
@@ -223,6 +239,21 @@ export class CubeState {
       }
     }
     return result;
+  }
+
+  faceletRecord(): Record<Face, CubeColor[]> {
+    return Object.fromEntries(
+      (Object.keys(FACE_NORMALS) as Face[]).map((face) => [face, this.facelets(face)]),
+    ) as Record<Face, CubeColor[]>;
+  }
+
+  faceletString(): string {
+    const colorFace = Object.fromEntries(
+      Object.entries(DEFAULT_COLORS).map(([face, color]) => [color, face]),
+    ) as Record<CubeColor, Face>;
+    return (Object.keys(FACE_NORMALS) as Face[])
+      .flatMap((face) => this.facelets(face).map((color) => colorFace[color]))
+      .join('');
   }
 
   centerColors(): Map<string, { normal: Vector; color: CubeColor }> {
