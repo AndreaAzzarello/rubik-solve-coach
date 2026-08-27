@@ -13,16 +13,18 @@ import {
   classifyPhase,
 } from '../lib/cube';
 import {
+  type CubeObservationSummary,
   type HandTrackingSummary,
-  MotionEvent,
-  VideoSegmentation,
+  type MotionEvent,
+  type MotionSample,
+  type VideoSegmentation,
   decodeVideoMotion,
   inferVideoSegmentation,
+  summarizeCubeObservation,
 } from '../lib/video-decoder';
 
 const crossColors = Object.keys(COLOR_HEX) as CubeColor[];
 const SKIP_EVENT = '__skip__';
-const UNKNOWN_MOVE = '?';
 const MOVE_REVIEW_OPTIONS = [
   'U', "U'", 'U2', 'R', "R'", 'R2', 'F', "F'", 'F2',
   'D', "D'", 'D2', 'L', "L'", 'L2', 'B', "B'", 'B2',
@@ -163,6 +165,10 @@ function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: M
     const evidence = previousEvent.evidence === currentEvent.evidence
       ? previousEvent.evidence
       : 'combined' as const;
+    const sameCandidate = previousEvent.candidateMove === currentEvent.candidateMove;
+    const preferredCandidate = currentEvent.candidateConfidence > previousEvent.candidateConfidence
+      ? currentEvent
+      : previousEvent;
 
     return {
       ...previousEvent,
@@ -179,6 +185,15 @@ function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: M
       handStrength: weighted(previousEvent.handStrength, currentEvent.handStrength),
       dominantHand: currentEvent.handStrength >= previousEvent.handStrength ? currentEvent.dominantHand : previousEvent.dominantHand,
       handDirection: currentEvent.handStrength >= previousEvent.handStrength ? currentEvent.handDirection : previousEvent.handDirection,
+      candidateMove: sameCandidate ? previousEvent.candidateMove : preferredCandidate.candidateMove,
+      candidateConfidence: sameCandidate
+        ? Math.min(82, weighted(previousEvent.candidateConfidence, currentEvent.candidateConfidence) + 4)
+        : Math.max(24, preferredCandidate.candidateConfidence - 8),
+      candidateAlternatives: Array.from(new Set([
+        ...previousEvent.candidateAlternatives,
+        ...currentEvent.candidateAlternatives,
+        ...(sameCandidate ? [] : [previousEvent.candidateMove, currentEvent.candidateMove]),
+      ])).filter((move) => move !== preferredCandidate.candidateMove).slice(0, 3),
       supportingRuns,
     };
   });
@@ -196,7 +211,7 @@ function consolidateMotionEvents(previousEvents: MotionEvent[], currentEvents: M
 
 function sequenceFromMotionEvents(events: MotionEvent[], choices: Record<number, string>) {
   return events
-    .map((event) => choices[event.id] || UNKNOWN_MOVE)
+    .map((event) => choices[event.id] || event.candidateMove)
     .filter((move) => move !== SKIP_EVENT)
     .join(' ');
 }
@@ -374,6 +389,9 @@ export default function Home() {
   const [analysisRunCount, setAnalysisRunCount] = useState(0);
   const [selectedWindowId, setSelectedWindowId] = useState<number | null>(null);
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
+  const [videoSamples, setVideoSamples] = useState<MotionSample[]>([]);
+  const [observationSummary, setObservationSummary] = useState<CubeObservationSummary | null>(null);
+  const [analysisSource, setAnalysisSource] = useState<'manual' | 'video-estimate' | 'video-reviewed'>('manual');
   const [reviewClip, setReviewClip] = useState<ReviewClip | null>(null);
   const [copied, setCopied] = useState(false);
   const [sequenceCopied, setSequenceCopied] = useState(false);
@@ -406,11 +424,6 @@ export default function Home() {
     return groups;
   }, [analysis]);
 
-  const unresolvedMoves = useMemo(
-    () => solution.trim().split(/\s+/).filter((move) => move === UNKNOWN_MOVE).length,
-    [solution],
-  );
-  const sequenceReadyForAnalysis = Boolean(solution.trim()) && unresolvedMoves === 0;
   const averageDetectionConfidence = useMemo(
     () => average(motionEvents.map((event) => event.confidence)),
     [motionEvents],
@@ -424,7 +437,27 @@ export default function Home() {
     [motionEvents],
   );
   const uncertainEvents = motionEvents.length - autoAcceptedEvents.length;
+  const averageNotationConfidence = useMemo(
+    () => average(motionEvents.map((event) => event.candidateConfidence)),
+    [motionEvents],
+  );
+  const manuallyReviewedEvents = useMemo(
+    () => motionEvents.filter((event) => eventChoices[event.id] && eventChoices[event.id] !== SKIP_EVENT).length,
+    [eventChoices, motionEvents],
+  );
   const selectedWindow = videoSegmentation?.windows.find((window) => window.id === selectedWindowId) ?? null;
+  const stageSequences = useMemo(() => {
+    const result = { scramble: '', inspection: '', solve: '' };
+    selectedWindow?.stages.forEach((stage) => {
+      const ids = new Set(stage.eventIds);
+      result[stage.kind] = allMotionEvents
+        .filter((event) => ids.has(event.id))
+        .map((event) => eventChoices[event.id] || event.candidateMove)
+        .filter((move) => move !== SKIP_EVENT)
+        .join(' ');
+    });
+    return result;
+  }, [allMotionEvents, eventChoices, selectedWindow]);
 
   useEffect(() => {
     return () => {
@@ -444,12 +477,19 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [analysis.moves.length, playing, stepIndex]);
 
-  function runAnalysis() {
+  function runAnalysis(
+    algorithm = solution,
+    source: 'manual' | 'video-estimate' | 'video-reviewed' = 'manual',
+    notationConfidence = averageNotationConfidence,
+  ) {
     try {
-      const inferred = inferCross(solution);
+      const inferred = inferCross(algorithm);
       setCrossColor(inferred.color);
-      setCrossConfidence(inferred.confidence);
+      setCrossConfidence(source === 'video-estimate'
+        ? Math.min(inferred.confidence, notationConfidence || inferred.confidence)
+        : inferred.confidence);
       setAnalysis(inferred.analysis);
+      setAnalysisSource(source);
       setHasAnalysis(true);
       setStepIndex(0);
       setPlaying(false);
@@ -464,15 +504,11 @@ export default function Home() {
     event.preventDefault();
     if (decoderStatus === 'running') return;
     if (videoFile && decoderStatus === 'review') {
-      if (!sequenceReadyForAnalysis) {
-        setError(`Sostituisci ancora ${unresolvedMoves} simboli “?” con le mosse corrette, oppure ignora i relativi eventi, prima di generare lo scramble.`);
-        return;
-      }
       if (!solution.trim()) {
         setError('Tutti gli eventi sono stati ignorati: non esiste una sequenza da analizzare.');
         return;
       }
-      runAnalysis();
+      runAnalysis(solution, manuallyReviewedEvents === motionEvents.length ? 'video-reviewed' : 'video-estimate');
       return;
     }
     if (!solution.trim()) {
@@ -484,7 +520,7 @@ export default function Home() {
       }
       return;
     }
-    runAnalysis();
+    runAnalysis(solution, 'manual');
   }
 
   function chooseVideo(file: File | null) {
@@ -510,6 +546,9 @@ export default function Home() {
     setAnalysisRunCount(0);
     setSelectedWindowId(null);
     setEventChoices({});
+    setVideoSamples([]);
+    setObservationSummary(null);
+    setAnalysisSource('manual');
     setSequenceCopied(false);
     reviewClipRef.current = null;
     setReviewClip(null);
@@ -537,6 +576,7 @@ export default function Home() {
     let comparedEvents = comparingExistingRun ? previousEvents : [];
     let comparedHandTracking = comparingExistingRun ? previousHandTracking : null;
     let completedRuns = comparingExistingRun ? analysisRunCount : 0;
+    let latestSamples = comparingExistingRun ? videoSamples : [];
 
     try {
       video.pause();
@@ -553,6 +593,8 @@ export default function Home() {
         setHandTracking(null);
         setSelectedWindowId(null);
         setEventChoices({});
+        setVideoSamples([]);
+        setObservationSummary(null);
         setSolution('');
       }
       setHasAnalysis(false);
@@ -569,6 +611,7 @@ export default function Home() {
           ? consolidateMotionEvents(comparedEvents, result.events)
           : result.events.map((event) => ({ ...event, supportingRuns: 1 }));
         comparedHandTracking = mergeHandTracking(comparedHandTracking, result.handTracking);
+        latestSamples = result.samples;
         completedRuns += 1;
 
         const interimSegmentation = inferVideoSegmentation(
@@ -597,16 +640,28 @@ export default function Home() {
       const remappedChoices = comparingExistingRun
         ? remapEventChoices(previousEvents, comparedEvents, previousChoices)
         : {};
+      const observationEnd = defaultWindow?.start ?? (trimEnd || video.duration);
+      const observation = summarizeCubeObservation(latestSamples, trimStart, observationEnd);
+      const detectedSequence = sequenceFromMotionEvents(selectedEvents, remappedChoices);
       setAllMotionEvents(comparedEvents);
       setHandTracking(comparedHandTracking);
       setVideoSegmentation(segmentation);
       setSelectedWindowId(defaultWindow?.id ?? null);
       setMotionEvents(selectedEvents);
+      setVideoSamples(latestSamples);
+      setObservationSummary(observation);
       setEventChoices(remappedChoices);
-      setSolution(sequenceFromMotionEvents(selectedEvents, remappedChoices));
+      setSolution(detectedSequence);
       setAnalysisRunCount(completedRuns);
       setDecoderStatus('review');
       setDecoderProgress(1);
+      if (detectedSequence) {
+        runAnalysis(
+          detectedSequence,
+          'video-estimate',
+          average(selectedEvents.map((event) => event.candidateConfidence)),
+        );
+      }
       if (!comparedEvents.length) {
         setError('Non sono stati trovati picchi di movimento separabili. Restringi l’intervallo alla sola risoluzione e mantieni il cubo al centro.');
       }
@@ -635,8 +690,18 @@ export default function Home() {
     }
     reviewClipRef.current = null;
     setReviewClip(null);
-    setSolution(sequenceFromMotionEvents(selectedEvents, {}));
-    setHasAnalysis(false);
+    const detectedSequence = sequenceFromMotionEvents(selectedEvents, {});
+    setSolution(detectedSequence);
+    setObservationSummary(summarizeCubeObservation(videoSamples, trimStart, window.start));
+    if (detectedSequence) {
+      runAnalysis(
+        detectedSequence,
+        'video-estimate',
+        average(selectedEvents.map((event) => event.candidateConfidence)),
+      );
+    } else {
+      setHasAnalysis(false);
+    }
     setError('');
   }
 
@@ -685,12 +750,20 @@ export default function Home() {
   }
 
   function reviewMotionEvent(eventId: number, choice: string) {
-    setEventChoices((current) => {
-      const next = { ...current, [eventId]: choice };
-      setSolution(sequenceFromMotionEvents(motionEvents, next));
-      return next;
-    });
-    setHasAnalysis(false);
+    const next = { ...eventChoices, [eventId]: choice };
+    const nextSequence = sequenceFromMotionEvents(motionEvents, next);
+    const reviewedCount = motionEvents.filter((event) => next[event.id] && next[event.id] !== SKIP_EVENT).length;
+    setEventChoices(next);
+    setSolution(nextSequence);
+    if (nextSequence) {
+      runAnalysis(
+        nextSequence,
+        reviewedCount === motionEvents.length ? 'video-reviewed' : 'video-estimate',
+        average(motionEvents.map((event) => next[event.id] ? 100 : event.candidateConfidence)),
+      );
+    } else {
+      setHasAnalysis(false);
+    }
     setError('');
   }
 
@@ -880,7 +953,7 @@ export default function Home() {
                 <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
                 {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v4 · doppia evidenza:</strong> confronta il cambiamento del cubo con le traiettorie di mani, dita e polpastrelli, poi separa automaticamente preparazione e solve.
+                  <strong>Decoder video v5 · osservazione + nomenclatura:</strong> usa i fotogrammi stabili prima della solve per censire i colori, separa scramble/ispezione e propone una lettera per ogni rotazione combinando posizione del cambiamento, cubo e dita.
                 </div>
 
                 {decoderStatus === 'running' ? (
@@ -908,7 +981,7 @@ export default function Home() {
                       <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-800">{averageDetectionConfidence}%</span>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                       <div className="rounded-xl bg-blue-50 px-3 py-3 text-blue-950">
                         <p className="text-[9px] font-black uppercase tracking-wide text-blue-600">Movimenti</p>
                         <p className="mt-1 text-xl font-black">{motionEvents.length}</p>
@@ -921,18 +994,62 @@ export default function Home() {
                         <p className="text-[9px] font-black uppercase tracking-wide text-amber-700">Da controllare</p>
                         <p className="mt-1 text-xl font-black">{uncertainEvents}</p>
                       </div>
+                      <div className="rounded-xl bg-violet-50 px-3 py-3 text-violet-950">
+                        <p className="text-[9px] font-black uppercase tracking-wide text-violet-700">Notazione stimata</p>
+                        <p className="mt-1 text-xl font-black">{averageNotationConfidence}%</p>
+                      </div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-600">
                       <span><strong className="text-slate-900">Affidabilità media:</strong> {averageDetectionConfidence}%</span>
                       <span><strong className="text-slate-900">Cambiamenti del cubo:</strong> {averageCubeSignal}%</span>
                     </div>
                     <p className="mt-2 text-[10px] leading-4 text-slate-500">
-                      Se la prima lettura resta sotto l’{AUTO_REANALYSIS_CONFIDENCE}%, il decoder la ripete automaticamente fino a {MAX_AUTO_ANALYSIS_RUNS} volte. Tutti i risultati vengono sovrapposti: la fiducia aumenta solo sui picchi ritrovati e diminuisce su quelli isolati. La percentuale non identifica ancora U/R/F.
+                      La prima percentuale misura se il movimento esiste; “notazione stimata” misura quanto è plausibile la lettera proposta. Le letture ripetute vengono sovrapposte e una correzione manuale sostituisce sempre la proposta automatica.
                     </p>
+
+                    {observationSummary ? (
+                      <div className="mt-3 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-cyan-950">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-800">Scansione durante l’osservazione</p>
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black">{observationSummary.confidence}%</span>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-4">
+                          {observationSummary.stableFrames} fotogrammi stabili · {observationSummary.detectedColors.length}/6 colori distinti · intervallo {formatPreciseTime(observationSummary.start)}–{formatPreciseTime(observationSummary.end)}.
+                        </p>
+                        <div className="mt-2 flex gap-1.5">
+                          {crossColors.map((color) => (
+                            <span
+                              key={color}
+                              className={`h-5 w-5 rounded-md border border-black/10 ${observationSummary.detectedColors.includes(color) ? '' : 'opacity-20 grayscale'}`}
+                              style={{ backgroundColor: COLOR_HEX[color] }}
+                              title={`${COLOR_LABELS[color]} ${observationSummary.detectedColors.includes(color) ? 'osservato' : 'non ancora osservato'}`}
+                            />
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[10px] leading-4 text-cyan-800">
+                          {observationSummary.patternStatus === 'usable'
+                            ? 'Copertura utile per controllare il pattern iniziale; la validazione sticker-per-sticker resta distinta dalla notazione proposta.'
+                            : 'Copertura ancora parziale: il decoder usa ciò che vede senza dichiarare completo un pattern non osservato.'}
+                        </p>
+                        {stageSequences.scramble ? (
+                          <div className="mt-2 rounded-lg bg-white/70 px-2.5 py-2">
+                            <p className="text-[9px] font-black uppercase tracking-wide text-orange-700">Scramble visto prima dell’ispezione</p>
+                            <p className="mt-1 max-h-12 overflow-hidden break-words font-mono text-[10px] font-bold leading-4">{stageSequences.scramble}</p>
+                          </div>
+                        ) : null}
+                        <div className="mt-2 rounded-lg bg-white/70 px-2.5 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-wide text-cyan-700">Rotazioni di osservazione/preparazione</p>
+                          <p className="mt-1 break-words font-mono text-[10px] font-bold leading-4">
+                            {stageSequences.inspection || 'Nessuna rotazione separata con sufficiente evidenza'}
+                          </p>
+                          <p className="mt-1 text-[9px] leading-4 text-cyan-800">Queste rotazioni orientano la lettura; non vengono più conteggiate come mosse della solve.</p>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <details className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
                       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[11px] font-black text-slate-800">
-                        <span>Rivedi clip e assegna i nomi delle mosse</span>
+                        <span>Rivedi le lettere proposte e correggi solo se serve</span>
                         <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] text-slate-600">{uncertainEvents} incerti · apri</span>
                       </summary>
                     <div className="mt-4">
@@ -1021,14 +1138,11 @@ export default function Home() {
                           </button>
                           <div className="min-w-0">
                             <select
-                              value={eventChoices[motionEvent.id] ?? ''}
+                              value={eventChoices[motionEvent.id] ?? motionEvent.candidateMove}
                               onChange={(event) => reviewMotionEvent(motionEvent.id, event.target.value)}
                               className="w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold outline-none focus:border-blue-500"
                               aria-label={`Mossa rilevata a ${formatPreciseTime(motionEvent.peakTime)}`}
                             >
-                              <option value="">
-                                {isAutoAcceptedMotion(motionEvent) ? 'Movimento accettato' : 'Da verificare'} · {motionEvent.confidence}%
-                              </option>
                               <option value={SKIP_EVENT}>Ignora: non è una mossa</option>
                               {MOVE_REVIEW_OPTIONS.map((move) => <option key={move} value={move}>{move}</option>)}
                             </select>
@@ -1037,6 +1151,14 @@ export default function Home() {
                                 {MOTION_EVIDENCE_LABELS[motionEvent.evidence]}
                               </span>
                               <span>Cubo {motionEvent.cubeStrength}% · dita {motionEvent.handStrength}%</span>
+                              <span className="text-violet-700">
+                                {eventChoices[motionEvent.id]
+                                  ? 'Corretta manualmente'
+                                  : `Ipotesi ${motionEvent.candidateMove} · ${motionEvent.candidateConfidence}%`}
+                              </span>
+                              {!eventChoices[motionEvent.id] && motionEvent.candidateAlternatives.length ? (
+                                <span>alternative {motionEvent.candidateAlternatives.join(' / ')}</span>
+                              ) : null}
                               <span>{motionEvent.supportingRuns ?? 1}× confermato</span>
                               {isAutoAcceptedMotion(motionEvent) ? <span className="text-emerald-700">Accettato ✓</span> : null}
                               {motionEvent.evidence !== 'cube' ? (
@@ -1111,11 +1233,9 @@ export default function Home() {
                   <p className="text-sm font-extrabold text-slate-950">Colore di partenza</p>
                   <p className="mt-1 text-[11px] leading-4 text-slate-500">
                     {hasAnalysis
-                      ? `Centro ${COLOR_LABELS[crossColor]} · affidabilità ${crossConfidence}%`
+                      ? `${analysisSource === 'video-estimate' ? 'Stima' : 'Centro'} ${COLOR_LABELS[crossColor]} · affidabilità ${crossConfidence}%`
                       : decoderStatus === 'review'
-                        ? unresolvedMoves > 0
-                          ? `Da determinare: completa ancora ${unresolvedMoves} ${unresolvedMoves === 1 ? 'mossa' : 'mosse'} nella sequenza.`
-                          : 'Sequenza completa: genera i risultati per dedurre il colore.'
+                        ? 'La Cross verrà aggiornata dalla sequenza proposta e dalle correzioni.'
                         : 'Il quadrato prenderà il colore della Cross dopo l’analisi della sequenza.'}
                   </p>
                 </div>
@@ -1149,11 +1269,10 @@ export default function Home() {
                   {solution.trim() ? (
                     <button
                       type="submit"
-                      disabled={Boolean(videoFile && decoderStatus === 'review' && !sequenceReadyForAnalysis)}
                       className="rounded-lg bg-slate-950 px-3 py-2 text-[10px] font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {videoFile && decoderStatus === 'review'
-                        ? sequenceReadyForAnalysis ? 'Genera risultati' : `${unresolvedMoves} ? da completare`
+                        ? 'Ricalcola risultati'
                         : 'Analizza testo'}
                     </button>
                   ) : null}
@@ -1188,8 +1307,8 @@ export default function Home() {
                 </p>
               ) : (
                 <p id="move-help" className="mt-2 text-xs leading-5 text-slate-400">
-                  {decoderStatus === 'review' && unresolvedMoves > 0
-                    ? `Ogni “?” è un movimento trovato nel video ma non ancora identificato come U/R/F. Puoi sostituirlo qui oppure dalla relativa clip.`
+                  {decoderStatus === 'review'
+                    ? `La sequenza contiene subito le lettere proposte dal video: puoi copiarla, modificarla qui o correggere una singola clip. Affidabilità nomenclatura ${averageNotationConfidence}%.`
                     : 'Supporta mosse standard, prime, doppie, wide, M/E/S e rotazioni x/y/z.'}
                 </p>
               )}
@@ -1213,7 +1332,7 @@ export default function Home() {
                   Stato: <span className="font-bold text-white">{PHASE_LABELS[currentPhase]}</span>
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Cross dedotta: <span className="font-bold text-slate-300">{COLOR_LABELS[crossColor]}</span> · affidabilità {crossConfidence}%
+                  Cross {analysisSource === 'video-estimate' ? 'stimata' : 'dedotta'}: <span className="font-bold text-slate-300">{COLOR_LABELS[crossColor]}</span> · affidabilità {crossConfidence}%
                 </p>
 
                 <div className="mt-6 flex max-w-[340px] flex-wrap gap-2 font-mono text-sm text-slate-500">
@@ -1306,11 +1425,15 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-xs font-bold text-slate-400">Scramble ricostruito</p>
+                  <p className="text-xs font-bold text-slate-400">Scramble {analysisSource === 'video-estimate' ? 'stimato' : 'ricostruito'}</p>
                   <p className="mt-2 break-words font-mono text-sm font-bold leading-6 text-yellow-300">
                     {analysis.scramble}
                   </p>
-                  <p className="mt-2 text-[11px] leading-4 text-slate-500">Inverso esatto della sequenza inserita.</p>
+                  <p className="mt-2 text-[11px] leading-4 text-slate-500">
+                    {analysisSource === 'video-estimate'
+                      ? 'Inverso delle lettere proposte dal decoder: correggendo una clip si aggiorna subito.'
+                      : 'Inverso esatto della sequenza inserita.'}
+                  </p>
                 </div>
               </div>
 
@@ -1408,11 +1531,9 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
-                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">Scramble ricostruito</p>
+                        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-amber-300">Scramble stimato</p>
                         <p className="mt-2 text-xs font-bold leading-5 text-slate-300">
-                          {unresolvedMoves > 0
-                            ? `In attesa dell’identità di ${unresolvedMoves} eventi. Lo scramble verrà scritto qui appena la sequenza U/R/F è completa, senza sostituirla con una stima inventata.`
-                            : 'La sequenza è completa: premi “Genera risultati” per ricostruire lo scramble e suddividere la solve.'}
+                          La sequenza proposta viene ora scritta automaticamente e il suo inverso alimenta subito replay e fasi. Le clip restano disponibili per correggere le ipotesi meno sicure.
                         </p>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1436,7 +1557,9 @@ export default function Home() {
           <section className="mb-16 overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_70px_-40px_rgba(15,23,42,0.35)]">
           <div className="grid gap-5 border-b border-slate-100 bg-slate-50/70 p-6 sm:grid-cols-[1fr_auto] sm:items-center sm:p-8">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Risultato verificato</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-600">
+                {analysisSource === 'video-estimate' ? 'Prima ricostruzione automatica' : 'Risultato verificato'}
+              </p>
               <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Come è stato risolto il cubo</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Le mosse sono raggruppate automaticamente in base allo stato reale dei pezzi dopo ogni passaggio.
@@ -1454,7 +1577,11 @@ export default function Home() {
                 </button>
               </div>
               <p className="mt-3 break-words font-mono text-sm font-black leading-6 text-yellow-300">{analysis.scramble}</p>
-              <p className="mt-2 text-[11px] leading-4 text-slate-500">Ricrea esattamente lo stato iniziale dedotto dalla sequenza confermata.</p>
+              <p className="mt-2 text-[11px] leading-4 text-slate-500">
+                {analysisSource === 'video-estimate'
+                  ? `Ricrea lo stato implicato dalla notazione stimata (${averageNotationConfidence}%): controlla le clip a bassa confidenza prima di considerarlo definitivo.`
+                  : 'Ricrea esattamente lo stato iniziale dedotto dalla sequenza confermata.'}
+              </p>
             </div>
           </div>
 

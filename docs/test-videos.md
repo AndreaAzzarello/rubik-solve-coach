@@ -124,6 +124,49 @@ caratteristiche hanno guidato il profilo temporale v4:
   fallback sia verificabile dall'utente.
 
 Le coppie non costituiscono ancora un dataset supervisionato per il nome della
-mossa: per misurare l'accuratezza `U/R/F/...` servono le sequenze esatte oppure
-timestamp annotati. Fino ad allora il decoder propone gli eventi temporali e
-richiede la conferma dell'identita della mossa.
+mossa senza allineamento temporale. Le sequenze guidate registrate sono pero
+note e vengono conservate qui come riferimento supervisionato:
+
+```text
+IMG_6010 / IMG_6021 · base
+U U' U' U U2 U2
+R R' R' R R2 R2
+F F' F' F F2 F2
+D D' D' D D2 D2
+L L' L' L L2 L2
+B B' B' B B2 B2
+
+IMG_6011 / IMG_6022 · wide
+Uw Uw' Uw' Uw Uw2 Uw2
+Rw Rw' Rw' Rw Rw2 Rw2
+Fw Fw' Fw' Fw Fw2 Fw2
+Dw Dw' Dw' Dw Dw2 Dw2
+Lw Lw' Lw' Lw Lw2 Lw2
+Bw Bw' Bw' Bw Bw2 Bw2
+
+IMG_6013 / IMG_6023 · slice
+M M' M' M M2 M2
+E E' E' E E2 E2
+S S' S' S S2 S2
+
+IMG_6015 / IMG_6025 · rotazioni
+x x' x' x x2 x2
+y y' y' y y2 y2
+z z' z' z z2 z2
+
+IMG_6017 / IMG_6032 · trigger
+R U R' U' U R U' R'
+R' U' R U U' R' U R
+L' U' L U U' L' U L
+R' F R F' F R' F' R
+F R U R' U' F' F U R U' R' F'
+```
+
+`tools/train_visual_move_decoder.py` usa queste etichette e valida sempre le
+riprese lente contro quelle veloci. Il primo esperimento basato soltanto su
+flusso ottico e differenze d'immagine ha ottenuto il 7,89% di accuratezza
+esatta e il 16,45% sulla sola faccia: il risultato viene quindi correttamente
+scartato e non e distribuito come modello. Dimostra che la classificazione
+affidabile richiede allineamento migliore, landmark delle dita, posa del cubo e
+vincoli sullo stato degli sticker; una semplice somiglianza tra fotogrammi non
+e sufficiente.

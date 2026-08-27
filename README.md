@@ -73,7 +73,7 @@ browser. La prima versione permette di:
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder temporale v4 e gia attivo e fonde due canali locali:
+piu fasi. Il decoder video v5 e attivo e fonde due canali locali:
 
 - variazione di luminosita e colore nell'area del cubo;
 - traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
@@ -99,18 +99,21 @@ segmentazione e dati tecnici restano disponibili in pannelli richiudibili. Il
 video non viene caricato: il browser scarica il modello MediaPipe e svolge
 l'inferenza sul dispositivo.
 
-Il nome della mossa resta da confermare finche non sara disponibile un modello
-supervisionato affidabile per `U/R/F/...`; la traiettoria della mano da sola non
-dimostra quale faccia sia stata ruotata quando orientamento o sticker sono
-ambigui. Lo scramble inverso e la suddivisione Cross, F2L, OLL e PLL vengono
-mostrati appena tutti gli eventi hanno una notazione esatta, senza sostituire
-le mosse mancanti con una sequenza di esempio o una stima non verificabile. Al
-termine della lettura, il campo modificabile della sequenza contiene subito una
-posizione per ogni movimento trovato: una mossa confermata usa la sua notazione,
-mentre `?` indica un evento la cui identita U/R/F e ancora da assegnare. Il campo
-puo essere corretto e copiato direttamente. La Cross viene presentata prima
-della sequenza e il relativo indicatore assume il colore dedotto quando la
-notazione e completa.
+Il v5 separa esplicitamente l'intervallo di osservazione/preparazione dalla
+solve. Nei fotogrammi stabili precedenti alla partenza censisce i sei colori e
+mostra quanto materiale utile ha realmente osservato; le rotazioni di
+preparazione restano fuori dalla sequenza della solve. Per ogni evento della
+solve propone subito una notazione modificabile combinando posizione spaziale
+del cambiamento, traiettoria delle dita e variazione del cubo. Il campo non e
+piu riempito di `?`: replay, scramble inverso e divisione Cross/F2L/OLL/PLL
+appaiono al termine dell'analisi e si aggiornano quando viene corretta una clip.
+
+La UI mantiene separate due affidabilita: esistenza del movimento e identita
+della notazione. Una proposta automatica non viene presentata come verificata:
+lo scramble e marcato come stima finche tutte le mosse non sono state
+controllate. La scansione dei colori misura la copertura osservata, ma non
+dichiara ricostruito uno stato sticker-per-sticker quando il filmato non offre
+ancora abbastanza viste stabili.
 
 Per i video con una sola risoluzione non e necessario marcare manualmente
 l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili
