@@ -8,6 +8,7 @@ import {
   reconstructInspectionState,
   type FaceGridObservation,
 } from './inspection-state.ts';
+import { createScrambleFromInspection } from './inspection-solver.ts';
 import type { Face } from './cube.ts';
 
 const FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
@@ -88,4 +89,16 @@ test('lo scramble prodotto dal solver riproduce esattamente lo stato ricostruito
   const scramble = movesToString(invertMoves(parseAlgorithm(solution)));
   const replayed = CubeState.solved().applyMoves(parseAlgorithm(scramble));
   assert.equal(replayed.faceletString(), scrambled.faceletString());
+});
+
+test('la ricerca multipla restituisce il candidato verificato più breve', async () => {
+  const scrambled = CubeState.solved().applyMoves(parseAlgorithm('R U F2 L2 D B2 U2 R2'));
+  const result = await createScrambleFromInspection(scrambled.faceletRecord());
+  assert.equal(result.verified, true);
+  assert.ok(result.candidatesTested > 1);
+  assert.equal(parseAlgorithm(result.scramble).length, result.moveCount);
+  assert.equal(
+    CubeState.solved().applyMoves(parseAlgorithm(result.scramble)).faceletString(),
+    scrambled.faceletString(),
+  );
 });

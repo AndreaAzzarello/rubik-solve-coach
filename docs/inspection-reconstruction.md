@@ -55,8 +55,15 @@ scramble da applicare a un cubo risolto con bianco sopra e verde davanti. Prima
 di mostrarlo come verificato, l'app lo riesegue con il proprio motore e confronta
 tutte le 54 caselle con lo stato ricostruito.
 
+La ricerca v10 confronta 19 soluzioni: quella diretta e altre 18 ottenute
+anteponendo ciascun possibile turno di faccia. Dopo aver compattato eventuali
+turni consecutivi della stessa faccia, conserva il candidato verificato con il
+minor numero di mosse HTM.
+
 Questo scramble ricrea esattamente lo stato, ma non e una dichiarazione di
-minimalita assoluta.
+minimalita assoluta. Il Two-Phase Algorithm privilegia la velocita e non visita
+tutti i percorsi necessari a dimostrare sempre l'ottimo globale; una ricerca
+ottimale completa e un problema distinto e molto piu pesante.
 
 ## Riferimenti usati
 

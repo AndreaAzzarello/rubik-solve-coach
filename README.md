@@ -129,6 +129,20 @@ convenzione bianco sopra e verde davanti e lo verifica riproducendo lo stato
 casella per casella. Una lettura parziale resta esplicitamente ambigua. Dettagli
 e fonti sono in [`docs/inspection-reconstruction.md`](docs/inspection-reconstruction.md).
 
+Il v10 concentra temporaneamente l'interfaccia sul solo stato iniziale. La
+segmentazione sceglie lo stadio `inspection` vero e proprio, evitando di fondere
+i fotogrammi del cubo risolto o dello scramble iniziale con quelli della
+mischiata finale. La pagina mostra le sei griglie colore, evidenzia le facce e
+le caselle mancanti e non presenta piu una sequenza ricavata dalle mosse come
+fallback. Cross, F2L, OLL, PLL, replay e revisione dei fingertrick restano
+nascosti finche lo scramble non e stato validato.
+
+Quando lo stato e completo, il risolutore confronta il risultato diretto con
+18 ricerche inizializzate da un singolo turno, elimina le sequenze non valide e
+conserva quella con meno mosse HTM. Lo scramble mostrato riproduce esattamente
+le 54 caselle; viene descritto come il piu corto trovato, non come ottimo
+matematicamente dimostrato.
+
 Per verificare il ricostruttore TypeScript:
 
 ```powershell
