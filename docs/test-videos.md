@@ -171,7 +171,7 @@ affidabile richiede allineamento migliore, landmark delle dita, posa del cubo e
 vincoli sullo stato degli sticker; una semplice somiglianza tra fotogrammi non
 e sufficiente.
 
-## Profilo temporale v6
+## Profilo temporale v7
 
 Il decoder non assume piu che ogni massimo locale rappresenti una sola mossa.
 I massimi ravvicinati vengono aggregati in pacchetti temporali con durata
@@ -180,3 +180,9 @@ mosse stimato, la sequenza candidata e i due canali di evidenza. Le rianalisi
 vengono sovrapposte confrontando centro e durata del pacchetto. Questa struttura
 permette ai video veloci di mantenere insieme fingertrick composte e offre una
 correzione manuale dell'intera sottosequenza.
+
+La lettura v7 aggiunge un controllo cromatico sui fotogrammi stabili conclusivi:
+il colore dominante della faccia PLL deve proporre come Cross il colore opposto
+(`bianco-giallo`, `arancio-rosso`, `verde-blu`). Il test deve verificare sia un
+caso sopra soglia, nel quale l'indizio viene mostrato e applicato, sia un caso
+ambiguo, nel quale il sistema mantiene il fallback basato sulla sequenza.

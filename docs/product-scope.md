@@ -47,6 +47,13 @@ L'utente potra selezionare:
 La preferenza orienta l'analisi e i consigli, ma non sostituisce il rilevamento
 del colore realmente usato nel video.
 
+Per una solve CFOP il colore dell'ultimo strato durante PLL e normalmente
+opposto a quello della Cross. Il decoder usa quindi anche questa relazione come
+controllo visivo: bianco-giallo, arancio-rosso e verde-blu. La regola non e
+assoluta per ogni metodo o ripresa; viene applicata solo con sufficiente
+copertura dei fotogrammi finali e conserva come fallback l'analisi dello stato
+del cubo lungo la sequenza.
+
 ## Criteri per i suggerimenti
 
 Una soluzione alternativa non verra valutata soltanto in base al numero di
@@ -86,7 +93,7 @@ Se il video non contiene informazioni sufficienti, l'app non deve inventare una
 mossa. Deve mostrare l'incertezza, presentare le alternative compatibili e
 permettere all'utente di correggere la timeline.
 
-Nel decoder v6 questo principio viene applicato anche alla fusione: la
+Nel decoder v7 questo principio viene applicato anche alla fusione: la
 concordanza tra cubo e dita aumenta l'affidabilita; un pacchetto sostenuto da un
 solo canale resta visibile ma viene dichiarato come tale. Picchi ravvicinati
 restano nello stesso intervallo e generano una sequenza candidata, non una falsa

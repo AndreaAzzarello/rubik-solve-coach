@@ -21,6 +21,7 @@ export type MotionSample = {
   changeCentroidX?: number;
   changeCentroidY?: number;
   visibleColors?: ObservedColorCoverage;
+  topFaceColors?: ObservedColorCoverage;
 };
 
 export type MotionKind = 'face-turn' | 'global-motion';
@@ -60,6 +61,15 @@ export type CubeObservationSummary = {
   coverage: ObservedColorCoverage;
   confidence: number;
   patternStatus: 'usable' | 'partial' | 'insufficient';
+};
+
+export type PllColorSummary = {
+  pllColor: ObservedCubeColor;
+  crossColor: ObservedCubeColor;
+  confidence: number;
+  sampledFrames: number;
+  stableFrames: number;
+  alternatives: ObservedCubeColor[];
 };
 
 export type HandTrackingSummary = {
@@ -115,6 +125,7 @@ type FrameSignature = {
   chromaBlue: Uint8Array;
   chromaRed: Uint8Array;
   visibleColors: ObservedColorCoverage;
+  topFaceColors: ObservedColorCoverage;
 };
 
 type DifferenceMeasurement = {
@@ -126,6 +137,14 @@ type DifferenceMeasurement = {
 };
 
 const OBSERVED_COLORS: ObservedCubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
+const OPPOSITE_COLOR: Record<ObservedCubeColor, ObservedCubeColor> = {
+  white: 'yellow',
+  yellow: 'white',
+  red: 'orange',
+  orange: 'red',
+  green: 'blue',
+  blue: 'green',
+};
 
 function emptyColorCoverage(): ObservedColorCoverage {
   return { white: 0, red: 0, green: 0, yellow: 0, orange: 0, blue: 0 };
@@ -204,7 +223,9 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
   const chromaBlue = new Uint8Array(size);
   const chromaRed = new Uint8Array(size);
   const colorCounts = emptyColorCoverage();
+  const topColorCounts = emptyColorCoverage();
   let classifiedPixels = 0;
+  let classifiedTopPixels = 0;
 
   for (let source = 0, target = 0; source < data.length; source += 4, target += 1) {
     const red = data[source];
@@ -221,15 +242,21 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
       if (color) {
         colorCounts[color] += 1;
         classifiedPixels += 1;
+        if (x >= width * 0.22 && x <= width * 0.78 && y >= height * 0.18 && y <= height * 0.52) {
+          topColorCounts[color] += 1;
+          classifiedTopPixels += 1;
+        }
       }
     }
   }
 
   const visibleColors = emptyColorCoverage();
+  const topFaceColors = emptyColorCoverage();
   OBSERVED_COLORS.forEach((color) => {
     visibleColors[color] = colorCounts[color] / Math.max(1, classifiedPixels);
+    topFaceColors[color] = topColorCounts[color] / Math.max(1, classifiedTopPixels);
   });
-  return { luma, chromaBlue, chromaRed, visibleColors };
+  return { luma, chromaBlue, chromaRed, visibleColors, topFaceColors };
 }
 
 function frameDifference(
@@ -642,6 +669,52 @@ export function summarizeCubeObservation(
   };
 }
 
+export function inferPllAndCrossColor(
+  samples: MotionSample[],
+  solveStart: number,
+  solveEnd: number,
+): PllColorSummary | null {
+  const duration = Math.max(0.5, solveEnd - solveStart);
+  const analysisStart = Math.max(solveStart, solveEnd - Math.min(4.5, Math.max(1.35, duration * 0.22)));
+  const selected = samples.filter((sample) => (
+    sample.time >= analysisStart
+    && sample.time <= solveEnd
+    && sample.topFaceColors
+  ));
+  if (selected.length < 3) return null;
+
+  const differences = selected.map((sample) => sample.cubeDifference ?? sample.difference);
+  const stableLimit = Math.max(2.5, percentile(differences, 0.5));
+  const stable = selected.filter((sample) => (sample.cubeDifference ?? sample.difference) <= stableLimit);
+  const useful = stable.length >= 3 ? stable : selected;
+  const scores = OBSERVED_COLORS.map((color) => {
+    const values = useful.map((sample) => sample.topFaceColors?.[color] ?? 0);
+    const persistentFrames = values.filter((value) => value >= 0.16).length;
+    return {
+      color,
+      score: median(values) * 0.72 + percentile(values, 0.78) * 0.28,
+      persistentRatio: persistentFrames / Math.max(1, values.length),
+    };
+  }).sort((left, right) => right.score - left.score);
+
+  const best = scores[0];
+  const second = scores[1];
+  if (!best || best.score < 0.12) return null;
+  const gap = Math.max(0, best.score - (second?.score ?? 0));
+  const confidence = Math.round(Math.min(88, Math.max(
+    34,
+    28 + best.score * 38 + gap * 125 + best.persistentRatio * 10 + Math.min(8, stable.length * 0.45),
+  )));
+  return {
+    pllColor: best.color,
+    crossColor: OPPOSITE_COLOR[best.color],
+    confidence,
+    sampledFrames: selected.length,
+    stableFrames: stable.length,
+    alternatives: scores.slice(1, 3).map((candidate) => candidate.color),
+  };
+}
+
 function groupEventsByPause(events: MotionEvent[], pauseThreshold: number) {
   const groups: MotionEvent[][] = [];
   events.forEach((event) => {
@@ -878,6 +951,7 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
         changeCentroidX: measurement.changeCentroidX,
         changeCentroidY: measurement.changeCentroidY,
         visibleColors: current.visibleColors,
+        topFaceColors: current.topFaceColors,
         ...handMeasurement,
       });
       previous = current;

@@ -17,8 +17,10 @@ import {
   type HandTrackingSummary,
   type MotionEvent,
   type MotionSample,
+  type PllColorSummary,
   type VideoSegmentation,
   decodeVideoMotion,
+  inferPllAndCrossColor,
   inferVideoSegmentation,
   summarizeCubeObservation,
 } from '../lib/video-decoder';
@@ -113,6 +115,7 @@ type ReviewClip = {
 const AUTO_ACCEPT_CONFIDENCE = 88;
 const AUTO_REANALYSIS_CONFIDENCE = 82;
 const MAX_AUTO_ANALYSIS_RUNS = 3;
+const PLL_CROSS_CONFIDENCE = 56;
 
 function isAutoAcceptedMotion(event: MotionEvent) {
   const requiredConfidence = (event.supportingRuns ?? 1) >= 2 ? 84 : AUTO_ACCEPT_CONFIDENCE;
@@ -405,6 +408,7 @@ export default function Home() {
   const [eventChoices, setEventChoices] = useState<Record<number, string>>({});
   const [videoSamples, setVideoSamples] = useState<MotionSample[]>([]);
   const [observationSummary, setObservationSummary] = useState<CubeObservationSummary | null>(null);
+  const [pllColorSummary, setPllColorSummary] = useState<PllColorSummary | null>(null);
   const [analysisSource, setAnalysisSource] = useState<'manual' | 'video-estimate' | 'video-reviewed'>('manual');
   const [reviewClip, setReviewClip] = useState<ReviewClip | null>(null);
   const [copied, setCopied] = useState(false);
@@ -496,13 +500,25 @@ export default function Home() {
     algorithm = solution,
     source: 'manual' | 'video-estimate' | 'video-reviewed' = 'manual',
     notationConfidence = averageNotationConfidence,
+    pllHint: PllColorSummary | null = null,
   ) {
     try {
-      const inferred = inferCross(algorithm);
+      const usePllHint = source !== 'manual'
+        && Boolean(pllHint)
+        && (pllHint?.confidence ?? 0) >= PLL_CROSS_CONFIDENCE;
+      const inferred = usePllHint
+        ? {
+            color: pllHint!.crossColor as CubeColor,
+            confidence: pllHint!.confidence,
+            analysis: analyzeSolution(algorithm, pllHint!.crossColor as CubeColor),
+          }
+        : inferCross(algorithm);
       setCrossColor(inferred.color);
-      setCrossConfidence(source === 'video-estimate'
-        ? Math.min(inferred.confidence, notationConfidence || inferred.confidence)
-        : inferred.confidence);
+      setCrossConfidence(usePllHint
+        ? inferred.confidence
+        : source === 'video-estimate'
+          ? Math.min(inferred.confidence, notationConfidence || inferred.confidence)
+          : inferred.confidence);
       setAnalysis(inferred.analysis);
       setAnalysisSource(source);
       setHasAnalysis(true);
@@ -523,7 +539,12 @@ export default function Home() {
         setError('Tutti i pacchetti sono stati ignorati: non esiste una sequenza da analizzare.');
         return;
       }
-      runAnalysis(solution, manuallyReviewedEvents === motionEvents.length ? 'video-reviewed' : 'video-estimate');
+      runAnalysis(
+        solution,
+        manuallyReviewedEvents === motionEvents.length ? 'video-reviewed' : 'video-estimate',
+        averageNotationConfidence,
+        pllColorSummary,
+      );
       return;
     }
     if (!solution.trim()) {
@@ -563,6 +584,7 @@ export default function Home() {
     setEventChoices({});
     setVideoSamples([]);
     setObservationSummary(null);
+    setPllColorSummary(null);
     setAnalysisSource('manual');
     setSequenceCopied(false);
     reviewClipRef.current = null;
@@ -610,6 +632,7 @@ export default function Home() {
         setEventChoices({});
         setVideoSamples([]);
         setObservationSummary(null);
+        setPllColorSummary(null);
         setSolution('');
       }
       setHasAnalysis(false);
@@ -626,7 +649,7 @@ export default function Home() {
           ? consolidateMotionEvents(comparedEvents, result.events)
           : result.events.map((event) => ({ ...event, supportingRuns: 1 }));
         comparedHandTracking = mergeHandTracking(comparedHandTracking, result.handTracking);
-        latestSamples = result.samples;
+        latestSamples = [...latestSamples, ...result.samples];
         completedRuns += 1;
 
         const interimSegmentation = inferVideoSegmentation(
@@ -657,6 +680,13 @@ export default function Home() {
         : {};
       const observationEnd = defaultWindow?.start ?? (trimEnd || video.duration);
       const observation = summarizeCubeObservation(latestSamples, trimStart, observationEnd);
+      const pllSummary = defaultWindow
+        ? inferPllAndCrossColor(
+            latestSamples,
+            defaultWindow.start,
+            Math.min(trimEnd || video.duration, defaultWindow.end + 1.25),
+          )
+        : null;
       const detectedSequence = sequenceFromMotionEvents(selectedEvents, remappedChoices);
       setAllMotionEvents(comparedEvents);
       setHandTracking(comparedHandTracking);
@@ -665,6 +695,7 @@ export default function Home() {
       setMotionEvents(selectedEvents);
       setVideoSamples(latestSamples);
       setObservationSummary(observation);
+      setPllColorSummary(pllSummary);
       setEventChoices(remappedChoices);
       setSolution(detectedSequence);
       setAnalysisRunCount(completedRuns);
@@ -675,6 +706,7 @@ export default function Home() {
           detectedSequence,
           'video-estimate',
           weightedNotationConfidence(selectedEvents),
+          pllSummary,
         );
       }
       if (!comparedEvents.length) {
@@ -706,13 +738,20 @@ export default function Home() {
     reviewClipRef.current = null;
     setReviewClip(null);
     const detectedSequence = sequenceFromMotionEvents(selectedEvents, {});
+    const pllSummary = inferPllAndCrossColor(
+      videoSamples,
+      window.start,
+      Math.min(trimEnd || videoMeta.duration, window.end + 1.25),
+    );
     setSolution(detectedSequence);
     setObservationSummary(summarizeCubeObservation(videoSamples, trimStart, window.start));
+    setPllColorSummary(pllSummary);
     if (detectedSequence) {
       runAnalysis(
         detectedSequence,
         'video-estimate',
         weightedNotationConfidence(selectedEvents),
+        pllSummary,
       );
     } else {
       setHasAnalysis(false);
@@ -775,6 +814,7 @@ export default function Home() {
             ? { ...event, candidateConfidence: 100 }
             : event
         ))),
+        pllColorSummary,
       );
     } else {
       setHasAnalysis(false);
@@ -976,7 +1016,7 @@ export default function Home() {
                 <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
                 {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v6 · pacchetti temporali:</strong> ogni finestra conserva tutti i picchi interni, anche quando tra due fotogrammi avvengono più mosse. I pacchetti vengono poi allineati tra le rianalisi e concatenati nell’output finale.
+                  <strong>Decoder video v7 · pacchetti + PLL:</strong> ogni finestra conserva tutti i picchi interni; i fotogrammi finali aggiungono il controllo colore PLL → Cross opposta. Le letture vengono sovrapposte e concatenate nell’output finale.
                 </div>
 
                 {decoderStatus === 'running' ? (
@@ -1067,6 +1107,31 @@ export default function Home() {
                           </p>
                           <p className="mt-1 text-[9px] leading-4 text-cyan-800">Queste rotazioni orientano la lettura; non vengono più conteggiate come mosse della solve.</p>
                         </div>
+                      </div>
+                    ) : null}
+
+                    {pllColorSummary ? (
+                      <div className={`mt-3 rounded-xl border p-3 ${
+                        pllColorSummary.confidence >= PLL_CROSS_CONFIDENCE
+                          ? 'border-violet-200 bg-violet-50 text-violet-950'
+                          : 'border-slate-200 bg-slate-50 text-slate-700'
+                      }`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em]">Controllo visivo PLL → Cross</p>
+                          <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black">{pllColorSummary.confidence}%</span>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-black">
+                          <span className="h-6 w-6 rounded-md border border-black/10" style={{ backgroundColor: COLOR_HEX[pllColorSummary.pllColor] }} />
+                          <span>PLL {COLOR_LABELS[pllColorSummary.pllColor]}</span>
+                          <span aria-hidden="true">→</span>
+                          <span className="h-6 w-6 rounded-md border border-black/10" style={{ backgroundColor: COLOR_HEX[pllColorSummary.crossColor] }} />
+                          <span>Cross {COLOR_LABELS[pllColorSummary.crossColor]}</span>
+                        </div>
+                        <p className="mt-2 text-[10px] leading-4 opacity-75">
+                          Ultimo strato letto in {pllColorSummary.stableFrames}/{pllColorSummary.sampledFrames} fotogrammi stabili. {pllColorSummary.confidence >= PLL_CROSS_CONFIDENCE
+                            ? 'L’indizio visivo è stato applicato alla Cross.'
+                            : `Ipotesi non applicata: sotto ${PLL_CROSS_CONFIDENCE}% resta attivo il fallback basato sulla sequenza.`}
+                        </p>
                       </div>
                     ) : null}
 
@@ -1268,7 +1333,9 @@ export default function Home() {
                   <p className="text-sm font-extrabold text-slate-950">Colore di partenza</p>
                   <p className="mt-1 text-[11px] leading-4 text-slate-500">
                     {hasAnalysis
-                      ? `${analysisSource === 'video-estimate' ? 'Stima' : 'Centro'} ${COLOR_LABELS[crossColor]} · affidabilità ${crossConfidence}%`
+                      ? pllColorSummary && analysisSource !== 'manual' && pllColorSummary.confidence >= PLL_CROSS_CONFIDENCE
+                        ? `PLL ${COLOR_LABELS[pllColorSummary.pllColor]} → opposto ${COLOR_LABELS[crossColor]} · affidabilità ${crossConfidence}%`
+                        : `${analysisSource === 'video-estimate' ? 'Stima' : 'Centro'} ${COLOR_LABELS[crossColor]} · affidabilità ${crossConfidence}%`
                       : decoderStatus === 'review'
                         ? 'La Cross verrà aggiornata dalla sequenza proposta e dalle correzioni.'
                         : 'Il quadrato prenderà il colore della Cross dopo l’analisi della sequenza.'}
@@ -1368,6 +1435,9 @@ export default function Home() {
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Cross {analysisSource === 'video-estimate' ? 'stimata' : 'dedotta'}: <span className="font-bold text-slate-300">{COLOR_LABELS[crossColor]}</span> · affidabilità {crossConfidence}%
+                  {pllColorSummary && analysisSource !== 'manual' && pllColorSummary.confidence >= PLL_CROSS_CONFIDENCE
+                    ? ` · opposta alla PLL ${COLOR_LABELS[pllColorSummary.pllColor]}`
+                    : ''}
                 </p>
 
                 <div className="mt-6 flex max-w-[340px] flex-wrap gap-2 font-mono text-sm text-slate-500">

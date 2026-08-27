@@ -73,7 +73,7 @@ browser. La prima versione permette di:
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder video v6 e attivo e fonde due canali locali:
+piu fasi. Il decoder video v7 e attivo e fonde due canali locali:
 
 - variazione di luminosita e colore nell'area del cubo;
 - traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
@@ -99,7 +99,7 @@ segmentazione e dati tecnici restano disponibili in pannelli richiudibili. Il
 video non viene caricato: il browser scarica il modello MediaPipe e svolge
 l'inferenza sul dispositivo.
 
-Il v6 separa esplicitamente l'intervallo di osservazione/preparazione dalla
+Il v7 separa esplicitamente l'intervallo di osservazione/preparazione dalla
 solve. Nei fotogrammi stabili precedenti alla partenza censisce i sei colori e
 mostra quanto materiale utile ha realmente osservato; le rotazioni di
 preparazione restano fuori dalla sequenza della solve. Per ogni pacchetto della
@@ -108,6 +108,13 @@ posizione spaziale del cambiamento, traiettoria delle dita e variazione del
 cubo. I pacchetti vengono concatenati nel campo finale senza `?`: replay,
 scramble inverso e divisione Cross/F2L/OLL/PLL appaiono al termine dell'analisi
 e si aggiornano quando viene corretta una finestra.
+
+Negli ultimi fotogrammi stabili della solve il decoder cerca inoltre il colore
+dominante della faccia PLL. Quando la lettura supera la soglia minima, la Cross
+viene proposta usando la coppia di colori opposti (`bianco-giallo`,
+`arancio-rosso`, `verde-blu`). L'interfaccia mostra sia il colore PLL osservato
+sia la Cross risultante; se l'immagine e ambigua resta attiva la deduzione dalla
+progressione della sequenza, senza forzare l'indizio cromatico.
 
 La UI mantiene separate due affidabilita: esistenza del movimento e identita
 della notazione. Una proposta automatica non viene presentata come verificata:
