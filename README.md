@@ -73,7 +73,7 @@ browser. La prima versione permette di:
 - individuare rotazioni complete, wide move e slice move.
 
 Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder video v7 e attivo e fonde due canali locali:
+piu fasi. Il decoder video v8 e attivo e fonde due canali locali:
 
 - variazione di luminosita e colore nell'area del cubo;
 - traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
@@ -115,6 +115,25 @@ viene proposta usando la coppia di colori opposti (`bianco-giallo`,
 `arancio-rosso`, `verde-blu`). L'interfaccia mostra sia il colore PLL osservato
 sia la Cross risultante; se l'immagine e ambigua resta attiva la deduzione dalla
 progressione della sequenza, senza forzare l'indizio cromatico.
+
+Il v8 ricompone inoltre due quarti di giro consecutivi uguali nella notazione
+doppia (`R R` o `R' R'` diventano `R2`) prima di creare i pacchetti finali.
+
+## Benchmark supervisionato
+
+Gli strumenti in [`tools/import_cubed_dataset.py`](tools/import_cubed_dataset.py)
+e [`tools/train_temporal_move_model.py`](tools/train_temporal_move_model.py)
+scaricano, verificano e allineano il corpus pubblico `cubed-data-v1`, quindi
+addestrano sulla GPU un classificatore temporale browser-compatibile. Le solve
+sono divise per cattura completa per impedire che fotogrammi dello stesso video
+entrino sia nel training sia nel test.
+
+Il primo modello v2 ha ottenuto 19,92% esatto e 29,08% sulla faccia in 502 mosse
+provenienti da cinque solve mai viste. Non supera la soglia di pubblicazione
+(45% esatto e 65% faccia), quindi i suoi pesi non vengono copiati nel sito e non
+possono abbassare la qualita del decoder attivo. Il report completo e i video
+restano locali e ignorati da Git. La procedura riproducibile e descritta in
+[`docs/move-model.md`](docs/move-model.md).
 
 La UI mantiene separate due affidabilita: esistenza del movimento e identita
 della notazione. Una proposta automatica non viene presentata come verificata:

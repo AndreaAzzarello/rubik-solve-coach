@@ -457,6 +457,21 @@ function smoothSamples(samples: MotionSample[]) {
   });
 }
 
+export function compactDoubleTurns(tokens: string[]) {
+  const compacted: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    const next = tokens[index + 1];
+    if (/^[URFDLB]'?$/.test(token) && token === next) {
+      compacted.push(`${token[0]}2`);
+      index += 1;
+    } else {
+      compacted.push(token);
+    }
+  }
+  return compacted;
+}
+
 function packMotionEvents(events: MotionEvent[], sampleInterval: number) {
   if (!events.length) return events;
   const maximumGap = Math.min(0.62, Math.max(0.3, sampleInterval * 6.2));
@@ -479,7 +494,7 @@ function packMotionEvents(events: MotionEvent[], sampleInterval: number) {
 
   return groups.map((group, packetIndex) => {
     const strongest = [...group].sort((left, right) => right.peakDifference - left.peakDifference)[0];
-    const candidateMoves = group.flatMap((event) => event.candidateMoves);
+    const candidateMoves = compactDoubleTurns(group.flatMap((event) => event.candidateMoves));
     const confidence = Math.round(group.reduce((total, event) => total + event.confidence, 0) / group.length);
     const candidateConfidence = Math.round(
       group.reduce((total, event) => total + event.candidateConfidence, 0) / group.length,

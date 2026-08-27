@@ -1016,7 +1016,7 @@ export default function Home() {
                 <input id="video-upload" type="file" accept="video/*,.mov,.m4v" onChange={onVideoInput} className="sr-only" />
                 {videoError ? <p className="mt-2 text-xs font-bold text-red-600">{videoError}</p> : null}
                 <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs leading-5 text-blue-950">
-                  <strong>Decoder video v7 · pacchetti + PLL:</strong> ogni finestra conserva tutti i picchi interni; i fotogrammi finali aggiungono il controllo colore PLL → Cross opposta. Le letture vengono sovrapposte e concatenate nell’output finale.
+                  <strong>Decoder video v8 · pacchetti + doppie mosse:</strong> ogni finestra conserva tutti i picchi interni, ricompone due quarti di giro uguali in R2 (e equivalenti) e usa il colore PLL per proporre la Cross opposta. Le letture vengono sovrapposte e concatenate nell’output finale.
                 </div>
 
                 {decoderStatus === 'running' ? (
