@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { COLOR_HEX, COLOR_LABELS, type CubeColor, type Face } from '../lib/cube';
 import {
+  captureInspectionKeyframes,
   decodeVideoMotion,
   inferVideoSegmentation,
   summarizeCubeObservation,
@@ -43,7 +44,14 @@ function FacePreview({ face, summary }: { face: Face; summary: CubeObservationSu
   const fallback = Array<CubeColor | null>(9).fill(null);
   fallback[4] = CENTER_COLORS[face];
   const colors = summary?.reconstruction.facelets[face] ?? fallback;
-  const observed = summary?.reconstruction.observedFaces.includes(face) ?? false;
+  const coverage = summary?.reconstruction.faceCoverage[face];
+  const observed = (coverage?.observedCells ?? 0) > 0;
+  const status = coverage?.status ?? 'missing';
+  const statusLabel = status === 'complete'
+    ? 'Completa'
+    : status === 'partial'
+      ? `Parziale ${coverage?.observedCells ?? 0}/9`
+      : 'Manca';
 
   return (
     <article className={`rounded-2xl border p-3 transition ${observed ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/70'}`}>
@@ -52,8 +60,8 @@ function FacePreview({ face, summary }: { face: Face; summary: CubeObservationSu
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">{face} · {FACE_NAMES[face]}</p>
           <p className="mt-0.5 text-xs font-black text-slate-800">{COLOR_LABELS[CENTER_COLORS[face]]}</p>
         </div>
-        <span className={`rounded-full px-2 py-1 text-[9px] font-black ${observed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-          {observed ? 'Vista' : 'Manca'}
+        <span className={`rounded-full px-2 py-1 text-[9px] font-black ${status === 'complete' ? 'bg-emerald-50 text-emerald-700' : status === 'partial' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
+          {statusLabel}
         </span>
       </div>
       <div className="grid aspect-square grid-cols-3 gap-1 rounded-xl bg-slate-950 p-1.5">
@@ -68,6 +76,7 @@ function FacePreview({ face, summary }: { face: Face; summary: CubeObservationSu
           />
         ))}
       </div>
+      {observed ? <p className="mt-2 text-[9px] font-semibold text-slate-400">{coverage?.evidenceFrames ?? 1} fotogrammi concordi{coverage?.inferredCells ? ` · ${coverage.inferredCells} dedotte` : ''}</p> : null}
     </article>
   );
 }
@@ -84,6 +93,7 @@ export default function Home() {
   const [runCount, setRunCount] = useState(0);
   const [samples, setSamples] = useState<MotionSample[]>([]);
   const [summary, setSummary] = useState<CubeObservationSummary | null>(null);
+  const [keyframeImages, setKeyframeImages] = useState<Record<string, string>>({});
   const [scramble, setScramble] = useState<InspectionScramble | null>(null);
   const [inspectionStartOverride, setInspectionStartOverride] = useState<number | null>(null);
   const [inspectionEndOverride, setInspectionEndOverride] = useState<number | null>(null);
@@ -112,6 +122,7 @@ export default function Home() {
     setRunCount(0);
     setSamples([]);
     setSummary(null);
+    setKeyframeImages({});
     setScramble(null);
     setInspectionStartOverride(null);
     setInspectionEndOverride(null);
@@ -197,6 +208,9 @@ export default function Home() {
       if (!latestSummary) throw new Error('Nessun fotogramma utilizzabile trovato nell’ispezione.');
       setProgress(1);
       setScanStatus('result');
+      const images = await captureInspectionKeyframes(video, latestSummary.keyframes).catch(() => ({}));
+      if (generation !== analysisGeneration.current) return;
+      setKeyframeImages(images);
       await calculateScramble(latestSummary, generation);
     } catch (caught) {
       if (generation !== analysisGeneration.current) return;
@@ -320,10 +334,45 @@ export default function Home() {
               {!summary ? (
                 <div className="grid min-h-48 place-items-center text-center"><div className="max-w-sm"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-2xl text-blue-300">◫</div><p className="mt-5 text-sm leading-6 text-slate-400">Qui compariranno soltanto i colori ricostruiti e lo scramble. Il riconoscimento delle mosse e delle fasi è sospeso.</p></div></div>
               ) : (
-                <><p className="mt-3 text-sm leading-6 text-slate-400">{reconstruction?.message}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Ispezione analizzata: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · {summary.stableFrames} fotogrammi stabili</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedCorners}/8</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedEdges}/12</p></div></div></>
+                <><p className="mt-3 text-sm leading-6 text-slate-400">{reconstruction?.message}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Ispezione: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · {summary.stableFrames} stabili · {summary.multiFaceFrames} multi-faccia</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedCorners}/8</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedEdges}/12</p></div></div></>
               )}
             </div>
-            <div className="bg-slate-100 p-4 text-slate-950 sm:p-6"><div className="grid grid-cols-3 gap-2">{FACES.map((face) => <FacePreview key={face} face={face} summary={summary} />)}</div></div>
+            <div className="bg-slate-100 p-4 text-slate-950 sm:p-6">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{FACES.map((face) => <FacePreview key={face} face={face} summary={summary} />)}</div>
+              {summary ? (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Prove multi-faccia</p><h3 className="mt-1 text-sm font-black">Fotogrammi usati insieme</h3></div>
+                    <p className="text-[10px] font-semibold text-slate-400">Tocca un’immagine per fermare il video in quel punto</p>
+                  </div>
+                  {summary.keyframes.length ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {summary.keyframes.map((keyframe) => (
+                        <button
+                          key={keyframe.id}
+                          type="button"
+                          onClick={() => {
+                            if (!videoRef.current) return;
+                            videoRef.current.pause();
+                            videoRef.current.currentTime = keyframe.time;
+                          }}
+                          className="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+                        >
+                          {keyframeImages[keyframe.id] ? (
+                            <img src={keyframeImages[keyframe.id]} alt={`Fotogramma a ${formatPreciseTime(keyframe.time)} con ${keyframe.faceCount} facce visibili`} className="aspect-[4/5] w-full object-cover" />
+                          ) : <span className="grid aspect-[4/5] place-items-center text-xs text-slate-500">Anteprima</span>}
+                          <span className="block p-2.5">
+                            <span className="flex items-center justify-between gap-2"><span className="font-mono text-[10px] font-black text-white">{formatPreciseTime(keyframe.time)}</span><span className="text-[9px] font-black text-emerald-300">{keyframe.confidence}%</span></span>
+                            <span className="mt-2 flex gap-1">{keyframe.faceColors.map((color) => <span key={color} className="h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: COLOR_HEX[color] }} title={COLOR_LABELS[color]} />)}</span>
+                            <span className="mt-1.5 block text-[9px] font-semibold text-slate-400">{keyframe.faceCount} facce · {keyframe.visibleCells}/{keyframe.faceCount * 9} caselle</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Non è stato trovato un fotogramma nitido con almeno due facce contemporaneamente. Le singole letture restano parziali e non vengono usate per inventare lo stato.</p>}
+                </div>
+              ) : null}
+            </div>
             <div className="border-t border-white/10 p-6 sm:p-8">
               {solverStatus === 'solving' ? (
                 <div className="rounded-2xl border border-blue-300/20 bg-blue-400/10 p-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-blue-300">Stato completo</p><p className="mt-2 text-sm leading-6 text-slate-300">Confronto più soluzioni valide e scelgo lo scramble più corto trovato…</p></div>
@@ -335,7 +384,7 @@ export default function Home() {
                   <p className="mt-4 text-[11px] leading-5 text-slate-500">Lo scramble è stato rieseguito virtualmente e riproduce esattamente lo stato letto. È il più breve trovato dalla ricerca multipla; la minimalità matematica assoluta richiederebbe una ricerca ottimale molto più pesante.</p>
                 </div>
               ) : summary ? (
-                <div className={`rounded-2xl border p-5 ${reconstruction?.status === 'invalid' ? 'border-red-300/20 bg-red-300/5' : 'border-amber-300/20 bg-amber-300/5'}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${reconstruction?.status === 'invalid' ? 'text-red-300' : 'text-amber-300'}`}>Nessuno scramble ancora</p><p className="mt-2 text-sm leading-6 text-slate-300">Non mostro una sequenza stimata: prima deve esistere un unico stato fisicamente valido. Ruota di nuovo il cubo mostrando soprattutto le facce segnate come “Manca”, poi usa “Rianalizza e confronta”.</p></div>
+                <div className={`rounded-2xl border p-5 ${reconstruction?.status === 'invalid' ? 'border-red-300/20 bg-red-300/5' : 'border-amber-300/20 bg-amber-300/5'}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${reconstruction?.status === 'invalid' ? 'text-red-300' : 'text-amber-300'}`}>Nessuno scramble ancora</p><p className="mt-2 text-sm leading-6 text-slate-300">Non mostro una sequenza stimata: prima deve esistere un unico stato fisicamente valido. Cerca di mostrare le facce “Manca” e completare quelle “Parziale”, poi usa “Rianalizza e confronta”.</p></div>
               ) : <p className="text-center text-sm leading-6 text-slate-500">Lo scramble apparirà qui soltanto dopo una ricostruzione completa.</p>}
             </div>
           </section>

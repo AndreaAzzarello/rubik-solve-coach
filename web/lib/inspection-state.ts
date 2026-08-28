@@ -17,6 +17,10 @@ export type FaceGridObservation = {
   downY?: number;
   orientationTurns?: number;
   orientationConfidence?: number;
+  cellConfidences?: number[];
+  bundleSize?: number;
+  sourceFrames?: number;
+  cellSupport?: number[];
 };
 
 export type CubeOrientation = {
@@ -41,6 +45,13 @@ export type InspectionReconstruction = {
   truncated: boolean;
   confidence: number;
   facelets: PartialFacelets;
+  faceCoverage: Record<Face, {
+    observedCells: number;
+    inferredCells: number;
+    evidenceFrames: number;
+    confidence: number;
+    status: 'missing' | 'partial' | 'complete';
+  }>;
   completeFacelets: Record<Face, CubeColor[]> | null;
   message: string;
 };
@@ -315,6 +326,7 @@ export function normalizeObservationOrientations(observations: FaceGridObservati
     return {
       ...observation,
       colors: rotateGrid(observation.colors, best.turns),
+      cellConfidences: rotateNumbers(observation.cellConfidences, best.turns),
       orientationTurns: best.turns,
       orientationConfidence: Math.round(Math.min(96, 54 + best.score * 32 + margin * 16)),
     };
@@ -326,70 +338,169 @@ function observationWeight(observation: FaceGridObservation) {
   return observation.confidence * observation.visibleCells * orientationBonus;
 }
 
+function rotateNumbers(values: number[] | undefined, turns: number) {
+  if (!values?.length) return [];
+  let result = [...values];
+  for (let turn = 0; turn < turns; turn += 1) {
+    const rotated = Array<number>(9).fill(0);
+    for (let row = 0; row < 3; row += 1) {
+      for (let column = 0; column < 3; column += 1) {
+        rotated[column * 3 + (2 - row)] = result[row * 3 + column] ?? 0;
+      }
+    }
+    result = rotated;
+  }
+  return result;
+}
+
+function stickerWeight(observation: FaceGridObservation, index: number, rotatedConfidence?: number[]) {
+  const cellConfidence = rotatedConfidence?.[index]
+    ?? observation.cellConfidences?.[index]
+    ?? observation.confidence;
+  const multiFaceBonus = 1 + Math.min(0.2, Math.max(0, (observation.bundleSize ?? 1) - 1) * 0.1);
+  return Math.max(0.08, Math.min(1, cellConfidence / 100))
+    * Math.max(0.35, Math.min(1, observation.confidence / 100))
+    * multiFaceBonus;
+}
+
 function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObservation {
   const ordered = [...observations].sort((left, right) => observationWeight(right) - observationWeight(left));
-  const base = ordered[0];
-  const colors = [...base.colors];
-  let confidenceTotal = base.confidence;
-  let orientationConfidence = base.orientationConfidence ?? 0;
-  let fusedFrames = 1;
+  type Aligned = {
+    observation: FaceGridObservation;
+    colors: Array<CubeColor | null>;
+    confidences: number[];
+    agreement: number;
+    conflict: number;
+  };
+  type FusedCandidate = {
+    seed: FaceGridObservation;
+    colors: Array<CubeColor | null>;
+    cellConfidences: number[];
+    cellSupport: number[];
+    aligned: Aligned[];
+    score: number;
+    confidence: number;
+  };
 
-  ordered.slice(1).forEach((observation) => {
-    const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE ? [0] : [0, 1, 2, 3];
-    const alignments = turnsToTry.map((turns) => {
-      const rotated = rotateGrid(observation.colors, turns);
-      let agreements = 0;
-      let nonCenterAgreements = 0;
-      let conflicts = 0;
-      let additions = 0;
-      rotated.forEach((color, index) => {
-        if (!color) return;
-        if (!colors[index]) additions += 1;
-        else if (colors[index] === color) {
-          agreements += 1;
-          if (index !== 4) nonCenterAgreements += 1;
-        } else conflicts += 1;
-      });
-      return {
-        rotated,
-        agreements,
-        nonCenterAgreements,
-        conflicts,
-        additions,
-        score: agreements * 5 + additions * 0.35 - conflicts * 9,
-      };
-    }).sort((left, right) => right.score - left.score);
-    const best = alignments[0];
-    const runnerUp = alignments[1];
-    // The centre matches in every rotation. Require at least one additional
-    // sticker and a unique alignment before merging another view of the face.
-    if (
-      !best
-      || best.conflicts > 0
-      || best.nonCenterAgreements < 1
-      || (runnerUp && best.score - runnerUp.score < 1)
-    ) return;
-    best.rotated.forEach((color, index) => {
-      if (!colors[index] && color) colors[index] = color;
+  const candidates: FusedCandidate[] = ordered.slice(0, 14).map((seed) => {
+    const aligned: Aligned[] = [{
+      observation: seed,
+      colors: [...seed.colors],
+      confidences: seed.cellConfidences?.length === 9
+        ? [...seed.cellConfidences]
+        : seed.colors.map((color) => color ? seed.confidence : 0),
+      agreement: 0,
+      conflict: 0,
+    }];
+
+    ordered.forEach((observation) => {
+      if (observation === seed) return;
+      const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
+        ? [0]
+        : [0, 1, 2, 3];
+      const rotations = turnsToTry.map((turns) => {
+        const colors = rotateGrid(observation.colors, turns);
+        const confidences = rotateNumbers(observation.cellConfidences, turns);
+        let agreement = 0;
+        let conflict = 0;
+        let overlap = 0;
+        let nonCenterOverlap = 0;
+        colors.forEach((color, index) => {
+          const reference = seed.colors[index];
+          if (!color || !reference || index === 4) return;
+          overlap += 1;
+          nonCenterOverlap += 1;
+          const weight = stickerWeight(observation, index, confidences)
+            + stickerWeight(seed, index) * 0.6;
+          if (color === reference) agreement += weight;
+          else conflict += weight;
+        });
+        return {
+          colors,
+          confidences,
+          agreement,
+          conflict,
+          overlap,
+          nonCenterOverlap,
+          score: agreement * 2.2 - conflict * 3.4 + overlap * 0.08,
+        };
+      }).sort((left, right) => right.score - left.score);
+      const best = rotations[0];
+      const runnerUp = rotations[1];
+      const uniqueAlignment = !runnerUp || best.score - runnerUp.score >= 0.35;
+      const coherent = best.agreement >= Math.max(0.65, best.conflict * 1.8);
+      if (best.nonCenterOverlap < 2 || !uniqueAlignment || !coherent) return;
+      aligned.push({ observation, ...best });
     });
-    confidenceTotal += observation.confidence;
-    orientationConfidence = Math.max(orientationConfidence, observation.orientationConfidence ?? 0);
-    fusedFrames += 1;
+
+    const colors = Array<CubeColor | null>(9).fill(null);
+    const cellConfidences = Array<number>(9).fill(0);
+    const cellSupport = Array<number>(9).fill(0);
+    let consensusStrength = 0;
+    let consensusConflict = 0;
+    for (let index = 0; index < 9; index += 1) {
+      const votes = new Map<CubeColor, { weight: number; support: number; strongest: number }>();
+      aligned.forEach(({ observation, colors: alignedColors, confidences }) => {
+        const color = alignedColors[index];
+        if (!color) return;
+        const weight = stickerWeight(observation, index, confidences);
+        const vote = votes.get(color) ?? { weight: 0, support: 0, strongest: 0 };
+        vote.weight += weight;
+        vote.support += 1;
+        vote.strongest = Math.max(vote.strongest, confidences[index] || observation.confidence);
+        votes.set(color, vote);
+      });
+      const ranked = [...votes.entries()].sort((left, right) => right[1].weight - left[1].weight);
+      const winner = ranked[0];
+      if (!winner) continue;
+      const totalWeight = ranked.reduce((total, entry) => total + entry[1].weight, 0);
+      const ratio = winner[1].weight / Math.max(0.001, totalWeight);
+      const strongestSource = aligned.find((entry) => entry.colors[index] === winner[0])!.observation;
+      const singleStrongFrame = winner[1].support === 1
+        && winner[1].strongest >= 86
+        && (
+          strongestSource.visibleCells >= 6
+          || (strongestSource.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
+        );
+      const accepted = index === 4
+        || (ratio >= 0.67 && (winner[1].support >= 2 || singleStrongFrame));
+      if (!accepted) continue;
+      colors[index] = winner[0];
+      cellSupport[index] = winner[1].support;
+      cellConfidences[index] = Math.round(Math.min(98, Math.max(35, ratio * 82 + Math.min(14, winner[1].support * 3))));
+      consensusStrength += winner[1].weight;
+      consensusConflict += Math.max(0, totalWeight - winner[1].weight);
+    }
+    colors[4] = seed.centerColor;
+    cellConfidences[4] = Math.max(cellConfidences[4], seed.confidence);
+    cellSupport[4] = Math.max(cellSupport[4], aligned.length);
+    const acceptedCells = colors.filter(Boolean).length;
+    const confidence = Math.round(Math.min(97, Math.max(
+      38,
+      acceptedCells / 9 * 68
+        + Math.min(18, aligned.length * 2.5)
+        + consensusStrength / Math.max(1, consensusStrength + consensusConflict) * 10,
+    )));
+    return {
+      seed,
+      colors,
+      cellConfidences,
+      cellSupport,
+      aligned,
+      confidence,
+      score: acceptedCells * 15 + aligned.length * 7 + consensusStrength * 2.5 - consensusConflict * 4,
+    };
   });
 
+  const best = candidates.sort((left, right) => right.score - left.score)[0];
   return {
-    ...base,
-    colors,
-    visibleCells: colors.filter(Boolean).length,
-    confidence: Math.min(
-      97,
-      Math.round(
-        confidenceTotal / fusedFrames
-        + Math.min(8, (fusedFrames - 1) * 2)
-        + Math.min(3, orientationConfidence / 35),
-      ),
-    ),
-    orientationConfidence: orientationConfidence || undefined,
+    ...best.seed,
+    colors: best.colors,
+    visibleCells: best.colors.filter(Boolean).length,
+    confidence: best.confidence,
+    cellConfidences: best.cellConfidences,
+    cellSupport: best.cellSupport,
+    sourceFrames: best.aligned.length,
   };
 }
 
@@ -671,6 +782,29 @@ function asComplete(facelets: PartialFacelets): Record<Face, CubeColor[]> | null
   return Object.fromEntries(FACES.map((face) => [face, facelets[face] as CubeColor[]])) as Record<Face, CubeColor[]>;
 }
 
+function buildFaceCoverage(
+  bestByFace: Map<Face, FaceGridObservation>,
+  displayed: PartialFacelets,
+): InspectionReconstruction['faceCoverage'] {
+  return Object.fromEntries(FACES.map((face) => {
+    const observation = bestByFace.get(face);
+    const observedCells = observation?.colors.filter(Boolean).length ?? 0;
+    const displayedCells = displayed[face].filter(Boolean).length;
+    const inferredCells = Math.max(0, displayedCells - Math.max(1, observedCells));
+    return [face, {
+      observedCells,
+      inferredCells,
+      evidenceFrames: observation?.sourceFrames ?? (observation ? 1 : 0),
+      confidence: observation?.confidence ?? 0,
+      status: observedCells === 9
+        ? 'complete' as const
+        : observedCells >= 2
+          ? 'partial' as const
+          : 'missing' as const,
+    }];
+  })) as InspectionReconstruction['faceCoverage'];
+}
+
 export function reconstructInspectionState(observations: FaceGridObservation[]): InspectionReconstruction {
   const orientedObservations = normalizeObservationOrientations(observations);
   const observationsByFace = new Map<Face, FaceGridObservation[]>();
@@ -690,7 +824,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     return {
       status: 'insufficient', observedFaces: [], observedFacelets: 0, inferredFacelets: 0,
       resolvedCorners: 0, resolvedEdges: 0, candidateCount: 0, truncated: false,
-      confidence: 0, facelets, completeFacelets: null,
+      confidence: 0, facelets, faceCoverage: buildFaceCoverage(bestByFace, facelets), completeFacelets: null,
       message: 'Nessuna griglia 3×3 abbastanza stabile è stata letta durante l’ispezione.',
     };
   }
@@ -782,7 +916,8 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     return {
       status: 'invalid', observedFaces, observedFacelets: bestObserved, inferredFacelets: 0,
       resolvedCorners: 0, resolvedEdges: 0, candidateCount: 0, truncated: false,
-      confidence: Math.min(55, baseConfidence), facelets: bestPartial, completeFacelets: null,
+      confidence: Math.min(55, baseConfidence), facelets: bestPartial,
+      faceCoverage: buildFaceCoverage(bestByFace, bestPartial), completeFacelets: null,
       message: 'Le caselle osservate non formano uno stato fisicamente possibile: serve una nuova lettura dei fotogrammi sfocati o coperti.',
     };
   }
@@ -790,7 +925,8 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     return {
       status: 'complete', observedFaces, observedFacelets: bestObserved, inferredFacelets,
       resolvedCorners, resolvedEdges, candidateCount: 1, truncated: false,
-      confidence: baseConfidence, facelets: candidates[0], completeFacelets,
+      confidence: baseConfidence, facelets: candidates[0],
+      faceCoverage: buildFaceCoverage(bestByFace, candidates[0]), completeFacelets,
       message: 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.',
     };
   }
@@ -801,7 +937,8 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     status: bestObserved >= 8 ? 'partial' : 'insufficient', observedFaces,
     observedFacelets: bestObserved, inferredFacelets,
     resolvedCorners, resolvedEdges, candidateCount: candidates.length, truncated: sawTruncation,
-    confidence: baseConfidence, facelets: displayFacelets, completeFacelets: null,
+    confidence: baseConfidence, facelets: displayFacelets,
+    faceCoverage: buildFaceCoverage(bestByFace, displayFacelets), completeFacelets: null,
     message: sawTruncation
       ? 'La lettura è compatibile con molti stati: servono altre facce o caselle più nitide.'
       : partialMessage,

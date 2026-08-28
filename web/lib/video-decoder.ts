@@ -63,11 +63,23 @@ export type CubeObservationSummary = {
   end: number;
   sampledFrames: number;
   stableFrames: number;
+  multiFaceFrames: number;
   detectedColors: ObservedCubeColor[];
   coverage: ObservedColorCoverage;
   confidence: number;
   patternStatus: 'usable' | 'partial' | 'insufficient';
+  keyframes: InspectionKeyframe[];
   reconstruction: InspectionReconstruction;
+};
+
+export type InspectionKeyframe = {
+  id: string;
+  time: number;
+  faceColors: ObservedCubeColor[];
+  faceCount: number;
+  visibleCells: number;
+  confidence: number;
+  novelty: number;
 };
 
 export type PllColorSummary = {
@@ -300,6 +312,7 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
       const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.43);
       const used = new Set<StickerComponent>();
       const colors = Array<ObservedCubeColor | null>(9).fill(null);
+      const cellConfidences = Array<number>(9).fill(0);
       let visibleCells = 0;
       let residual = 0;
       for (let row = -1; row <= 1; row += 1) {
@@ -318,7 +331,12 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
           });
           if (best) {
             used.add(best);
-            colors[(row + 1) * 3 + column + 1] = best.color;
+            const cellIndex = (row + 1) * 3 + column + 1;
+            colors[cellIndex] = best.color;
+            const geometryConfidence = Math.max(0, 1 - bestDistance / tolerance);
+            const areaRatio = best.area / Math.max(1, typicalArea);
+            const areaConfidence = Math.max(0, 1 - Math.min(1, Math.abs(Math.log(Math.max(0.08, areaRatio))) / 1.7));
+            cellConfidences[cellIndex] = Math.round(Math.min(96, Math.max(35, geometryConfidence * 72 + areaConfidence * 24)));
             visibleCells += 1;
             residual += bestDistance / tolerance;
           }
@@ -330,6 +348,7 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
       candidates.push({
         centerColor: center.color,
         colors,
+        cellConfidences,
         visibleCells,
         confidence: Math.round(Math.min(94, Math.max(42, score * 100))),
         imageX: center.x,
@@ -353,6 +372,7 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
     .map((candidate) => ({
       centerColor: candidate.centerColor,
       colors: candidate.colors,
+      cellConfidences: candidate.cellConfidences,
       visibleCells: candidate.visibleCells,
       confidence: candidate.confidence,
       imageX: candidate.imageX,
@@ -440,13 +460,14 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
     visibleColors[color] = colorCounts[color] / Math.max(1, classifiedPixels);
     topFaceColors[color] = topColorCounts[color] / Math.max(1, classifiedTopPixels);
   });
+  const faceGrids = detectFaceGrids(pixelLabels, width, height);
   return {
     luma,
     chromaBlue,
     chromaRed,
     visibleColors,
     topFaceColors,
-    faceGrids: detectFaceGrids(pixelLabels, width, height),
+    faceGrids: faceGrids.map((grid) => ({ ...grid, bundleSize: faceGrids.length })),
   };
 }
 
@@ -833,6 +854,113 @@ export function detectMotionEvents(samples: MotionSample[], sampleInterval: numb
   return { events: packMotionEvents(atomicEvents, sampleInterval).slice(0, 160), samples, threshold };
 }
 
+function rotateSignatureGrid(colors: Array<ObservedCubeColor | null>) {
+  const signatures: string[] = [];
+  let rotated = [...colors];
+  for (let turn = 0; turn < 4; turn += 1) {
+    signatures.push(rotated.map((color) => color?.[0] ?? '_').join(''));
+    const next = Array<ObservedCubeColor | null>(9).fill(null);
+    for (let row = 0; row < 3; row += 1) {
+      for (let column = 0; column < 3; column += 1) {
+        next[column * 3 + (2 - row)] = rotated[row * 3 + column];
+      }
+    }
+    rotated = next;
+  }
+  return signatures.sort()[0];
+}
+
+function selectInspectionKeyframes(samples: MotionSample[], stableLimit: number): InspectionKeyframe[] {
+  const candidates = samples
+    .filter((sample) => (
+      (sample.faceGrids?.length ?? 0) >= 2
+      && (sample.cubeDifference ?? sample.difference) <= stableLimit * 1.18
+    ))
+    .filter((sample, index, all) => all.findIndex((candidate) => (
+      Math.abs(candidate.time - sample.time) < 0.045
+      && (candidate.faceGrids ?? []).map((grid) => grid.centerColor).sort().join('-')
+        === (sample.faceGrids ?? []).map((grid) => grid.centerColor).sort().join('-')
+    )) === index);
+  const selected: InspectionKeyframe[] = [];
+  const remaining = [...candidates];
+  const seenFaces = new Set<ObservedCubeColor>();
+  const seenPatterns = new Set<string>();
+
+  while (remaining.length && selected.length < 8) {
+    const ranked = remaining.map((sample) => {
+      const grids = sample.faceGrids ?? [];
+      const patterns = grids.map((grid) => `${grid.centerColor}:${rotateSignatureGrid(grid.colors)}`);
+      const newFaces = grids.filter((grid) => !seenFaces.has(grid.centerColor)).length;
+      const newPatterns = patterns.filter((pattern) => !seenPatterns.has(pattern)).length;
+      const visibleCells = grids.reduce((total, grid) => total + grid.visibleCells, 0);
+      const confidence = grids.reduce((total, grid) => total + grid.confidence, 0) / Math.max(1, grids.length);
+      const nearestSelected = selected.length
+        ? Math.min(...selected.map((keyframe) => Math.abs(keyframe.time - sample.time)))
+        : 3;
+      const separation = Math.min(3, nearestSelected) / 3;
+      const novelty = newFaces * 2 + newPatterns;
+      return {
+        sample,
+        patterns,
+        newFaces,
+        newPatterns,
+        visibleCells,
+        confidence,
+        novelty,
+        score: confidence + visibleCells * 1.35 + grids.length * 9 + novelty * 13 + separation * 8,
+      };
+    }).sort((left, right) => right.score - left.score);
+    const best = ranked[0];
+    if (!best || (selected.length >= 3 && best.novelty === 0)) break;
+    const grids = best.sample.faceGrids ?? [];
+    const id = `${best.sample.time.toFixed(3)}-${grids.map((grid) => grid.centerColor[0]).sort().join('')}`;
+    selected.push({
+      id,
+      time: best.sample.time,
+      faceColors: grids.map((grid) => grid.centerColor),
+      faceCount: grids.length,
+      visibleCells: best.visibleCells,
+      confidence: Math.round(best.confidence),
+      novelty: best.novelty,
+    });
+    grids.forEach((grid) => seenFaces.add(grid.centerColor));
+    best.patterns.forEach((pattern) => seenPatterns.add(pattern));
+    for (let index = remaining.length - 1; index >= 0; index -= 1) {
+      if (Math.abs(remaining[index].time - best.sample.time) < 0.42) remaining.splice(index, 1);
+    }
+  }
+
+  return selected.sort((left, right) => left.time - right.time);
+}
+
+export async function captureInspectionKeyframes(
+  video: HTMLVideoElement,
+  keyframes: InspectionKeyframe[],
+): Promise<Record<string, string>> {
+  if (!keyframes.length || !video.videoWidth || !video.videoHeight) return {};
+  const canvas = document.createElement('canvas');
+  const portrait = video.videoHeight > video.videoWidth;
+  canvas.width = portrait ? 240 : 320;
+  canvas.height = Math.round(canvas.width * video.videoHeight / video.videoWidth);
+  const context = canvas.getContext('2d');
+  if (!context) return {};
+  const images: Record<string, string> = {};
+  const originalTime = video.currentTime;
+  const wasPaused = video.paused;
+  video.pause();
+  try {
+    for (const keyframe of keyframes) {
+      await waitForSeek(video, keyframe.time);
+      context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, canvas.width, canvas.height);
+      images[keyframe.id] = canvas.toDataURL('image/jpeg', 0.76);
+    }
+  } finally {
+    await waitForSeek(video, originalTime).catch(() => undefined);
+    if (!wasPaused) await video.play().catch(() => undefined);
+  }
+  return images;
+}
+
 export function summarizeCubeObservation(
   samples: MotionSample[],
   start: number,
@@ -843,9 +971,16 @@ export function summarizeCubeObservation(
   const stableLimit = Math.max(2.4, percentile(differences, 0.42));
   const stable = selected.filter((sample) => (sample.cubeDifference ?? sample.difference) <= stableLimit);
   const useful = stable.length >= 3 ? stable : selected;
+  const allObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
+  const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
+  const multiFaceCenters = new Set(multiFaceObservations.map((observation) => observation.centerColor));
+  const reconstructionObservations = multiFaceObservations.length >= 6 && multiFaceCenters.size >= 3
+    ? multiFaceObservations
+    : allObservations;
   const reconstruction = reconstructInspectionState(
-    useful.flatMap((sample) => sample.faceGrids ?? []),
+    reconstructionObservations,
   );
+  const keyframes = selectInspectionKeyframes(selected, stableLimit);
   const coverage = emptyColorCoverage();
   useful.forEach((sample) => {
     OBSERVED_COLORS.forEach((color) => {
@@ -870,6 +1005,7 @@ export function summarizeCubeObservation(
     end,
     sampledFrames: selected.length,
     stableFrames: stable.length,
+    multiFaceFrames: new Set(multiFaceObservations.map((observation) => observation.time.toFixed(3))).size,
     detectedColors,
     coverage,
     confidence,
@@ -878,6 +1014,7 @@ export function summarizeCubeObservation(
       : reconstruction.status === 'partial' || (detectedColors.length >= 4 && stable.length >= 8)
         ? 'partial'
         : 'insufficient',
+    keyframes,
     reconstruction,
   };
 }

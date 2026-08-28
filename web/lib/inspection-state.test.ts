@@ -185,6 +185,28 @@ test('con poche caselle conserva lo stato come ambiguo', () => {
   assert.equal(reconstruction.status, 'insufficient');
   assert.equal(reconstruction.completeFacelets, null);
   assert.equal(reconstruction.observedFacelets, 5);
+  assert.equal(reconstruction.faceCoverage.U.status, 'partial');
+  assert.equal(reconstruction.faceCoverage.U.observedCells, 6);
+});
+
+test('più fotogrammi multi-faccia concordi prevalgono su una lettura isolata errata', () => {
+  const cube = CubeState.solved().applyMoves(parseAlgorithm("R U F2 L' D"));
+  const complete = observationsFor(cube);
+  const correctU = complete[0];
+  const wrongColors = [...correctU.colors];
+  wrongColors[0] = wrongColors[0] === 'red' ? 'blue' : 'red';
+  const observations: FaceGridObservation[] = [
+    { ...correctU, time: 0.1, confidence: 91, bundleSize: 3 },
+    { ...correctU, time: 0.3, confidence: 90, bundleSize: 3 },
+    { ...correctU, time: 0.5, confidence: 89, bundleSize: 2 },
+    { ...correctU, colors: wrongColors, time: 0.2, confidence: 96, bundleSize: 1 },
+    ...complete.slice(1).map((observation, index) => ({ ...observation, time: index + 1, bundleSize: 2 })),
+  ];
+  const reconstruction = reconstructInspectionState(observations);
+  assert.equal(reconstruction.status, 'complete');
+  assert.ok(reconstruction.completeFacelets);
+  assert.equal(faceletsToSolverString(reconstruction.completeFacelets), cube.faceletString());
+  assert.ok(reconstruction.faceCoverage.U.evidenceFrames >= 3);
 });
 
 test('lo scramble prodotto dal solver riproduce esattamente lo stato ricostruito', () => {
