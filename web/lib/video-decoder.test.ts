@@ -3,6 +3,8 @@ import test from 'node:test';
 import type { CubeColor } from './cube.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
 import {
+  buildInspectionSampleTimes,
+  lastInspectionFrameTime,
   selectInspectionKeyframes,
   summarizeCubeObservation,
   type MotionSample,
@@ -79,4 +81,21 @@ test('preferisce il fotogramma nitido nello stesso tratto temporale', () => {
   const keyframes = selectInspectionKeyframes(samples);
   assert.ok(keyframes.some((keyframe) => Math.abs(keyframe.time - 2.24) < 0.01));
   assert.ok(!keyframes.some((keyframe) => Math.abs(keyframe.time - 2.02) < 0.01));
+});
+
+test('ferma l’ispezione esattamente un fotogramma prima della prima mossa', () => {
+  assert.ok(Math.abs(lastInspectionFrameTime(0, 10, 60) - (10 - 1 / 60)) < 0.000001);
+  assert.equal(lastInspectionFrameTime(4, 4.01, 60), 4);
+});
+
+test('campiona automaticamente tutta l’ispezione senza oltrepassare il limite', () => {
+  const firstPass = buildInspectionSampleTimes(0, 9.9833, 0);
+  const secondPass = buildInspectionSampleTimes(0, 9.9833, 1);
+  const thirdPass = buildInspectionSampleTimes(0, 9.9833, 2);
+  assert.ok(firstPass.length >= 40);
+  assert.ok(Math.max(...firstPass) <= 9.9833);
+  assert.ok(Math.max(...secondPass) <= 9.9833);
+  assert.notEqual(firstPass[0], secondPass[0]);
+  assert.notEqual(firstPass[0], thirdPass[0]);
+  assert.notEqual(secondPass[0], thirdPass[0]);
 });

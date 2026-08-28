@@ -85,15 +85,6 @@ export type InspectionKeyframe = {
   novelty: number;
 };
 
-export type CapturedInspectionShot = {
-  id: string;
-  time: number;
-  imageDataUrl: string;
-  faceGrids: FaceGridObservation[];
-  visibleColors: ObservedColorCoverage;
-  sharpness: number;
-};
-
 export type PllColorSummary = {
   pllColor: ObservedCubeColor;
   crossColor: ObservedCubeColor;
@@ -999,50 +990,29 @@ export function selectInspectionKeyframes(samples: MotionSample[]): InspectionKe
   return selected.sort((left, right) => left.time - right.time);
 }
 
-export async function captureInspectionKeyframes(
-  video: HTMLVideoElement,
-  keyframes: InspectionKeyframe[],
-): Promise<Record<string, string>> {
-  if (!keyframes.length || !video.videoWidth || !video.videoHeight) return {};
-  const canvas = document.createElement('canvas');
-  const portrait = video.videoHeight > video.videoWidth;
-  canvas.width = portrait ? 240 : 320;
-  canvas.height = Math.round(canvas.width * video.videoHeight / video.videoWidth);
-  const context = canvas.getContext('2d');
-  if (!context) return {};
-  const images: Record<string, string> = {};
-  const originalTime = video.currentTime;
-  const wasPaused = video.paused;
-  video.pause();
-  try {
-    for (const keyframe of keyframes) {
-      await waitForSeek(video, keyframe.time);
-      context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, canvas.width, canvas.height);
-      images[keyframe.id] = canvas.toDataURL('image/jpeg', 0.76);
-    }
-  } finally {
-    await waitForSeek(video, originalTime).catch(() => undefined);
-    if (!wasPaused) await video.play().catch(() => undefined);
-  }
-  return images;
+export function lastInspectionFrameTime(start: number, firstCubeChange: number, nominalFps = 60) {
+  const frameDuration = 1 / Math.max(1, nominalFps);
+  return Math.max(start, firstCubeChange - frameDuration);
 }
 
-export async function captureInspectionShot(video: HTMLVideoElement): Promise<CapturedInspectionShot> {
-  if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
-    throw new Error('Attendi che il fotogramma del video sia visibile prima di acquisirlo.');
+export function buildInspectionSampleTimes(start: number, end: number, analysisPass = 0) {
+  const duration = Math.max(0, end - start);
+  if (duration <= 0.001) return [start];
+  const targetCount = Math.min(48, Math.max(12, Math.ceil(duration * 4.2)));
+  const step = duration / targetCount;
+  const phases = [0, 0.5, 0.25, 0.75];
+  const phase = phases[Math.max(0, Math.floor(analysisPass)) % phases.length];
+  const offset = step * phase;
+  const times: number[] = [];
+  for (let time = start + offset; time <= end + 0.0001; time += step) {
+    times.push(Math.min(end, time));
   }
-  video.pause();
-  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  if (phase === 0 && times.at(-1)! < end - step * 0.25) times.push(end);
+  return [...new Set(times.map((time) => Number(time.toFixed(4))))];
+}
 
-  const time = video.currentTime;
+function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): MotionSample {
   const portrait = video.videoHeight >= video.videoWidth;
-  const preview = document.createElement('canvas');
-  preview.width = portrait ? 360 : 540;
-  preview.height = Math.round(preview.width * video.videoHeight / video.videoWidth);
-  const previewContext = preview.getContext('2d');
-  if (!previewContext) throw new Error('Il browser non riesce a creare il fotogramma.');
-  previewContext.drawImage(video, 0, 0, preview.width, preview.height);
-
   const cropVariants = portrait
     ? [
       { x: 0.06, y: 0.06, width: 0.88, height: 0.72 },
@@ -1089,13 +1059,46 @@ export async function captureInspectionShot(video: HTMLVideoElement): Promise<Ca
     bundleSize: best?.signature.faceGrids.length ?? 1,
   }));
   return {
-    id: `shot-${Math.round(time * 1000)}-${Date.now()}`,
     time,
-    imageDataUrl: preview.toDataURL('image/jpeg', 0.82),
+    difference: 0,
+    cubeDifference: 0,
+    hasTemporalReference: false,
     faceGrids: grids,
     visibleColors: best?.signature.visibleColors ?? emptyColorCoverage(),
     sharpness: best?.signature.sharpness ?? 0,
   };
+}
+
+export async function scanInspectionFrames(
+  video: HTMLVideoElement,
+  start: number,
+  end: number,
+  options: { analysisPass?: number; onProgress?: (progress: number) => void } = {},
+): Promise<MotionSample[]> {
+  if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
+    throw new Error('Attendi che il video sia pronto prima di acquisire i fotogrammi.');
+  }
+  const times = buildInspectionSampleTimes(start, end, options.analysisPass ?? 0);
+  const originalTime = video.currentTime;
+  const wasPaused = video.paused;
+  const samples: MotionSample[] = [];
+  video.pause();
+  try {
+    for (let index = 0; index < times.length; index += 1) {
+      const time = times[index];
+      await waitForSeek(video, time);
+      const sample = readHighResolutionInspectionFrame(video, time);
+      sample.hasTemporalReference = index > 0;
+      samples.push(sample);
+      options.onProgress?.((index + 1) / times.length);
+    }
+  } finally {
+    await waitForSeek(video, originalTime).catch(() => undefined);
+    if (!wasPaused) await video.play().catch(() => undefined);
+  }
+  // I canvas e i fotogrammi non escono da questa funzione: rimangono solo le
+  // griglie colore 3×3 necessarie alla ricostruzione dello stato.
+  return samples;
 }
 
 export function summarizeCubeObservation(
