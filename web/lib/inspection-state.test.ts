@@ -4,6 +4,7 @@ import Cube from 'cubejs';
 import { CubeState, invertMoves, movesToString, parseAlgorithm } from './cube.ts';
 import {
   CANONICAL_FACE_COLOR,
+  CUBIE_COLOR_SCHEMA,
   CUBE_ORIENTATIONS,
   cubeOrientationFromFrontAndUp,
   faceletsToSolverString,
@@ -12,7 +13,7 @@ import {
   type FaceGridObservation,
 } from './inspection-state.ts';
 import { createScrambleFromInspection } from './inspection-solver.ts';
-import type { Face } from './cube.ts';
+import type { CubeColor, Face } from './cube.ts';
 
 const FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
 
@@ -39,6 +40,36 @@ function observationsFor(cube: CubeState, turns: number[] = []) {
     visibleCells: 9,
   }));
 }
+
+function partialObservation(face: Face, known: Partial<Record<number, CubeColor>>) {
+  const colors = Array<CubeColor | null>(9).fill(null);
+  colors[4] = CANONICAL_FACE_COLOR[face];
+  Object.entries(known).forEach(([index, color]) => {
+    colors[Number(index)] = color;
+  });
+  return {
+    time: 20,
+    centerColor: CANONICAL_FACE_COLOR[face],
+    colors,
+    confidence: 92,
+    visibleCells: Math.max(5, colors.filter(Boolean).length),
+    orientationConfidence: 96,
+  } satisfies FaceGridObservation;
+}
+
+test('espone lo schema colore fisso di ogni pezzo', () => {
+  assert.equal(CUBIE_COLOR_SCHEMA.corners.length, 8);
+  assert.equal(CUBIE_COLOR_SCHEMA.edges.length, 12);
+  assert.ok(CUBIE_COLOR_SCHEMA.corners.some((piece) => (
+    piece.name === 'URF' && piece.colors.join('-') === 'white-red-green'
+  )));
+  assert.ok(CUBIE_COLOR_SCHEMA.corners.some((piece) => (
+    piece.name === 'UFL' && piece.colors.join('-') === 'white-green-orange'
+  )));
+  assert.ok(CUBIE_COLOR_SCHEMA.edges.some((piece) => (
+    piece.name === 'FL' && piece.colors.join('-') === 'green-orange'
+  )));
+});
 
 test('enumera le 24 pose possibili dei centri del cubo', () => {
   assert.equal(CUBE_ORIENTATIONS.length, 24);
@@ -96,6 +127,19 @@ test('orienta una faccia usando il centro adiacente visto nello stesso frame', (
   const normalizedFront = oriented.find((observation) => observation.centerColor === 'green');
   assert.ok((normalizedFront?.orientationConfidence ?? 0) >= 58);
   assert.deepEqual(normalizedFront?.colors, solved.facelets('F'));
+});
+
+test('deduce lo spigolo mancante usando l’inventario fisso dei pezzi', () => {
+  const reconstruction = reconstructInspectionState([
+    partialObservation('F', { 0: 'green', 1: 'green', 3: 'green', 5: 'green', 7: 'green' }),
+    partialObservation('U', { 7: 'white' }),
+    partialObservation('R', { 3: 'red' }),
+    partialObservation('D', { 1: 'yellow' }),
+  ]);
+  assert.equal(reconstruction.status, 'partial');
+  assert.equal(reconstruction.facelets.L[5], 'orange');
+  assert.ok(reconstruction.inferredFacelets >= 1);
+  assert.ok(reconstruction.resolvedEdges >= 4);
 });
 
 test('ricostruisce lo stato risolto nella convenzione bianco U e verde F', () => {
