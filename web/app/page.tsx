@@ -316,7 +316,7 @@ export default function Home() {
                 <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-4">
                   <div className="flex items-center justify-between gap-3 text-xs font-black text-blue-950"><span>Confronto delle griglie 3×3</span><span>{Math.round(progress * 100)}%</span></div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${progress * 100}%` }} /></div>
-                  <p className="mt-2 text-[11px] leading-4 text-blue-800">Cerco i fotogrammi stabili e sovrappongo le viste della stessa faccia. Se la prima lettura non basta, vengono provati automaticamente altri campionamenti.</p>
+                  <p className="mt-2 text-[11px] leading-4 text-blue-800">Cerco i fotogrammi più nitidi lungo tutta l’ispezione e sovrappongo le viste della stessa faccia. Il movimento tra due campioni non fa più scartare un’immagine chiara.</p>
                 </div>
               ) : null}
               {error ? <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
@@ -334,7 +334,7 @@ export default function Home() {
               {!summary ? (
                 <div className="grid min-h-48 place-items-center text-center"><div className="max-w-sm"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-2xl text-blue-300">◫</div><p className="mt-5 text-sm leading-6 text-slate-400">Qui compariranno soltanto i colori ricostruiti e lo scramble. Il riconoscimento delle mosse e delle fasi è sospeso.</p></div></div>
               ) : (
-                <><p className="mt-3 text-sm leading-6 text-slate-400">{reconstruction?.message}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Ispezione: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · {summary.stableFrames} stabili · {summary.multiFaceFrames} multi-faccia</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedCorners}/8</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedEdges}/12</p></div></div></>
+                <><p className="mt-3 text-sm leading-6 text-slate-400">{reconstruction?.message}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Ispezione: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · {summary.sharpFrames} nitidi · {summary.multiFaceFrames} multi-faccia</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedCorners}/8</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedEdges}/12</p></div></div></>
               )}
             </div>
             <div className="bg-slate-100 p-4 text-slate-950 sm:p-6">
@@ -342,7 +342,7 @@ export default function Home() {
               {summary ? (
                 <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
                   <div className="flex flex-wrap items-end justify-between gap-2">
-                    <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Prove multi-faccia</p><h3 className="mt-1 text-sm font-black">Fotogrammi usati insieme</h3></div>
+                    <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Fotogrammi dell’ispezione</p><h3 className="mt-1 text-sm font-black">Migliori viste conservate</h3></div>
                     <p className="text-[10px] font-semibold text-slate-400">Tocca un’immagine per fermare il video in quel punto</p>
                   </div>
                   {summary.keyframes.length ? (
@@ -369,7 +369,7 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                  ) : <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Non è stato trovato un fotogramma nitido con almeno due facce contemporaneamente. Le singole letture restano parziali e non vengono usate per inventare lo stato.</p>}
+                  ) : <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">Non è stata trovata una griglia 3×3 abbastanza chiara. Le viste con due o tre facce vengono preferite, ma ora vengono conservate anche quelle nitide con una sola faccia come prova parziale.</p>}
                 </div>
               ) : null}
             </div>

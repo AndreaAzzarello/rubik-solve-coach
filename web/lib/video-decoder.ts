@@ -1,17 +1,19 @@
 import {
-  HandDirection,
-  HandSide,
+  type HandDirection,
+  type HandSide,
   createHandMotionTracker,
-} from './hand-motion';
+} from './hand-motion.ts';
 import {
   type FaceGridObservation,
   type InspectionReconstruction,
   reconstructInspectionState,
-} from './inspection-state';
+} from './inspection-state.ts';
 
 export type MotionSample = {
   time: number;
   difference: number;
+  sharpness?: number;
+  hasTemporalReference?: boolean;
   coverage?: number;
   centerBias?: number;
   cubeDifference?: number;
@@ -63,6 +65,7 @@ export type CubeObservationSummary = {
   end: number;
   sampledFrames: number;
   stableFrames: number;
+  sharpFrames: number;
   multiFaceFrames: number;
   detectedColors: ObservedCubeColor[];
   coverage: ObservedColorCoverage;
@@ -143,6 +146,7 @@ type FrameSignature = {
   luma: Uint8Array;
   chromaBlue: Uint8Array;
   chromaRed: Uint8Array;
+  sharpness: number;
   visibleColors: ObservedColorCoverage;
   topFaceColors: ObservedColorCoverage;
   faceGrids: Array<Omit<FaceGridObservation, 'time'>>;
@@ -460,11 +464,39 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
     visibleColors[color] = colorCounts[color] / Math.max(1, classifiedPixels);
     topFaceColors[color] = topColorCounts[color] / Math.max(1, classifiedTopPixels);
   });
+  let laplacianTotal = 0;
+  let laplacianSquaredTotal = 0;
+  let laplacianPixels = 0;
+  const minX = Math.max(1, Math.floor(width * 0.08));
+  const maxX = Math.min(width - 2, Math.ceil(width * 0.92));
+  const minY = Math.max(1, Math.floor(height * 0.08));
+  const maxY = Math.min(height - 2, Math.ceil(height * 0.92));
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const index = y * width + x;
+      const laplacian = (
+        luma[index] * 4
+        - luma[index - 1]
+        - luma[index + 1]
+        - luma[index - width]
+        - luma[index + width]
+      );
+      laplacianTotal += laplacian;
+      laplacianSquaredTotal += laplacian * laplacian;
+      laplacianPixels += 1;
+    }
+  }
+  const laplacianMean = laplacianTotal / Math.max(1, laplacianPixels);
+  const sharpness = Math.sqrt(Math.max(
+    0,
+    laplacianSquaredTotal / Math.max(1, laplacianPixels) - laplacianMean * laplacianMean,
+  ));
   const faceGrids = detectFaceGrids(pixelLabels, width, height);
   return {
     luma,
     chromaBlue,
     chromaRed,
+    sharpness,
     visibleColors,
     topFaceColors,
     faceGrids: faceGrids.map((grid) => ({ ...grid, bundleSize: faceGrids.length })),
@@ -870,12 +902,34 @@ function rotateSignatureGrid(colors: Array<ObservedCubeColor | null>) {
   return signatures.sort()[0];
 }
 
-function selectInspectionKeyframes(samples: MotionSample[], stableLimit: number): InspectionKeyframe[] {
-  const candidates = samples
-    .filter((sample) => (
-      (sample.faceGrids?.length ?? 0) >= 2
-      && (sample.cubeDifference ?? sample.difference) <= stableLimit * 1.18
-    ))
+export function selectInspectionKeyframes(samples: MotionSample[]): InspectionKeyframe[] {
+  const framesWithGrids = samples.filter((sample) => (sample.faceGrids?.length ?? 0) >= 1);
+  const measuredSharpness = framesWithGrids
+    .map((sample) => sample.sharpness)
+    .filter((value): value is number => Number.isFinite(value));
+  const sharpnessFloor = percentile(measuredSharpness, 0.24);
+  const sharpnessCeiling = Math.max(sharpnessFloor + 0.01, percentile(measuredSharpness, 0.88));
+  const clearFrames = measuredSharpness.length >= 4
+    ? framesWithGrids.filter((sample) => (sample.sharpness ?? sharpnessFloor) >= sharpnessFloor)
+    : framesWithGrids;
+
+  // Ogni passaggio del decoder può campionare quasi lo stesso istante. Per ciascun
+  // tratto di mezzo secondo conserviamo la vista che contiene più caselle nitide.
+  const bestByTimeWindow = new Map<number, { sample: MotionSample; quality: number }>();
+  clearFrames.forEach((sample) => {
+    const grids = sample.faceGrids ?? [];
+    const visibleCells = grids.reduce((total, grid) => total + grid.visibleCells, 0);
+    const confidence = grids.reduce((total, grid) => total + grid.confidence, 0) / Math.max(1, grids.length);
+    const sharpnessRatio = measuredSharpness.length
+      ? Math.min(1, Math.max(0, ((sample.sharpness ?? sharpnessFloor) - sharpnessFloor) / (sharpnessCeiling - sharpnessFloor)))
+      : 0.5;
+    const quality = visibleCells * 1.5 + confidence + grids.length * 12 + sharpnessRatio * 14;
+    const bucket = Math.floor(sample.time / 0.48);
+    const existing = bestByTimeWindow.get(bucket);
+    if (!existing || quality > existing.quality) bestByTimeWindow.set(bucket, { sample, quality });
+  });
+  const candidates = [...bestByTimeWindow.values()]
+    .map((candidate) => candidate.sample)
     .filter((sample, index, all) => all.findIndex((candidate) => (
       Math.abs(candidate.time - sample.time) < 0.045
       && (candidate.faceGrids ?? []).map((grid) => grid.centerColor).sort().join('-')
@@ -886,7 +940,7 @@ function selectInspectionKeyframes(samples: MotionSample[], stableLimit: number)
   const seenFaces = new Set<ObservedCubeColor>();
   const seenPatterns = new Set<string>();
 
-  while (remaining.length && selected.length < 8) {
+  while (remaining.length && selected.length < 12) {
     const ranked = remaining.map((sample) => {
       const grids = sample.faceGrids ?? [];
       const patterns = grids.map((grid) => `${grid.centerColor}:${rotateSignatureGrid(grid.colors)}`);
@@ -899,6 +953,9 @@ function selectInspectionKeyframes(samples: MotionSample[], stableLimit: number)
         : 3;
       const separation = Math.min(3, nearestSelected) / 3;
       const novelty = newFaces * 2 + newPatterns;
+      const sharpnessRatio = measuredSharpness.length
+        ? Math.min(1, Math.max(0, ((sample.sharpness ?? sharpnessFloor) - sharpnessFloor) / (sharpnessCeiling - sharpnessFloor)))
+        : 0.5;
       return {
         sample,
         patterns,
@@ -907,11 +964,11 @@ function selectInspectionKeyframes(samples: MotionSample[], stableLimit: number)
         visibleCells,
         confidence,
         novelty,
-        score: confidence + visibleCells * 1.35 + grids.length * 9 + novelty * 13 + separation * 8,
+        score: confidence + visibleCells * 1.35 + grids.length * 11 + novelty * 13 + separation * 12 + sharpnessRatio * 10,
       };
     }).sort((left, right) => right.score - left.score);
     const best = ranked[0];
-    if (!best || (selected.length >= 3 && best.novelty === 0)) break;
+    if (!best) break;
     const grids = best.sample.faceGrids ?? [];
     const id = `${best.sample.time.toFixed(3)}-${grids.map((grid) => grid.centerColor[0]).sort().join('')}`;
     selected.push({
@@ -967,20 +1024,23 @@ export function summarizeCubeObservation(
   end: number,
 ): CubeObservationSummary {
   const selected = samples.filter((sample) => sample.time >= start && sample.time <= end && sample.visibleColors);
-  const differences = selected.map((sample) => sample.cubeDifference ?? sample.difference);
+  const referencedSamples = selected.filter((sample) => sample.hasTemporalReference !== false);
+  const differences = referencedSamples.map((sample) => sample.cubeDifference ?? sample.difference);
   const stableLimit = Math.max(2.4, percentile(differences, 0.42));
-  const stable = selected.filter((sample) => (sample.cubeDifference ?? sample.difference) <= stableLimit);
-  const useful = stable.length >= 3 ? stable : selected;
+  const stable = referencedSamples.filter((sample) => (sample.cubeDifference ?? sample.difference) <= stableLimit);
+  const gridFrames = selected.filter((sample) => (sample.faceGrids?.length ?? 0) >= 1);
+  const measuredSharpness = gridFrames
+    .map((sample) => sample.sharpness)
+    .filter((value): value is number => Number.isFinite(value));
+  const sharpnessFloor = percentile(measuredSharpness, 0.24);
+  const sharpFrames = measuredSharpness.length >= 4
+    ? gridFrames.filter((sample) => (sample.sharpness ?? sharpnessFloor) >= sharpnessFloor)
+    : gridFrames;
+  const useful = sharpFrames.length >= 3 ? sharpFrames : (gridFrames.length ? gridFrames : selected);
   const allObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
   const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
-  const multiFaceCenters = new Set(multiFaceObservations.map((observation) => observation.centerColor));
-  const reconstructionObservations = multiFaceObservations.length >= 6 && multiFaceCenters.size >= 3
-    ? multiFaceObservations
-    : allObservations;
-  const reconstruction = reconstructInspectionState(
-    reconstructionObservations,
-  );
-  const keyframes = selectInspectionKeyframes(selected, stableLimit);
+  const reconstruction = reconstructInspectionState(allObservations);
+  const keyframes = selectInspectionKeyframes(selected);
   const coverage = emptyColorCoverage();
   useful.forEach((sample) => {
     OBSERVED_COLORS.forEach((color) => {
@@ -1005,13 +1065,14 @@ export function summarizeCubeObservation(
     end,
     sampledFrames: selected.length,
     stableFrames: stable.length,
+    sharpFrames: sharpFrames.length,
     multiFaceFrames: new Set(multiFaceObservations.map((observation) => observation.time.toFixed(3))).size,
     detectedColors,
     coverage,
     confidence,
     patternStatus: reconstruction.status === 'complete'
       ? 'usable'
-      : reconstruction.status === 'partial' || (detectedColors.length >= 4 && stable.length >= 8)
+      : reconstruction.status === 'partial' || (detectedColors.length >= 4 && useful.length >= 8)
         ? 'partial'
         : 'insufficient',
     keyframes,
@@ -1214,8 +1275,8 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   const sampleCount = Math.max(2, Math.floor((duration - sampleOffset) / sampleInterval) + 1);
   const portrait = video.videoHeight >= video.videoWidth;
   const canvas = document.createElement('canvas');
-  canvas.width = portrait ? 96 : 128;
-  canvas.height = portrait ? 128 : 96;
+  canvas.width = portrait ? 160 : 216;
+  canvas.height = portrait ? 216 : 160;
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Il browser non supporta l’analisi dei fotogrammi.');
   const handCanvas = document.createElement('canvas');
@@ -1295,6 +1356,8 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
       samples.push({
         time,
         difference: measurement.score,
+        sharpness: current.sharpness,
+        hasTemporalReference: previous !== null,
         cubeDifference: measurement.score,
         coverage: measurement.coverage,
         centerBias: measurement.centerBias,
