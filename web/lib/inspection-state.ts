@@ -5,6 +5,10 @@ type Vector = readonly [number, number, number];
 
 export type FaceGridObservation = {
   time: number;
+  /** Identifica una singola inquadratura/crop per usare solo geometrie confrontabili. */
+  frameId?: string;
+  /** Raggruppa i crop ricavati dallo stesso fotogramma e non li conta come prove indipendenti. */
+  captureId?: string;
   centerColor: CubeColor;
   colors: Array<CubeColor | null>;
   confidence: number;
@@ -287,7 +291,7 @@ function rotationTurnsForNeighbor(face: Face, rawSide: GridSide, neighborColor: 
 }
 
 function frameKey(observation: FaceGridObservation) {
-  return `${Math.round(observation.time * 1000)}`;
+  return observation.frameId ?? `${Math.round(observation.time * 1000)}`;
 }
 
 export function normalizeObservationOrientations(observations: FaceGridObservation[]): FaceGridObservation[] {
@@ -439,14 +443,14 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
     let consensusStrength = 0;
     let consensusConflict = 0;
     for (let index = 0; index < 9; index += 1) {
-      const votes = new Map<CubeColor, { weight: number; support: number; strongest: number }>();
+      const votes = new Map<CubeColor, { weight: number; sources: Set<string>; strongest: number }>();
       aligned.forEach(({ observation, colors: alignedColors, confidences }) => {
         const color = alignedColors[index];
         if (!color) return;
         const weight = stickerWeight(observation, index, confidences);
-        const vote = votes.get(color) ?? { weight: 0, support: 0, strongest: 0 };
+        const vote = votes.get(color) ?? { weight: 0, sources: new Set<string>(), strongest: 0 };
         vote.weight += weight;
-        vote.support += 1;
+        vote.sources.add(observation.captureId ?? observation.frameId ?? observation.time.toFixed(4));
         vote.strongest = Math.max(vote.strongest, confidences[index] || observation.confidence);
         votes.set(color, vote);
       });
@@ -456,18 +460,19 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
       const totalWeight = ranked.reduce((total, entry) => total + entry[1].weight, 0);
       const ratio = winner[1].weight / Math.max(0.001, totalWeight);
       const strongestSource = aligned.find((entry) => entry.colors[index] === winner[0])!.observation;
-      const singleStrongFrame = winner[1].support === 1
+      const support = winner[1].sources.size;
+      const singleStrongFrame = support === 1
         && winner[1].strongest >= 86
         && (
           strongestSource.visibleCells >= 6
           || (strongestSource.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
         );
       const accepted = index === 4
-        || (ratio >= 0.67 && (winner[1].support >= 2 || singleStrongFrame));
+        || (ratio >= 0.67 && (support >= 2 || singleStrongFrame));
       if (!accepted) continue;
       colors[index] = winner[0];
-      cellSupport[index] = winner[1].support;
-      cellConfidences[index] = Math.round(Math.min(98, Math.max(35, ratio * 82 + Math.min(14, winner[1].support * 3))));
+      cellSupport[index] = support;
+      cellConfidences[index] = Math.round(Math.min(98, Math.max(35, ratio * 82 + Math.min(14, support * 3))));
       consensusStrength += winner[1].weight;
       consensusConflict += Math.max(0, totalWeight - winner[1].weight);
     }
@@ -500,7 +505,9 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
     confidence: best.confidence,
     cellConfidences: best.cellConfidences,
     cellSupport: best.cellSupport,
-    sourceFrames: best.aligned.length,
+    sourceFrames: new Set(best.aligned.map(({ observation }) => (
+      observation.captureId ?? observation.frameId ?? observation.time.toFixed(4)
+    ))).size,
   };
 }
 

@@ -85,6 +85,12 @@ export type InspectionKeyframe = {
   novelty: number;
 };
 
+export type InspectionEndDetection = {
+  time: number;
+  source: 'state-change' | 'motion-density' | 'segmentation' | 'fallback';
+  confidence: number;
+};
+
 export type PllColorSummary = {
   pllColor: ObservedCubeColor;
   crossColor: ObservedCubeColor;
@@ -280,18 +286,39 @@ function stickerComponents(labels: Int8Array, width: number, height: number) {
   return components;
 }
 
-function detectFaceGrids(labels: Int8Array, width: number, height: number) {
-  const components = stickerComponents(labels, width, height);
+export function detectFaceGrids(labels: Int8Array, width: number, height: number) {
+  const minimumStickerArea = Math.max(6, width * height * 0.00012);
+  const components = stickerComponents(labels, width, height)
+    .filter((component) => component.area >= minimumStickerArea)
+    .sort((left, right) => right.area - left.area)
+    .slice(0, 72);
   if (components.length < 6) return [];
-  const areas = components.map((component) => component.area);
-  const typicalArea = median(areas);
-  const usable = components.filter((component) => (
-    component.area >= typicalArea * 0.22 && component.area <= typicalArea * 4.5
-  ));
   const candidates: Array<Omit<FaceGridObservation, 'time'> & { score: number }> = [];
 
-  usable.forEach((center) => {
-    const vectors = usable
+  components.forEach((center) => {
+    // Mani, pelle e sfondo generano molti frammenti colorati piccoli. Usare la
+    // mediana globale delle aree faceva quindi scartare proprio gli sticker del
+    // cubo. Ogni possibile centro costruisce invece il proprio gruppo locale di
+    // componenti con dimensioni e distanza compatibili.
+    const local = components.map((component) => {
+      const areaRatio = component.area / Math.max(1, center.area);
+      const widthRatio = component.width / Math.max(1, center.width);
+      const heightRatio = component.height / Math.max(1, center.height);
+      const distance = Math.hypot(component.x - center.x, component.y - center.y);
+      const compatible = areaRatio >= 0.16
+        && areaRatio <= 6.2
+        && widthRatio >= 0.24
+        && widthRatio <= 4.2
+        && heightRatio >= 0.24
+        && heightRatio <= 4.2
+        && distance <= Math.min(width, height) * 0.46;
+      return { component, distance, compatible };
+    }).filter((candidate) => candidate.compatible)
+      .sort((left, right) => left.distance - right.distance)
+      .slice(0, 36)
+      .map((candidate) => candidate.component);
+    if (local.length < 6) return;
+    const vectors = local
       .filter((component) => component !== center)
       .map((component) => ({
         component,
@@ -305,7 +332,7 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
     // vectors pointing right/down in image coordinates.
     const basisVectors = [...vectors]
       .sort((left, right) => left.length - right.length)
-      .slice(0, 14);
+      .slice(0, 10);
 
     basisVectors.forEach((right) => basisVectors.forEach((down) => {
       if (right.component === down.component) return;
@@ -325,7 +352,7 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
           const targetY = center.y + right.dy * column + down.dy * row;
           let best: StickerComponent | null = null;
           let bestDistance = tolerance;
-          usable.forEach((component) => {
+          local.forEach((component) => {
             if (used.has(component)) return;
             const distance = Math.hypot(component.x - targetX, component.y - targetY);
             if (distance < bestDistance) {
@@ -338,7 +365,7 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
             const cellIndex = (row + 1) * 3 + column + 1;
             colors[cellIndex] = best.color;
             const geometryConfidence = Math.max(0, 1 - bestDistance / tolerance);
-            const areaRatio = best.area / Math.max(1, typicalArea);
+            const areaRatio = best.area / Math.max(1, center.area);
             const areaConfidence = Math.max(0, 1 - Math.min(1, Math.abs(Math.log(Math.max(0.08, areaRatio))) / 1.7));
             cellConfidences[cellIndex] = Math.round(Math.min(96, Math.max(35, geometryConfidence * 72 + areaConfidence * 24)));
             visibleCells += 1;
@@ -421,7 +448,12 @@ function waitForSeek(video: HTMLVideoElement, time: number) {
   });
 }
 
-function frameSignature(context: CanvasRenderingContext2D, width: number, height: number): FrameSignature {
+function frameSignature(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  includeFaceGrids = true,
+): FrameSignature {
   const { data } = context.getImageData(0, 0, width, height);
   const size = width * height;
   const luma = new Uint8Array(size);
@@ -491,7 +523,7 @@ function frameSignature(context: CanvasRenderingContext2D, width: number, height
     0,
     laplacianSquaredTotal / Math.max(1, laplacianPixels) - laplacianMean * laplacianMean,
   ));
-  const faceGrids = detectFaceGrids(pixelLabels, width, height);
+  const faceGrids = includeFaceGrids ? detectFaceGrids(pixelLabels, width, height) : [];
   return {
     luma,
     chromaBlue,
@@ -1011,7 +1043,159 @@ export function buildInspectionSampleTimes(start: number, end: number, analysisP
   return [...new Set(times.map((time) => Number(time.toFixed(4))))];
 }
 
-function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): MotionSample {
+function rotateObservedGrid(colors: Array<ObservedCubeColor | null>) {
+  const rotated = Array<ObservedCubeColor | null>(9).fill(null);
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 3; column += 1) {
+      rotated[column * 3 + (2 - row)] = colors[row * 3 + column];
+    }
+  }
+  return rotated;
+}
+
+function compareFacePatterns(
+  reference: Array<ObservedCubeColor | null>,
+  candidate: Array<ObservedCubeColor | null>,
+) {
+  let rotated = [...candidate];
+  let best: { overlap: number; mismatches: number; ratio: number; score: number } | null = null;
+  for (let turns = 0; turns < 4; turns += 1) {
+    let overlap = 0;
+    let mismatches = 0;
+    for (let index = 0; index < 9; index += 1) {
+      if (index === 4 || !reference[index] || !rotated[index]) continue;
+      overlap += 1;
+      if (reference[index] !== rotated[index]) mismatches += 1;
+    }
+    const ratio = mismatches / Math.max(1, overlap);
+    const matches = overlap - mismatches;
+    const score = matches * 2.2 - mismatches * 1.4 + overlap * 0.1;
+    if (!best || score > best.score) best = { overlap, mismatches, ratio, score };
+    rotated = rotateObservedGrid(rotated);
+  }
+  return best ?? { overlap: 0, mismatches: 0, ratio: 0, score: 0 };
+}
+
+function denseFaceTurnStart(events: MotionEvent[], start: number, end: number) {
+  const faceTurns = events.filter((event) => (
+    event.start >= start + 1.2
+    && event.start <= end
+    && event.motionKind === 'face-turn'
+    && event.cubeStrength >= 28
+  ));
+  for (let index = 0; index < faceTurns.length; index += 1) {
+    const first = faceTurns[index];
+    const packet = faceTurns.filter((event) => (
+      event.peakTime >= first.peakTime && event.peakTime <= first.peakTime + 2.4
+    ));
+    const estimatedMoves = packet.reduce((total, event) => total + Math.max(1, event.moveCountEstimate), 0);
+    if (packet.length >= 3 && estimatedMoves >= 3) return first.start;
+  }
+  return null;
+}
+
+/**
+ * Distingue una rotazione dell'intero cubo da una vera modifica degli sticker.
+ * Una rotazione x/y/z conserva il pattern 3×3 di ogni centro (a meno di una
+ * rotazione 2D); una face turn cambia invece almeno una parte di quel pattern.
+ */
+export function inferInspectionEnd(
+  samples: MotionSample[],
+  events: MotionEvent[],
+  start: number,
+  searchEnd: number,
+  segmentationHint?: number | null,
+): InspectionEndDetection {
+  const captures = new Map<string, { time: number; grids: FaceGridObservation[] }>();
+  samples
+    .filter((sample) => sample.time >= start && sample.time <= searchEnd)
+    .forEach((sample) => {
+      (sample.faceGrids ?? []).forEach((grid) => {
+        const captureId = grid.captureId ?? sample.time.toFixed(4);
+        const capture = captures.get(captureId) ?? { time: sample.time, grids: [] };
+        capture.grids.push(grid);
+        captures.set(captureId, capture);
+      });
+    });
+
+  const history = new Map<ObservedCubeColor, FaceGridObservation[]>();
+  const orderedCaptures = [...captures.values()].sort((left, right) => left.time - right.time);
+  let stateChange: number | null = null;
+
+  for (const capture of orderedCaptures) {
+    const changedVotes = new Map<ObservedCubeColor, number>();
+    const unchanged = new Set<FaceGridObservation>();
+    capture.grids.forEach((grid) => {
+      if (grid.visibleCells < 6 || grid.confidence < 60 || capture.time < start + 0.8) {
+        unchanged.add(grid);
+        return;
+      }
+      const uniqueReferences = new Map<string, FaceGridObservation>();
+      (history.get(grid.centerColor) ?? [])
+        .filter((reference) => reference.time <= capture.time - 0.22)
+        .forEach((reference) => {
+          const key = reference.captureId ?? reference.time.toFixed(4);
+          const existing = uniqueReferences.get(key);
+          if (!existing || reference.confidence > existing.confidence) uniqueReferences.set(key, reference);
+        });
+      const references = [...uniqueReferences.values()].slice(-8);
+      const comparisons = references
+        .map((reference) => compareFacePatterns(reference.colors, grid.colors))
+        .filter((comparison) => comparison.overlap >= 5);
+      const agreesWithHistory = comparisons.some((comparison) => (
+        comparison.mismatches <= 1 || comparison.ratio <= 0.18
+      ));
+      const changedReferences = comparisons.filter((comparison) => (
+        comparison.mismatches >= 2 && comparison.ratio >= 0.28
+      ));
+      if (!agreesWithHistory && references.length >= 2 && changedReferences.length >= 2) {
+        changedVotes.set(grid.centerColor, (changedVotes.get(grid.centerColor) ?? 0) + 1);
+      } else {
+        unchanged.add(grid);
+      }
+    });
+
+    const changedFaces = [...changedVotes.entries()].filter(([, votes]) => votes >= 2);
+    const nearbyCubeEvent = events.some((event) => (
+      event.motionKind === 'face-turn'
+      && event.cubeStrength >= 28
+      && Math.abs(event.peakTime - capture.time) <= 0.7
+    ));
+    if (changedFaces.length >= 1 && nearbyCubeEvent) {
+      stateChange = capture.time;
+      break;
+    }
+
+    unchanged.forEach((grid) => {
+      const faceHistory = history.get(grid.centerColor) ?? [];
+      faceHistory.push(grid);
+      history.set(grid.centerColor, faceHistory.slice(-24));
+    });
+  }
+
+  const motionStart = denseFaceTurnStart(events, start, searchEnd);
+  if (stateChange !== null) {
+    const time = motionStart !== null && Math.abs(motionStart - stateChange) <= 1.5
+      ? Math.min(motionStart, stateChange)
+      : stateChange;
+    return { time, source: 'state-change', confidence: motionStart !== null ? 92 : 84 };
+  }
+  if (motionStart !== null) return { time: motionStart, source: 'motion-density', confidence: 76 };
+
+  const validHint = segmentationHint !== null
+    && segmentationHint !== undefined
+    && segmentationHint >= start + 2
+    && segmentationHint <= searchEnd;
+  if (validHint) return { time: segmentationHint, source: 'segmentation', confidence: 62 };
+
+  return {
+    time: Math.min(searchEnd, start + Math.max(4, (searchEnd - start) * 0.55)),
+    source: 'fallback',
+    confidence: 45,
+  };
+}
+
+function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): MotionSample[] {
   const portrait = video.videoHeight >= video.videoWidth;
   const cropVariants = portrait
     ? [
@@ -1025,7 +1209,8 @@ function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number
       { x: 0, y: 0, width: 1, height: 1 },
     ];
 
-  const readings = cropVariants.map((crop) => {
+  const captureId = time.toFixed(4);
+  const readings = cropVariants.map((crop, cropIndex) => {
     const analysis = document.createElement('canvas');
     analysis.width = portrait ? 320 : 480;
     analysis.height = Math.round(
@@ -1048,25 +1233,32 @@ function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number
     const gridScore = signature.faceGrids.reduce((total, grid) => (
       total + grid.visibleCells * 8 + grid.confidence
     ), 0);
-    return { signature, score: gridScore + signature.faceGrids.length * 80 };
+    return { signature, cropIndex, score: gridScore + signature.faceGrids.length * 80 };
   }).filter((reading): reading is NonNullable<typeof reading> => reading !== null)
     .sort((left, right) => right.score - left.score);
 
-  const best = readings[0];
-  const grids = (best?.signature.faceGrids ?? []).map((grid) => ({
-    ...grid,
-    time,
-    bundleSize: best?.signature.faceGrids.length ?? 1,
-  }));
-  return {
-    time,
-    difference: 0,
-    cubeDifference: 0,
-    hasTemporalReference: false,
-    faceGrids: grids,
-    visibleColors: best?.signature.visibleColors ?? emptyColorCoverage(),
-    sharpness: best?.signature.sharpness ?? 0,
-  };
+  // I tre ritagli non sono alternative: ognuno può rendere leggibile una faccia
+  // diversa. Restano separati per non confrontare coordinate appartenenti a
+  // crop differenti, ma verranno tutti fusi nello stesso stato del cubo.
+  return readings.map(({ signature, cropIndex }) => {
+    const frameId = `${captureId}:crop-${cropIndex}`;
+    const grids = signature.faceGrids.map((grid) => ({
+      ...grid,
+      time,
+      frameId,
+      captureId,
+      bundleSize: signature.faceGrids.length,
+    }));
+    return {
+      time,
+      difference: 0,
+      cubeDifference: 0,
+      hasTemporalReference: false,
+      faceGrids: grids,
+      visibleColors: signature.visibleColors,
+      sharpness: signature.sharpness,
+    };
+  });
 }
 
 export async function scanInspectionFrames(
@@ -1087,9 +1279,11 @@ export async function scanInspectionFrames(
     for (let index = 0; index < times.length; index += 1) {
       const time = times[index];
       await waitForSeek(video, time);
-      const sample = readHighResolutionInspectionFrame(video, time);
-      sample.hasTemporalReference = index > 0;
-      samples.push(sample);
+      const frameSamples = readHighResolutionInspectionFrame(video, time);
+      frameSamples.forEach((sample) => {
+        sample.hasTemporalReference = index > 0;
+        samples.push(sample);
+      });
       options.onProgress?.((index + 1) / times.length);
     }
   } finally {
@@ -1413,7 +1607,9 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
         canvas.width,
         canvas.height,
       );
-      const current = frameSignature(context, canvas.width, canvas.height);
+      // La prima passata serve a trovare movimento e pause; le griglie 3×3
+      // vengono cercate nella successiva scansione ad alta risoluzione.
+      const current = frameSignature(context, canvas.width, canvas.height, false);
       const measurement = previous
         ? frameDifference(previous, current, canvas.width, canvas.height)
         : { score: 0, coverage: 0, centerBias: 1, changeCentroidX: 0.5, changeCentroidY: 0.5 };

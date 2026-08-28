@@ -5,6 +5,7 @@ import { COLOR_HEX, COLOR_LABELS, type CubeColor, type Face } from '../lib/cube'
 import {
   lastInspectionFrameTime,
   decodeVideoMotion,
+  inferInspectionEnd,
   inferVideoSegmentation,
   scanInspectionFrames,
   summarizeCubeObservation,
@@ -102,7 +103,7 @@ export default function Home() {
   const [videoUrl, setVideoUrl] = useState('');
   const [videoMeta, setVideoMeta] = useState({ duration: 0, width: 0, height: 0 });
   const [scanStatus, setScanStatus] = useState<ScanStatus>('idle');
-  const [analysisPhase, setAnalysisPhase] = useState<'idle' | 'motion' | 'frames' | 'fusing'>('idle');
+  const [analysisPhase, setAnalysisPhase] = useState<'idle' | 'motion' | 'boundary' | 'frames' | 'fusing'>('idle');
   const [solverStatus, setSolverStatus] = useState<SolverStatus>('idle');
   const [progress, setProgress] = useState(0);
   const [runCount, setRunCount] = useState(0);
@@ -177,7 +178,7 @@ export default function Home() {
 
     const generation = ++analysisGeneration.current;
     const reanalysis = scanStatus === 'result' && samples.length > 0;
-    const maximumPasses = reanalysis ? 1 : 2;
+    const maximumFusionPasses = 1;
     let combinedSamples = reanalysis ? [...samples] : [];
     let completedRuns = reanalysis ? runCount : 0;
     let latestSummary: CubeObservationSummary | null = null;
@@ -196,7 +197,7 @@ export default function Home() {
         startTime: 0,
         endTime: video.duration,
         analysisPass: completedRuns,
-        onProgress: (value) => setProgress(value * 0.42),
+        onProgress: (value) => setProgress(value * 0.34),
       });
       if (generation !== analysisGeneration.current) return;
 
@@ -204,24 +205,48 @@ export default function Home() {
       const solveWindow = segmentation.windows.find((window) => window.id === segmentation.defaultWindowId);
       const inspectionStage = solveWindow?.stages.find((stage) => stage.kind === 'inspection');
       const automaticStart = inspectionStage?.start ?? 0;
-      let firstCubeChange = inspectionStage?.end
-        ?? solveWindow?.start
-        ?? Math.min(video.duration, Math.max(2, video.duration * 0.45));
-      if (firstCubeChange <= automaticStart + 0.5) {
-        firstCubeChange = Math.min(video.duration, Math.max(automaticStart + 2, video.duration * 0.45));
-      }
       const intervalStart = Math.max(0, Math.min(automaticStart, video.duration - 0.5));
+      const segmentationHint = inspectionStage?.end ?? solveWindow?.start ?? null;
+      const baseSearchEnd = Math.min(
+        video.duration,
+        Math.max(8, Math.min(25, video.duration * 0.72)),
+      );
+      const hintedSearchEnd = segmentationHint && segmentationHint >= intervalStart + 2
+        ? Math.min(video.duration, segmentationHint + 3)
+        : intervalStart;
+      const searchEnd = Math.max(baseSearchEnd, hintedSearchEnd);
+
+      setAnalysisPhase('boundary');
+      const boundarySamples = await scanInspectionFrames(video, intervalStart, searchEnd, {
+        analysisPass: completedRuns,
+        onProgress: (value) => setProgress(0.34 + value * 0.34),
+      });
+      if (generation !== analysisGeneration.current) return;
+      const boundary = inferInspectionEnd(
+        boundarySamples,
+        decoded.events,
+        intervalStart,
+        searchEnd,
+        segmentationHint,
+      );
+      const firstCubeChange = Math.max(intervalStart + 0.5, boundary.time);
       const intervalEnd = Math.max(
         intervalStart + 0.5,
         Math.min(lastInspectionFrameTime(intervalStart, firstCubeChange, 60), video.duration),
       );
       setActiveInterval({ start: intervalStart, end: intervalEnd });
+      const automaticInspectionSamples = boundarySamples.filter((sample) => sample.time <= intervalEnd);
+      combinedSamples = reanalysis
+        ? [...combinedSamples, ...automaticInspectionSamples]
+        : automaticInspectionSamples;
+      completedRuns += 1;
+      latestSummary = summarizeCubeObservation(combinedSamples, intervalStart, intervalEnd);
       setAnalysisPhase('frames');
 
-      for (let pass = 0; pass < maximumPasses; pass += 1) {
+      for (let pass = 0; pass < maximumFusionPasses && latestSummary.reconstruction.status !== 'complete'; pass += 1) {
         const scanned = await scanInspectionFrames(video, intervalStart, intervalEnd, {
           analysisPass: completedRuns,
-          onProgress: (value) => setProgress(0.42 + ((pass + value) / maximumPasses) * 0.52),
+          onProgress: (value) => setProgress(0.68 + ((pass + value) / maximumFusionPasses) * 0.28),
         });
         if (generation !== analysisGeneration.current) return;
         combinedSamples = [...combinedSamples, ...scanned];
@@ -280,8 +305,10 @@ export default function Home() {
         ? 'Stato parziale'
         : 'In attesa';
   const analysisPhaseLabel = analysisPhase === 'motion'
-    ? 'Individuo l’ultima immagine prima della prima mossa'
-    : analysisPhase === 'frames'
+    ? 'Analizzo il movimento del cubo e delle mani'
+    : analysisPhase === 'boundary'
+      ? 'Distinguo le rotazioni x/y/z dalla prima vera mossa'
+      : analysisPhase === 'frames'
       ? 'Acquisisco automaticamente le viste più utili'
       : analysisPhase === 'fusing'
         ? 'Unisco i colori nello schema 3×3'

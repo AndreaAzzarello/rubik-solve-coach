@@ -4,10 +4,13 @@ import type { CubeColor } from './cube.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
 import {
   buildInspectionSampleTimes,
+  detectFaceGrids,
+  inferInspectionEnd,
   lastInspectionFrameTime,
   selectInspectionKeyframes,
   summarizeCubeObservation,
   type MotionSample,
+  type MotionEvent,
   type ObservedColorCoverage,
 } from './video-decoder.ts';
 
@@ -98,4 +101,122 @@ test('campiona automaticamente tutta l’ispezione senza oltrepassare il limite'
   assert.notEqual(firstPass[0], secondPass[0]);
   assert.notEqual(firstPass[0], thirdPass[0]);
   assert.notEqual(secondPass[0], thirdPass[0]);
+});
+
+function rotatePattern(values: Array<CubeColor | null>) {
+  const rotated = Array<CubeColor | null>(9).fill(null);
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 3; column += 1) {
+      rotated[column * 3 + (2 - row)] = values[row * 3 + column];
+    }
+  }
+  return rotated;
+}
+
+function patternSample(time: number, colors: Array<CubeColor | null>, crop = 0): MotionSample {
+  const captureId = time.toFixed(4);
+  return {
+    time,
+    difference: 0,
+    cubeDifference: 0,
+    sharpness: 30,
+    visibleColors: coverage(...COLORS),
+    faceGrids: [{
+      time,
+      frameId: `${captureId}:crop-${crop}`,
+      captureId,
+      centerColor: 'white',
+      colors,
+      cellConfidences: Array(9).fill(92),
+      confidence: 92,
+      visibleCells: colors.filter(Boolean).length,
+      bundleSize: 1,
+    }],
+  };
+}
+
+function motionEvent(
+  start: number,
+  motionKind: MotionEvent['motionKind'],
+  id: number,
+): MotionEvent {
+  return {
+    id,
+    start,
+    end: start + 0.18,
+    peakTime: start + 0.09,
+    peakDifference: 20,
+    confidence: 88,
+    motionKind,
+    evidence: 'cube',
+    cubeStrength: 84,
+    handStrength: 20,
+    dominantHand: 'unknown',
+    handDirection: 'mixed',
+    candidateMove: motionKind === 'face-turn' ? 'R' : 'x',
+    candidateConfidence: 70,
+    candidateAlternatives: [],
+    candidateMoves: [motionKind === 'face-turn' ? 'R' : 'x'],
+    internalPeakTimes: [start + 0.09],
+    moveCountEstimate: 1,
+  };
+}
+
+test('le rotazioni x/y/z non chiudono l’ispezione, il primo cambio del pattern sì', () => {
+  const initial: Array<CubeColor | null> = [
+    'red', 'green', 'blue',
+    'orange', 'white', 'yellow',
+    'green', 'orange', 'red',
+  ];
+  const changed = [...initial];
+  changed[0] = 'yellow';
+  changed[1] = 'red';
+  changed[2] = 'orange';
+  const samples = [
+    patternSample(1, initial),
+    patternSample(2.2, rotatePattern(initial)),
+    patternSample(4, rotatePattern(rotatePattern(initial))),
+    patternSample(10, changed, 0),
+    patternSample(10, changed, 1),
+  ];
+  const boundary = inferInspectionEnd(samples, [motionEvent(9.91, 'face-turn', 1)], 0, 14, 0.6);
+  assert.equal(boundary.source, 'state-change');
+  assert.ok(boundary.time >= 9.9 && boundary.time <= 10);
+});
+
+test('usa una raffica di face turn come fallback senza confonderla con rotazioni globali', () => {
+  const events = [
+    motionEvent(1.2, 'global-motion', 1),
+    motionEvent(2.2, 'global-motion', 2),
+    motionEvent(3.2, 'global-motion', 3),
+    motionEvent(8, 'face-turn', 4),
+    motionEvent(8.45, 'face-turn', 5),
+    motionEvent(8.9, 'face-turn', 6),
+  ];
+  const boundary = inferInspectionEnd([], events, 0, 14, 0.5);
+  assert.equal(boundary.source, 'motion-density');
+  assert.equal(boundary.time, 8);
+});
+
+test('trova una griglia grande anche quando molti frammenti piccoli falsano la mediana globale', () => {
+  const width = 120;
+  const height = 120;
+  const labels = new Int8Array(width * height);
+  labels.fill(-1);
+  const paint = (left: number, top: number, size: number, color: number) => {
+    for (let y = top; y < top + size; y += 1) {
+      for (let x = left; x < left + size; x += 1) labels[y * width + x] = color;
+    }
+  };
+  const gridColors = [1, 2, 5, 4, 0, 3, 2, 4, 1];
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 3; column += 1) {
+      paint(30 + column * 17, 30 + row * 17, 12, gridColors[row * 3 + column]);
+    }
+  }
+  for (let index = 0; index < 42; index += 1) {
+    paint(2 + (index % 14) * 8, 84 + Math.floor(index / 14) * 8, 2, index % 6);
+  }
+  const grids = detectFaceGrids(labels, width, height);
+  assert.ok(grids.some((candidate) => candidate.centerColor === 'white' && candidate.visibleCells === 9));
 });
