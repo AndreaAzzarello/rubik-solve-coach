@@ -85,6 +85,15 @@ export type InspectionKeyframe = {
   novelty: number;
 };
 
+export type CapturedInspectionShot = {
+  id: string;
+  time: number;
+  imageDataUrl: string;
+  faceGrids: FaceGridObservation[];
+  visibleColors: ObservedColorCoverage;
+  sharpness: number;
+};
+
 export type PllColorSummary = {
   pllColor: ObservedCubeColor;
   crossColor: ObservedCubeColor;
@@ -1016,6 +1025,77 @@ export async function captureInspectionKeyframes(
     if (!wasPaused) await video.play().catch(() => undefined);
   }
   return images;
+}
+
+export async function captureInspectionShot(video: HTMLVideoElement): Promise<CapturedInspectionShot> {
+  if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
+    throw new Error('Attendi che il fotogramma del video sia visibile prima di acquisirlo.');
+  }
+  video.pause();
+  await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+
+  const time = video.currentTime;
+  const portrait = video.videoHeight >= video.videoWidth;
+  const preview = document.createElement('canvas');
+  preview.width = portrait ? 360 : 540;
+  preview.height = Math.round(preview.width * video.videoHeight / video.videoWidth);
+  const previewContext = preview.getContext('2d');
+  if (!previewContext) throw new Error('Il browser non riesce a creare il fotogramma.');
+  previewContext.drawImage(video, 0, 0, preview.width, preview.height);
+
+  const cropVariants = portrait
+    ? [
+      { x: 0.06, y: 0.06, width: 0.88, height: 0.72 },
+      { x: 0.02, y: 0.02, width: 0.96, height: 0.88 },
+      { x: 0, y: 0, width: 1, height: 1 },
+    ]
+    : [
+      { x: 0.12, y: 0.06, width: 0.76, height: 0.88 },
+      { x: 0.04, y: 0.04, width: 0.92, height: 0.92 },
+      { x: 0, y: 0, width: 1, height: 1 },
+    ];
+
+  const readings = cropVariants.map((crop) => {
+    const analysis = document.createElement('canvas');
+    analysis.width = portrait ? 320 : 480;
+    analysis.height = Math.round(
+      analysis.width * (video.videoHeight * crop.height) / (video.videoWidth * crop.width),
+    );
+    const context = analysis.getContext('2d', { willReadFrequently: true });
+    if (!context) return null;
+    context.drawImage(
+      video,
+      video.videoWidth * crop.x,
+      video.videoHeight * crop.y,
+      video.videoWidth * crop.width,
+      video.videoHeight * crop.height,
+      0,
+      0,
+      analysis.width,
+      analysis.height,
+    );
+    const signature = frameSignature(context, analysis.width, analysis.height);
+    const gridScore = signature.faceGrids.reduce((total, grid) => (
+      total + grid.visibleCells * 8 + grid.confidence
+    ), 0);
+    return { signature, score: gridScore + signature.faceGrids.length * 80 };
+  }).filter((reading): reading is NonNullable<typeof reading> => reading !== null)
+    .sort((left, right) => right.score - left.score);
+
+  const best = readings[0];
+  const grids = (best?.signature.faceGrids ?? []).map((grid) => ({
+    ...grid,
+    time,
+    bundleSize: best?.signature.faceGrids.length ?? 1,
+  }));
+  return {
+    id: `shot-${Math.round(time * 1000)}-${Date.now()}`,
+    time,
+    imageDataUrl: preview.toDataURL('image/jpeg', 0.82),
+    faceGrids: grids,
+    visibleColors: best?.signature.visibleColors ?? emptyColorCoverage(),
+    sharpness: best?.signature.sharpness ?? 0,
+  };
 }
 
 export function summarizeCubeObservation(
