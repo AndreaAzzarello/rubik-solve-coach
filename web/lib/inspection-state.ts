@@ -58,6 +58,19 @@ type AssignmentCandidate = {
   parity: 0 | 1;
 };
 
+type PieceOption = {
+  pieceIndex: number;
+  stickers: Array<{ face: Face; index: number; color: CubeColor }>;
+};
+
+type ForcedPieceInference = {
+  facelets: PartialFacelets;
+  invalid: boolean;
+  inferredFacelets: number;
+  resolvedCorners: number;
+  resolvedEdges: number;
+};
+
 type ObservationGeometry = {
   imageX: number;
   imageY: number;
@@ -173,6 +186,11 @@ const EDGES: PieceDefinition[] = [
   { name: 'BL', faces: ['B', 'L'], indices: [5, 3], colors: ['blue', 'orange'] },
   { name: 'BR', faces: ['B', 'R'], indices: [3, 5], colors: ['blue', 'red'] },
 ];
+
+export const CUBIE_COLOR_SCHEMA = {
+  corners: CORNERS.map(({ name, colors }) => ({ name, colors })),
+  edges: EDGES.map(({ name, colors }) => ({ name, colors })),
+};
 
 function emptyFacelets(): PartialFacelets {
   return {
@@ -396,6 +414,16 @@ function orientedAssignments(position: PieceDefinition, piece: PieceDefinition) 
   });
 }
 
+function pieceOptionsFor(position: PieceDefinition, pieces: PieceDefinition[], partial: PartialFacelets): PieceOption[] {
+  return pieces.flatMap((piece, pieceIndex) => (
+    orientedAssignments(position, piece)
+      .filter((assignment) => assignment.stickers.every(({ face, index, color }) => (
+        partial[face][index] === null || partial[face][index] === color
+      )))
+      .map((assignment) => ({ pieceIndex, stickers: assignment.stickers }))
+  ));
+}
+
 function enumeratePieceAssignments(
   positions: PieceDefinition[],
   pieces: PieceDefinition[],
@@ -450,6 +478,133 @@ function enumeratePieceAssignments(
 
   visit(0, 0);
   return { candidates, truncated, localOptions: options };
+}
+
+function countKnownFacelets(facelets: PartialFacelets) {
+  return FACES.reduce((total, face) => total + facelets[face].filter(Boolean).length, 0);
+}
+
+function pieceEvidenceValid(partial: PartialFacelets) {
+  return CORNERS.every((position) => pieceOptionsFor(position, CORNERS, partial).length > 0)
+    && EDGES.every((position) => pieceOptionsFor(position, EDGES, partial).length > 0);
+}
+
+function inferForcedPieceGroup(
+  positions: PieceDefinition[],
+  pieces: PieceDefinition[],
+  partial: PartialFacelets,
+) {
+  const facelets = cloneFacelets(partial);
+  let options = positions.map((position) => pieceOptionsFor(position, pieces, facelets));
+  let invalid = false;
+
+  for (let iteration = 0; iteration < positions.length + 2; iteration += 1) {
+    let changed = false;
+    options = options.map((positionOptions) => positionOptions.filter((option) => option.stickers.every(({ face, index, color }) => (
+      facelets[face][index] === null || facelets[face][index] === color
+    ))));
+    if (options.some((positionOptions) => !positionOptions.length)) {
+      invalid = true;
+      break;
+    }
+
+    const forcedPieceByPosition = new Map<number, number>();
+    options.forEach((positionOptions, positionIndex) => {
+      const possiblePieces = new Set(positionOptions.map((option) => option.pieceIndex));
+      if (possiblePieces.size === 1) forcedPieceByPosition.set(positionIndex, positionOptions[0].pieceIndex);
+    });
+
+    const forcedPositionsByPiece = new Map<number, number[]>();
+    forcedPieceByPosition.forEach((pieceIndex, positionIndex) => {
+      forcedPositionsByPiece.set(pieceIndex, [...(forcedPositionsByPiece.get(pieceIndex) ?? []), positionIndex]);
+    });
+    if ([...forcedPositionsByPiece.values()].some((positionIndexes) => positionIndexes.length > 1)) {
+      invalid = true;
+      break;
+    }
+
+    const possiblePositionsByPiece = new Map<number, number[]>();
+    options.forEach((positionOptions, positionIndex) => {
+      new Set(positionOptions.map((option) => option.pieceIndex)).forEach((pieceIndex) => {
+        possiblePositionsByPiece.set(pieceIndex, [...(possiblePositionsByPiece.get(pieceIndex) ?? []), positionIndex]);
+      });
+    });
+
+    options = options.map((positionOptions, positionIndex) => {
+      const piecesForcedHere = [...possiblePositionsByPiece.entries()]
+        .filter(([, positionIndexes]) => positionIndexes.length === 1 && positionIndexes[0] === positionIndex)
+        .map(([pieceIndex]) => pieceIndex);
+      if (piecesForcedHere.length > 1) {
+        invalid = true;
+        return [];
+      }
+      const unavailablePieces = new Set(
+        [...forcedPieceByPosition.entries()]
+          .filter(([otherPosition]) => otherPosition !== positionIndex)
+          .map(([, pieceIndex]) => pieceIndex),
+      );
+      const filtered = positionOptions.filter((option) => (
+        !unavailablePieces.has(option.pieceIndex)
+        && (!piecesForcedHere.length || option.pieceIndex === piecesForcedHere[0])
+      ));
+      if (filtered.length !== positionOptions.length) changed = true;
+      return filtered;
+    });
+    if (invalid || options.some((positionOptions) => !positionOptions.length)) {
+      invalid = true;
+      break;
+    }
+
+    options.forEach((positionOptions, positionIndex) => {
+      const position = positions[positionIndex];
+      position.faces.forEach((face, slot) => {
+        const index = position.indices[slot];
+        if (facelets[face][index]) return;
+        const first = positionOptions[0].stickers[slot].color;
+        if (positionOptions.every((option) => option.stickers[slot].color === first)) {
+          facelets[face][index] = first;
+          changed = true;
+        }
+      });
+    });
+    if (!changed) break;
+  }
+
+  const resolvedPieces = invalid
+    ? 0
+    : options.filter((positionOptions) => new Set(positionOptions.map((option) => option.pieceIndex)).size === 1).length;
+  return { facelets, invalid, resolvedPieces };
+}
+
+function inferForcedPieceFacelets(partial: PartialFacelets): ForcedPieceInference {
+  const startingFacelets = countKnownFacelets(partial);
+  const edges = inferForcedPieceGroup(EDGES, EDGES, partial);
+  if (edges.invalid) {
+    return {
+      facelets: edges.facelets,
+      invalid: true,
+      inferredFacelets: 0,
+      resolvedCorners: 0,
+      resolvedEdges: 0,
+    };
+  }
+  const corners = inferForcedPieceGroup(CORNERS, CORNERS, edges.facelets);
+  if (corners.invalid) {
+    return {
+      facelets: corners.facelets,
+      invalid: true,
+      inferredFacelets: 0,
+      resolvedCorners: 0,
+      resolvedEdges: edges.resolvedPieces,
+    };
+  }
+  return {
+    facelets: corners.facelets,
+    invalid: false,
+    inferredFacelets: countKnownFacelets(corners.facelets) - startingFacelets,
+    resolvedCorners: corners.resolvedPieces,
+    resolvedEdges: edges.resolvedPieces,
+  };
 }
 
 function mergeFacelets(left: PartialFacelets, right: PartialFacelets) {
@@ -553,6 +708,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
   let sawTruncation = false;
   let bestPartial = withCanonicalCenters();
   let bestObserved = 0;
+  let bestPieceInference: ForcedPieceInference | null = null;
   const maximumRotationCombinations = 4096;
   let rotationCombinations = 0;
 
@@ -565,14 +721,19 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       rotationCombinations += 1;
       if (!colorCountValid(partial)) return;
       const observedCount = FACES.reduce((total, face) => total + partial[face].filter(Boolean).length, 0) - 6;
-      if (observedCount > bestObserved) {
+      const pieceInference = inferForcedPieceFacelets(partial);
+      if (pieceInference.invalid) return;
+      const inferredKnownCount = countKnownFacelets(pieceInference.facelets) - 6;
+      const bestKnownCount = countKnownFacelets(bestPartial) - 6;
+      if (observedCount > bestObserved || (observedCount === bestObserved && inferredKnownCount > bestKnownCount)) {
         bestObserved = observedCount;
-        bestPartial = cloneFacelets(partial);
+        bestPartial = cloneFacelets(pieceInference.facelets);
+        bestPieceInference = pieceInference;
       }
       // With very little visual evidence the exact search space is enormous.
       // Keep the observations, but do not manufacture a unique completion.
       if (observedCount < 18) return;
-      const completion = completePartialFacelets(partial);
+      const completion = completePartialFacelets(pieceInference.facelets);
       sawTruncation ||= completion.truncated;
       completion.complete.forEach((candidate) => validStates.set(faceletKey(candidate), candidate));
       return;
@@ -587,24 +748,25 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
         if (existing && existing !== color) conflict = true;
         next[choice.face][index] = color;
       });
-      if (!conflict) tryRotations(depth + 1, next);
+      if (!conflict && pieceEvidenceValid(next)) tryRotations(depth + 1, next);
       if (sawTruncation && validStates.size >= 96) break;
     }
   }
 
   tryRotations(0, withCanonicalCenters());
   const candidates = [...validStates.values()];
-  const consensus = consensusFacelets(candidates, bestPartial);
+  const candidateConsensus = consensusFacelets(candidates, bestPartial);
   const completeFacelets = candidates.length === 1 && !sawTruncation ? asComplete(candidates[0]) : null;
-  const inferredFacelets = FACES.reduce((total, face) => total + consensus[face].filter(Boolean).length, 0) - 6 - bestObserved;
+  const displayFacelets = sawTruncation ? bestPartial : candidateConsensus;
+  const inferredFacelets = Math.max(0, countKnownFacelets(displayFacelets) - 6 - bestObserved);
   const cubieResolution = (definitions: PieceDefinition[]) => definitions.filter((position) => {
     const signatures = new Set(candidates.map((candidate) => position.faces.map((face, slot) => (
       candidate[face][position.indices[slot]]
     )).join('-')));
     return signatures.size === 1 && candidates.length > 0;
   }).length;
-  const resolvedCorners = cubieResolution(CORNERS);
-  const resolvedEdges = cubieResolution(EDGES);
+  const resolvedCorners = Math.max(cubieResolution(CORNERS), bestPieceInference?.resolvedCorners ?? 0);
+  const resolvedEdges = Math.max(cubieResolution(EDGES), bestPieceInference?.resolvedEdges ?? 0);
   const orientationSupport = [...bestByFace.values()].filter((observation) => (
     (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
   )).length;
@@ -632,14 +794,17 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       message: 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.',
     };
   }
+  const partialMessage = inferredFacelets > 0
+    ? `Ho usato lo schema fisso di angoli e spigoli per dedurre ${inferredFacelets} caselle coperte; serve comunque un unico stato fisicamente valido per generare lo scramble.`
+    : 'Le caselle viste sono conservate; quelle mancanti vengono dedotte solo quando i vincoli dei pezzi le rendono uniche.';
   return {
     status: bestObserved >= 8 ? 'partial' : 'insufficient', observedFaces,
-    observedFacelets: bestObserved, inferredFacelets: sawTruncation ? 0 : Math.max(0, inferredFacelets),
+    observedFacelets: bestObserved, inferredFacelets,
     resolvedCorners, resolvedEdges, candidateCount: candidates.length, truncated: sawTruncation,
-    confidence: baseConfidence, facelets: sawTruncation ? bestPartial : consensus, completeFacelets: null,
+    confidence: baseConfidence, facelets: displayFacelets, completeFacelets: null,
     message: sawTruncation
       ? 'La lettura è compatibile con molti stati: servono altre facce o caselle più nitide.'
-      : 'Le caselle viste sono conservate; quelle mancanti vengono dedotte solo quando i vincoli dei pezzi le rendono uniche.',
+      : partialMessage,
   };
 }
 
