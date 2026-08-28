@@ -332,6 +332,12 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
         colors,
         visibleCells,
         confidence: Math.round(Math.min(94, Math.max(42, score * 100))),
+        imageX: center.x,
+        imageY: center.y,
+        rightX: right.dx,
+        rightY: right.dy,
+        downX: down.dx,
+        downY: down.dy,
         score,
       });
     }));
@@ -349,6 +355,12 @@ function detectFaceGrids(labels: Int8Array, width: number, height: number) {
       colors: candidate.colors,
       visibleCells: candidate.visibleCells,
       confidence: candidate.confidence,
+      imageX: candidate.imageX,
+      imageY: candidate.imageY,
+      rightX: candidate.rightX,
+      rightY: candidate.rightY,
+      downX: candidate.downX,
+      downY: candidate.downY,
     }));
 }
 
