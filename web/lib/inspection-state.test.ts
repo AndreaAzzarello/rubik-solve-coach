@@ -4,7 +4,10 @@ import Cube from 'cubejs';
 import { CubeState, invertMoves, movesToString, parseAlgorithm } from './cube.ts';
 import {
   CANONICAL_FACE_COLOR,
+  CUBE_ORIENTATIONS,
+  cubeOrientationFromFrontAndUp,
   faceletsToSolverString,
+  normalizeObservationOrientations,
   reconstructInspectionState,
   type FaceGridObservation,
 } from './inspection-state.ts';
@@ -36,6 +39,64 @@ function observationsFor(cube: CubeState, turns: number[] = []) {
     visibleCells: 9,
   }));
 }
+
+test('enumera le 24 pose possibili dei centri del cubo', () => {
+  assert.equal(CUBE_ORIENTATIONS.length, 24);
+  assert.equal(new Set(CUBE_ORIENTATIONS.map((orientation) => (
+    `${orientation.front}-${orientation.up}-${orientation.right}-${orientation.down}-${orientation.left}-${orientation.back}`
+  ))).size, 24);
+  assert.deepEqual(cubeOrientationFromFrontAndUp('green', 'white'), {
+    front: 'green',
+    up: 'white',
+    right: 'red',
+    down: 'yellow',
+    left: 'orange',
+    back: 'blue',
+  });
+  assert.deepEqual(cubeOrientationFromFrontAndUp('green', 'orange'), {
+    front: 'green',
+    up: 'orange',
+    right: 'white',
+    down: 'red',
+    left: 'yellow',
+    back: 'blue',
+  });
+  assert.equal(cubeOrientationFromFrontAndUp('green', 'blue'), null);
+});
+
+test('orienta una faccia usando il centro adiacente visto nello stesso frame', () => {
+  const solved = CubeState.solved();
+  const front: FaceGridObservation = {
+    time: 12,
+    centerColor: 'green',
+    colors: rotate(solved.facelets('F'), 1),
+    confidence: 90,
+    visibleCells: 9,
+    imageX: 50,
+    imageY: 50,
+    rightX: 0,
+    rightY: -12,
+    downX: 12,
+    downY: 0,
+  };
+  const top: FaceGridObservation = {
+    time: 12,
+    centerColor: 'white',
+    colors: solved.facelets('U'),
+    confidence: 88,
+    visibleCells: 9,
+    imageX: 50,
+    imageY: 28,
+    rightX: 12,
+    rightY: 0,
+    downX: 0,
+    downY: 12,
+  };
+  const oriented = normalizeObservationOrientations([front, top]);
+  const normalizedFront = oriented.find((observation) => observation.centerColor === 'green');
+  assert.ok((normalizedFront?.orientationConfidence ?? 0) >= 58);
+  assert.deepEqual(normalizedFront?.colors, solved.facelets('F'));
+});
 
 test('ricostruisce lo stato risolto nella convenzione bianco U e verde F', () => {
   const reconstruction = reconstructInspectionState(observationsFor(CubeState.solved(), [0, 1, 2, 3, 0, 1]));
