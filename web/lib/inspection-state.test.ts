@@ -207,6 +207,8 @@ test('più fotogrammi multi-faccia concordi prevalgono su una lettura isolata er
   assert.ok(reconstruction.completeFacelets);
   assert.equal(faceletsToSolverString(reconstruction.completeFacelets), cube.faceletString());
   assert.ok(reconstruction.faceCoverage.U.evidenceFrames >= 3);
+  const reversed = reconstructInspectionState([...observations].reverse());
+  assert.deepEqual(reversed.facelets, reconstruction.facelets);
 });
 
 test('completa lo schema senza lasciare caselle vuote quando una lettura debole è incompatibile', () => {

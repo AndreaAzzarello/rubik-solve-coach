@@ -25,6 +25,7 @@ export type FaceGridObservation = {
   bundleSize?: number;
   sourceFrames?: number;
   cellSupport?: number[];
+  syntheticFusion?: boolean;
 };
 
 export type CubeOrientation = {
@@ -379,6 +380,16 @@ function rotationInvariantPattern(colors: Array<CubeColor | null>) {
     .sort()[0];
 }
 
+function colorLayoutQuality(colors: Array<CubeColor | null>) {
+  const visible = colors.filter((color): color is CubeColor => color !== null);
+  const distinct = new Set(visible).size;
+  if (visible.length === 9 && distinct === 1) return 1;
+  if (distinct >= 4) return 1;
+  if (distinct === 3) return 0.82;
+  if (distinct === 2) return 0.32;
+  return 0.18;
+}
+
 export function fuseFaceObservationCandidates(
   observations: FaceGridObservation[],
   limit = 4,
@@ -432,6 +443,9 @@ export function fuseFaceObservationCandidates(
     const bestByCapture = new Map<string, Aligned & { score: number }>();
     ordered.forEach((observation) => {
       if (observation === seed) return;
+      // Una faccia resta coerente per una breve posa. Letture lontane nel
+      // tempo appartengono spesso a pose diverse o alle mani sullo sfondo.
+      if (Math.abs(observation.time - seed.time) > 0.82) return;
       const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
         ? [0]
         : [0, 1, 2, 3];
@@ -541,7 +555,8 @@ export function fuseFaceObservationCandidates(
       cellSupport,
       aligned,
       confidence,
-      score: acceptedCells * 15 + aligned.length * 12 + consensusStrength * 2.5 - consensusConflict * 5,
+      score: (acceptedCells * 15 + aligned.length * 12 + consensusStrength * 2.5 - consensusConflict * 5)
+        * colorLayoutQuality(colors),
     };
   });
 
@@ -559,6 +574,7 @@ export function fuseFaceObservationCandidates(
         sourceFrames: new Set(candidate.aligned.map(({ observation }) => (
           observation.captureId ?? observation.frameId ?? observation.time.toFixed(4)
         ))).size,
+        syntheticFusion: true,
       },
     }));
   // Conserviamo anche le letture geometriche originali. Una faccia nitida può
@@ -567,12 +583,14 @@ export function fuseFaceObservationCandidates(
   // migliore. I vincoli fisici sceglieranno poi tra raw e consenso temporale.
   const raw = [...seedsByPattern.values()]
     .map(({ seed, sources }) => ({
-      rank: seed.visibleCells * 28 + seed.confidence + sources.size * 18,
+      rank: (seed.visibleCells * 28 + seed.confidence + sources.size * 18)
+        * colorLayoutQuality(seed.colors),
       observation: {
         ...seed,
         colors: [...seed.colors],
         cellConfidences: seed.cellConfidences ? [...seed.cellConfidences] : undefined,
         sourceFrames: sources.size,
+        syntheticFusion: false,
       },
     }))
     .sort((left, right) => right.rank - left.rank);
@@ -857,6 +875,107 @@ function faceletKey(facelets: PartialFacelets) {
   return FACES.flatMap((face) => facelets[face].map((color) => color?.[0] ?? '_')).join('');
 }
 
+type CandidateEvidenceScore = {
+  score: number;
+  supportingCaptures: number;
+};
+
+/**
+ * Valuta uno stato completo contro tutte le letture originali, non soltanto
+ * contro le ipotesi finite per prime nel beam search. In ogni fotogramma conta
+ * una sola griglia per faccia: così i tre crop e le geometrie alternative non
+ * possono moltiplicare artificialmente la stessa prova.
+ */
+function scoreCandidateAgainstObservations(
+  candidate: PartialFacelets,
+  observationsByFace: Map<Face, FaceGridObservation[]>,
+  hypothesesByFace?: Map<Face, FaceGridObservation[]>,
+): CandidateEvidenceScore {
+  let score = 0;
+  let supportingCaptures = 0;
+
+  FACES.forEach((face) => {
+    const target = candidate[face];
+    const bestByCapture = new Map<string, { score: number; time: number }>();
+    (observationsByFace.get(face) ?? []).forEach((observation) => {
+      if (colorLayoutQuality(observation.colors) < 0.8) return;
+      const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
+        ? [0]
+        : [0, 1, 2, 3];
+      const best = turnsToTry.map((turns) => {
+        const colors = rotateGrid(observation.colors, turns);
+        const confidences = rotateNumbers(observation.cellConfidences, turns);
+        let matches = 0;
+        let mismatches = 0;
+        let agreement = 0;
+        let conflict = 0;
+        colors.forEach((color, index) => {
+          if (!color || index === 4) return;
+          const weight = stickerWeight(observation, index, confidences);
+          if (target[index] === color) {
+            matches += 1;
+            agreement += weight;
+          } else {
+            mismatches += 1;
+            conflict += weight;
+          }
+        });
+        return {
+          matches,
+          mismatches,
+          score: agreement * 3.2 - conflict * 5.8 + matches * 0.22,
+        };
+      }).sort((left, right) => right.score - left.score)[0];
+      if (!best || best.matches < 3 || best.matches < best.mismatches * 2 || best.score <= 0) return;
+      const capture = observation.captureId ?? observation.frameId ?? observation.time.toFixed(4);
+      const existing = bestByCapture.get(capture);
+      if (!existing || best.score > existing.score) {
+        bestByCapture.set(capture, { score: best.score, time: observation.time });
+      }
+    });
+
+    const evidence = [...bestByCapture.values()].sort((left, right) => left.time - right.time);
+    evidence.forEach((entry) => { score += entry.score; });
+    supportingCaptures += evidence.length;
+    for (let index = 1; index < evidence.length; index += 1) {
+      const gap = evidence[index].time - evidence[index - 1].time;
+      if (gap >= 0 && gap <= 0.72) {
+        score += Math.min(evidence[index - 1].score, evidence[index].score) * 0.18;
+      }
+    }
+
+    // Una lettura raw ricomparsa identica in più pose è una prova più forte
+    // di geometrie alternative dello stesso fotogramma. La premiamo a parte
+    // senza usare le celle create dalla fusione sintetica.
+    (hypothesesByFace?.get(face) ?? [])
+      .filter((observation) => !observation.syntheticFusion && (observation.sourceFrames ?? 1) >= 2)
+      .forEach((observation) => {
+        const best = [0, 1, 2, 3].map((turns) => {
+          const colors = rotateGrid(observation.colors, turns);
+          const confidences = rotateNumbers(observation.cellConfidences, turns);
+          let agreement = 0;
+          let conflict = 0;
+          let matches = 0;
+          colors.forEach((color, index) => {
+            if (!color || index === 4) return;
+            const weight = stickerWeight(observation, index, confidences);
+            if (target[index] === color) {
+              agreement += weight;
+              matches += 1;
+            } else {
+              conflict += weight;
+            }
+          });
+          return { matches, score: agreement * 3.6 - conflict * 7.4 };
+        }).sort((left, right) => right.score - left.score)[0];
+        if (!best || best.matches < 4) return;
+        score += best.score * Math.min(4, observation.sourceFrames ?? 1) * 0.72;
+      });
+  });
+
+  return { score, supportingCaptures };
+}
+
 function consensusFacelets(candidates: PartialFacelets[], observed: PartialFacelets) {
   const consensus = cloneFacelets(observed);
   if (!candidates.length) return consensus;
@@ -931,20 +1050,71 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
 
   const choices = observedFaces.map((face) => {
     const hypotheses = hypothesesByFace.get(face) ?? [bestByFace.get(face)!];
-    const rotationsByPattern = new Map<string, { grid: Array<CubeColor | null>; score: number }>();
+    const rotationsByPattern = new Map<string, {
+      grid: Array<CubeColor | null>;
+      confidences: number[];
+      score: number;
+      relaxed: number;
+    }>();
     hypotheses.forEach((observation, hypothesisIndex) => {
       const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
         ? [0]
         : [0, 1, 2, 3];
       turnsToTry.forEach((turns) => {
         const grid = rotateGrid(observation.colors, turns);
-        const key = grid.map((color) => color?.[0] ?? '_').join('');
-        const score = observation.visibleCells * 12
-          + observation.confidence
-          + Math.min(18, (observation.sourceFrames ?? 1) * 3)
-          - hypothesisIndex * 2;
-        const existing = rotationsByPattern.get(key);
-        if (!existing || score > existing.score) rotationsByPattern.set(key, { grid, score });
+        const confidences = rotateNumbers(observation.cellConfidences, turns);
+        const weakest = grid.map((color, index) => ({
+          index,
+          color,
+          confidence: confidences[index] || observation.confidence,
+        })).filter((cell) => cell.color && cell.index !== 4 && cell.confidence < 66)
+          .sort((left, right) => left.confidence - right.confidence)
+          .slice(0, 4);
+        const removalSets: Array<typeof weakest> = [[]];
+        if (hypothesisIndex < 6 && !observation.syntheticFusion) {
+          for (let first = 0; first < weakest.length; first += 1) {
+            removalSets.push([weakest[first]]);
+            for (let second = first + 1; second < weakest.length; second += 1) {
+              removalSets.push([weakest[first], weakest[second]]);
+              for (let third = second + 1; third < weakest.length; third += 1) {
+                removalSets.push([weakest[first], weakest[second], weakest[third]]);
+              }
+            }
+          }
+        } else {
+          for (let removedCount = 1; removedCount <= Math.min(3, weakest.length); removedCount += 1) {
+            removalSets.push(weakest.slice(0, removedCount));
+          }
+        }
+        const variants = removalSets.map((removed) => {
+          const variantGrid = [...grid];
+          const variantConfidences = [...confidences];
+          removed.forEach((cell) => {
+            variantGrid[cell.index] = null;
+            variantConfidences[cell.index] = 0;
+          });
+          return { grid: variantGrid, confidences: variantConfidences, removed };
+        });
+        variants.forEach((variant) => {
+          const key = variant.grid.map((color) => color?.[0] ?? '_').join('');
+          const sourceFrames = observation.sourceFrames ?? 1;
+          const visibleCells = variant.grid.filter(Boolean).length;
+          const removalPenalty = variant.removed.reduce((total, cell) => total + cell.confidence * 0.1 + 8, 0);
+          const score = visibleCells * 12
+            + observation.confidence
+            + Math.min(24, sourceFrames * 7)
+            + colorLayoutQuality(variant.grid) * 34
+            - (observation.syntheticFusion ? 20 : 0)
+            - hypothesisIndex * 1.5
+            - removalPenalty;
+          const existing = rotationsByPattern.get(key);
+          if (!existing || score > existing.score) rotationsByPattern.set(key, {
+            grid: variant.grid,
+            confidences: variant.confidences,
+            score,
+            relaxed: variant.removed.length,
+          });
+        });
       });
     });
     return {
@@ -952,136 +1122,260 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       rotations: [...rotationsByPattern.values()].sort((left, right) => right.score - left.score),
     };
   });
-  const validStates = new Map<string, PartialFacelets>();
+  type RankedCompleteState = { facelets: PartialFacelets; sourceScore: number; relaxed: number };
+  const validStates = new Map<string, RankedCompleteState>();
   let sawTruncation = false;
   let bestPartial = withCanonicalCenters();
   let bestObservedPartial = withCanonicalCenters();
+  let bestObservedReliability = Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(0)])) as Record<Face, number[]>;
   let bestObserved = 0;
+  let bestPartialQuality = Number.NEGATIVE_INFINITY;
   let bestPieceInference: ForcedPieceInference | null = null;
-  const beamWidth = 2000;
+  const beamWidth = 1600;
   const maximumRotationCombinations = beamWidth;
   let rotationCombinations = 0;
 
-  function considerPartial(partial: PartialFacelets) {
+  function storeCompleteState(facelets: PartialFacelets, sourceScore: number, relaxed = 0) {
+    const key = faceletKey(facelets);
+    const existing = validStates.get(key);
+    if (!existing || sourceScore > existing.sourceScore) {
+      validStates.set(key, { facelets, sourceScore, relaxed });
+    }
+  }
+
+  function considerPartial(
+    partial: PartialFacelets,
+    reliability: Record<Face, number[]>,
+    sourceScore: number,
+  ) {
     if (!colorCountValid(partial)) return null;
     const observedCount = countKnownFacelets(partial) - 6;
     const pieceInference = inferForcedPieceFacelets(partial);
     if (pieceInference.invalid) return null;
     const inferredKnownCount = countKnownFacelets(pieceInference.facelets) - 6;
     const bestKnownCount = countKnownFacelets(bestPartial) - 6;
-    if (observedCount > bestObserved || (observedCount === bestObserved && inferredKnownCount > bestKnownCount)) {
+    const quality = observedCount * 42 + inferredKnownCount * 7 + sourceScore;
+    if (quality > bestPartialQuality || (
+      quality === bestPartialQuality
+      && (observedCount > bestObserved || (observedCount === bestObserved && inferredKnownCount > bestKnownCount))
+    )) {
       bestObserved = observedCount;
+      bestPartialQuality = quality;
       bestObservedPartial = cloneFacelets(partial);
+      bestObservedReliability = Object.fromEntries(FACES.map((face) => [face, [...reliability[face]]])) as Record<Face, number[]>;
       bestPartial = cloneFacelets(pieceInference.facelets);
       bestPieceInference = pieceInference;
     }
     return pieceInference;
   }
 
-  type BeamState = { facelets: PartialFacelets; score: number };
-  let beam: BeamState[] = [{ facelets: withCanonicalCenters(), score: 0 }];
+  type BeamState = {
+    facelets: PartialFacelets;
+    reliability: Record<Face, number[]>;
+    score: number;
+    relaxed: number;
+  };
+  const emptyReliability = () => Object.fromEntries(
+    FACES.map((face) => [face, Array<number>(9).fill(0)]),
+  ) as Record<Face, number[]>;
+  let beam: BeamState[] = [{ facelets: withCanonicalCenters(), reliability: emptyReliability(), score: 0, relaxed: 0 }];
   choices.forEach((choice) => {
     const nextByState = new Map<string, BeamState>();
-    beam.forEach((state) => choice.rotations.forEach(({ grid, score }) => {
+    beam.forEach((state) => choice.rotations.forEach(({ grid, confidences, score, relaxed }) => {
       const next = cloneFacelets(state.facelets);
+      const reliability = Object.fromEntries(
+        FACES.map((face) => [face, [...state.reliability[face]]]),
+      ) as Record<Face, number[]>;
       let conflict = false;
       grid.forEach((color, index) => {
         if (!color) return;
         const existing = next[choice.face][index];
         if (existing && existing !== color) conflict = true;
         next[choice.face][index] = color;
+        reliability[choice.face][index] = confidences[index] || 45;
       });
       if (conflict || !colorCountValid(next) || !pieceEvidenceValid(next)) return;
       const key = faceletKey(next);
-      const candidate = { facelets: next, score: state.score + score };
+      const candidate = {
+        facelets: next,
+        reliability,
+        score: state.score + score,
+        relaxed: state.relaxed + relaxed,
+      };
       const existing = nextByState.get(key);
       if (!existing || candidate.score > existing.score) nextByState.set(key, candidate);
     }));
     const ranked = [...nextByState.values()].sort((left, right) => right.score - left.score);
     if (ranked.length > beamWidth) sawTruncation = true;
     beam = ranked.slice(0, beamWidth);
-    beam.forEach((state) => considerPartial(state.facelets));
+    beam.forEach((state) => considerPartial(state.facelets, state.reliability, state.score));
   });
 
+  let relaxedFacelets = 0;
   for (const state of beam) {
-    if (rotationCombinations >= maximumRotationCombinations || validStates.size >= 96) {
+    if (rotationCombinations >= maximumRotationCombinations || validStates.size >= 256) {
       sawTruncation = true;
       break;
     }
     rotationCombinations += 1;
     const observedCount = countKnownFacelets(state.facelets) - 6;
-    const pieceInference = considerPartial(state.facelets);
+    const pieceInference = considerPartial(state.facelets, state.reliability, state.score);
     if (!pieceInference || observedCount < 18) continue;
     const completion = completePartialFacelets(pieceInference.facelets);
     sawTruncation ||= completion.truncated;
-    completion.complete.forEach((candidate) => validStates.set(faceletKey(candidate), candidate));
+    if (state.relaxed > 0) {
+      relaxedFacelets = relaxedFacelets ? Math.min(relaxedFacelets, state.relaxed) : state.relaxed;
+      sawTruncation = true;
+    }
+    completion.complete.forEach((candidate) => storeCompleteState(candidate, state.score, state.relaxed));
   }
 
   // Se ogni faccia contiene anche una sola casella classificata male, nessuna
   // combinazione completa può superare i vincoli del cubo. Recuperiamo allora
   // lo stato migliore rimuovendo poche letture deboli e lasciando che gli
   // angoli/spigoli validi ricostruiscano soltanto quelle caselle.
-  let relaxedFacelets = 0;
   if (!validStates.size && bestObserved >= 18) {
-    const removable = FACES.flatMap((face) => {
-      const observation = bestByFace.get(face);
-      return bestObservedPartial[face].map((color, index) => ({
+    // Non rilassiamo soltanto il singolo ramo con più caselle. Un ramo appena
+    // sotto può contenere la faccia nitida corretta e perdere punti solo perché
+    // un'altra faccia è coperta. Esplorare pochi rami forti evita che una falsa
+    // lettura completa cancelli un pattern ripetuto in più fotogrammi.
+    const diversifiedSources: BeamState[] = [{
+      facelets: bestObservedPartial,
+      reliability: bestObservedReliability,
+      score: bestPartialQuality,
+      relaxed: 0,
+    }];
+    const seenAnchorPatterns = new Set<string>([
+      `${rotationInvariantPattern(bestObservedPartial.U)}:${rotationInvariantPattern(bestObservedPartial.F)}`,
+    ]);
+    beam.forEach((state) => {
+      if (diversifiedSources.length >= 14) return;
+      const key = `${rotationInvariantPattern(state.facelets.U)}:${rotationInvariantPattern(state.facelets.F)}`;
+      if (seenAnchorPatterns.has(key)) return;
+      seenAnchorPatterns.add(key);
+      diversifiedSources.push(state);
+    });
+    const relaxationSources = diversifiedSources.length
+      ? diversifiedSources
+      : [{ facelets: bestObservedPartial, reliability: bestObservedReliability, score: bestPartialQuality, relaxed: 0 }];
+    let successfulRelaxations = 0;
+    for (const source of relaxationSources) {
+      const removable = FACES.flatMap((face) => source.facelets[face].map((color, index) => ({
         face,
         index,
         color,
-        reliability: (observation?.cellConfidences?.[index] ?? observation?.confidence ?? 45) * 0.7
-          + (observation?.confidence ?? 45) * 0.3,
-      }));
-    }).filter((cell) => cell.color && cell.index !== 4)
-      .sort((left, right) => left.reliability - right.reliability)
-      .slice(0, 18);
-    const relaxations: Array<{ indexes: number[]; score: number }> = [];
-    for (let first = 0; first < removable.length; first += 1) {
-      relaxations.push({ indexes: [first], score: removable[first].reliability });
-      for (let second = first + 1; second < removable.length; second += 1) {
-        relaxations.push({
-          indexes: [first, second],
-          score: removable[first].reliability + removable[second].reliability + 12,
-        });
-        for (let third = second + 1; third < removable.length; third += 1) {
+        reliability: source.reliability[face][index] || 45,
+      }))).filter((cell) => cell.color && cell.index !== 4)
+        .sort((left, right) => left.reliability - right.reliability)
+        .slice(0, 18);
+      const relaxations: Array<{ indexes: number[]; score: number }> = [];
+      for (let first = 0; first < removable.length; first += 1) {
+        relaxations.push({ indexes: [first], score: removable[first].reliability });
+        for (let second = first + 1; second < removable.length; second += 1) {
           relaxations.push({
-            indexes: [first, second, third],
-            score: removable[first].reliability + removable[second].reliability
-              + removable[third].reliability + 24,
+            indexes: [first, second],
+            score: removable[first].reliability + removable[second].reliability + 12,
           });
+          for (let third = second + 1; third < removable.length; third += 1) {
+            relaxations.push({
+              indexes: [first, second, third],
+              score: removable[first].reliability + removable[second].reliability
+                + removable[third].reliability + 24,
+            });
+          }
         }
       }
-    }
-    relaxations.sort((left, right) => left.score - right.score);
-    for (const relaxation of relaxations.slice(0, 520)) {
-      const partial = cloneFacelets(bestObservedPartial);
-      relaxation.indexes.forEach((position) => {
-        const cell = removable[position];
-        partial[cell.face][cell.index] = null;
-      });
-      if (!pieceEvidenceValid(partial)) continue;
-      const inference = inferForcedPieceFacelets(partial);
-      if (inference.invalid) continue;
-      const completion = completePartialFacelets(inference.facelets, 16);
-      if (!completion.complete.length) continue;
-      relaxedFacelets = relaxation.indexes.length;
-      bestObserved = countKnownFacelets(partial) - 6;
-      bestObservedPartial = partial;
-      bestPartial = cloneFacelets(inference.facelets);
-      bestPieceInference = inference;
-      completion.complete.forEach((candidate) => validStates.set(faceletKey(candidate), candidate));
-      sawTruncation = true;
-      break;
+      relaxations.sort((left, right) => left.score - right.score);
+      let sourceRelaxedFacelets = 0;
+      let sourceSuccesses = 0;
+      for (const relaxation of relaxations.slice(0, 520)) {
+        if (sourceRelaxedFacelets && relaxation.indexes.length > sourceRelaxedFacelets) break;
+        const partial = cloneFacelets(source.facelets);
+        relaxation.indexes.forEach((position) => {
+          const cell = removable[position];
+          partial[cell.face][cell.index] = null;
+        });
+        if (!pieceEvidenceValid(partial)) continue;
+        const inference = inferForcedPieceFacelets(partial);
+        if (inference.invalid) continue;
+        const completion = completePartialFacelets(inference.facelets, 12);
+        if (!completion.complete.length) continue;
+        sourceRelaxedFacelets = relaxation.indexes.length;
+        if (!relaxedFacelets || sourceRelaxedFacelets < relaxedFacelets) {
+          relaxedFacelets = sourceRelaxedFacelets;
+          bestObserved = countKnownFacelets(partial) - 6;
+          bestObservedPartial = partial;
+          bestPartial = cloneFacelets(inference.facelets);
+          bestPieceInference = inference;
+        }
+        const relaxationPenalty = relaxation.score * 0.7;
+        completion.complete.forEach((candidate) => storeCompleteState(
+          candidate,
+          source.score - relaxationPenalty,
+          source.relaxed + sourceRelaxedFacelets,
+        ));
+        sourceSuccesses += 1;
+        successfulRelaxations += 1;
+        sawTruncation = true;
+        if (sourceSuccesses >= 3 || successfulRelaxations >= 36 || validStates.size >= 320) break;
+      }
+      if (successfulRelaxations >= 36 || validStates.size >= 320) break;
     }
   }
-  const candidates = [...validStates.values()];
-  const candidateConsensus = consensusFacelets(candidates, bestPartial);
+  const rankedCandidates = [...validStates.values()]
+    .map((candidate) => ({
+      ...candidate,
+      evidence: scoreCandidateAgainstObservations(candidate.facelets, observationsByFace, hypothesesByFace),
+    }))
+    .sort((left, right) => (
+      right.evidence.score + right.evidence.supportingCaptures * 1.8 + right.sourceScore * 0.018
+      - (left.evidence.score + left.evidence.supportingCaptures * 1.8 + left.sourceScore * 0.018)
+    ));
+  if (rankedCandidates[0]?.relaxed) relaxedFacelets = rankedCandidates[0].relaxed;
+  const candidates = rankedCandidates.map((candidate) => candidate.facelets);
+  const candidateConsensus = consensusFacelets(candidates, withCanonicalCenters());
   const completeFacelets = candidates.length === 1 && !sawTruncation ? asComplete(candidates[0]) : null;
   // Anche quando più completamenti differiscono solo nelle caselle mai viste,
   // mostriamo la migliore ricostruzione fisicamente valida. Lo stato resta
   // "partial" finché il video non rende quella scelta univoca, quindi non viene
   // usato silenziosamente come scramble certificato.
-  const displayFacelets = completeFacelets ?? candidates[0] ?? (sawTruncation ? bestPartial : candidateConsensus);
+  const provisionalDisplay = completeFacelets
+    ?? (candidates.length > 1 ? candidateConsensus : candidates[0])
+    ?? bestPartial;
+  const displayFacelets = cloneFacelets(provisionalDisplay);
+  if (!completeFacelets) {
+    FACES.forEach((face) => {
+      const stableRaw = (hypothesesByFace.get(face) ?? [])
+        .filter((observation) => (
+          !observation.syntheticFusion
+          && observation.visibleCells >= 8
+          && (observation.sourceFrames ?? 1) >= 2
+          && colorLayoutQuality(observation.colors) >= 0.8
+        ))
+        .sort((left, right) => (
+          right.visibleCells * 20 + (right.sourceFrames ?? 1) * 14 + right.confidence
+          - (left.visibleCells * 20 + (left.sourceFrames ?? 1) * 14 + left.confidence)
+        ))[0];
+      if (!stableRaw) return;
+      const alignment = [0, 1, 2, 3].map((turns) => {
+        const colors = rotateGrid(stableRaw.colors, turns);
+        const confidences = rotateNumbers(stableRaw.cellConfidences, turns);
+        let score = 0;
+        colors.forEach((color, index) => {
+          if (!color || index === 4 || !candidates[0]?.[face][index]) return;
+          score += candidates[0][face][index] === color ? 2 : -3;
+        });
+        return { colors, confidences, score };
+      }).sort((left, right) => right.score - left.score)[0];
+      if (!alignment) return;
+      const minimumCellConfidence = (stableRaw.sourceFrames ?? 1) >= 3 ? 45 : 50;
+      alignment.colors.forEach((color, index) => {
+        if (!color || index === 4) return;
+        if ((alignment.confidences[index] || stableRaw.confidence) < minimumCellConfidence) return;
+        displayFacelets[face][index] = color;
+      });
+    });
+  }
   const inferredFacelets = Math.max(0, countKnownFacelets(displayFacelets) - 6 - bestObserved);
   const cubieResolution = (definitions: PieceDefinition[]) => definitions.filter((position) => {
     const signatures = new Set(candidates.map((candidate) => position.faces.map((face, slot) => (
@@ -1120,9 +1414,10 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       message: 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.',
     };
   }
+  const displayedFacelets = countKnownFacelets(displayFacelets) - 6;
   const partialMessage = inferredFacelets > 0
     ? candidates.length > 0
-      ? `Schema completo: ${bestObserved} caselle lette dal video e ${inferredFacelets} completate con i vincoli fisici${relaxedFacelets ? `, correggendo ${relaxedFacelets} ${relaxedFacelets === 1 ? 'lettura debole' : 'letture deboli'}` : ''}. La ricostruzione è valida, ma non ancora unica.`
+      ? `${displayedFacelets === 48 ? 'Schema completo' : `Schema ricostruito (${displayedFacelets}/48 caselle)`}: ${bestObserved} caselle lette dal video e ${inferredFacelets} completate con i vincoli fisici${relaxedFacelets ? `, correggendo ${relaxedFacelets} ${relaxedFacelets === 1 ? 'lettura debole' : 'letture deboli'}` : ''}. La ricostruzione è valida, ma non ancora unica.`
       : `Ho usato lo schema fisso di angoli e spigoli per dedurre ${inferredFacelets} caselle coperte; serve comunque un unico stato fisicamente valido per generare lo scramble.`
     : 'Le caselle viste sono conservate; quelle mancanti vengono dedotte solo quando i vincoli dei pezzi le rendono uniche.';
   return {

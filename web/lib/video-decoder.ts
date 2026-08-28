@@ -1320,7 +1320,10 @@ export function summarizeCubeObservation(
   const sharpFrames = measuredSharpness.length >= 4
     ? gridFrames.filter((sample) => (sample.sharpness ?? sharpnessFloor) >= sharpnessFloor)
     : gridFrames;
-  const useful = sharpFrames.length >= 3 ? sharpFrames : (gridFrames.length ? gridFrames : selected);
+  // Non scartiamo un'intera posa solo perché è nel quartile meno nitido: può
+  // essere l'unico momento in cui compare una faccia. La nitidezza resta una
+  // misura diagnostica, mentre consenso temporale e geometria pesano le celle.
+  const useful = gridFrames.length ? gridFrames : selected;
   const allObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
   const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
   const reconstruction = reconstructInspectionState(allObservations);
