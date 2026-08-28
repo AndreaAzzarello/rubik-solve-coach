@@ -339,8 +339,8 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       const cosine = Math.abs((right.dx * down.dx + right.dy * down.dy) / (right.length * down.length));
       const determinant = right.dx * down.dy - right.dy * down.dx;
       const ratio = right.length / down.length;
-      if (cosine > 0.64 || determinant <= 1.8 || ratio < 0.42 || ratio > 2.4) return;
-      const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.43);
+      if (cosine > 0.52 || determinant <= 1.8 || ratio < 0.5 || ratio > 2) return;
+      const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.3);
       const used = new Set<StickerComponent>();
       const colors = Array<ObservedCubeColor | null>(9).fill(null);
       const cellConfidences = Array<number>(9).fill(0);
@@ -393,13 +393,20 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
     }));
   });
 
-  const bestByCenter = new Map<ObservedCubeColor, (typeof candidates)[number]>();
-  candidates.sort((left, right) => right.score - left.score).forEach((candidate) => {
-    if (!bestByCenter.has(candidate.centerColor)) bestByCenter.set(candidate.centerColor, candidate);
-  });
-  return [...bestByCenter.values()]
+  // Su un cubo stickerless due cubie dello stesso colore possono apparire come
+  // un'unica regione. In quel caso la migliore ipotesi geometrica del singolo
+  // frame non è sempre la faccia reale. Manteniamo poche alternative per centro:
+  // la coerenza temporale e i vincoli fisici del cubo sceglieranno il cluster.
+  const hypothesesPerCenter = new Map<ObservedCubeColor, number>();
+  return candidates
     .sort((left, right) => right.score - left.score)
-    .slice(0, 3)
+    .filter((candidate) => {
+      const count = hypothesesPerCenter.get(candidate.centerColor) ?? 0;
+      if (count >= 3) return false;
+      hypothesesPerCenter.set(candidate.centerColor, count + 1);
+      return true;
+    })
+    .slice(0, 18)
     .map((candidate) => ({
       centerColor: candidate.centerColor,
       colors: candidate.colors,

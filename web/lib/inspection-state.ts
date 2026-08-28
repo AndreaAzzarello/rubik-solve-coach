@@ -305,6 +305,12 @@ export function normalizeObservationOrientations(observations: FaceGridObservati
     if (observation.colors.length !== 9 || !observationGeometry(observation)) return observation;
     const face = CANONICAL_COLOR_FACE[observation.centerColor];
     const frameObservations = byFrame.get(frameKey(observation)) ?? [observation];
+    // Più ipotesi con lo stesso centro indicano che la geometria del singolo
+    // crop è ambigua (frequente sui cubi stickerless). Non blocchiamo qui
+    // l'orientamento: sarà il consenso tra fotogrammi a scegliere l'ipotesi.
+    if (frameObservations.some((candidate) => (
+      candidate !== observation && candidate.centerColor === observation.centerColor
+    ))) return observation;
     const votes = [0, 0, 0, 0];
 
     frameObservations.forEach((neighbor) => {
@@ -367,7 +373,16 @@ function stickerWeight(observation: FaceGridObservation, index: number, rotatedC
     * multiFaceBonus;
 }
 
-function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObservation {
+function rotationInvariantPattern(colors: Array<CubeColor | null>) {
+  return [0, 1, 2, 3]
+    .map((turns) => rotateGrid(colors, turns).map((color) => color?.[0] ?? '_').join(''))
+    .sort()[0];
+}
+
+export function fuseFaceObservationCandidates(
+  observations: FaceGridObservation[],
+  limit = 4,
+): FaceGridObservation[] {
   const ordered = [...observations].sort((left, right) => observationWeight(right) - observationWeight(left));
   type Aligned = {
     observation: FaceGridObservation;
@@ -386,7 +401,24 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
     confidence: number;
   };
 
-  const candidates: FusedCandidate[] = ordered.slice(0, 14).map((seed) => {
+  const seedsByPattern = new Map<string, { seed: FaceGridObservation; sources: Set<string> }>();
+  ordered.forEach((observation) => {
+    const key = rotationInvariantPattern(observation.colors);
+    const source = observation.captureId ?? observation.frameId ?? observation.time.toFixed(4);
+    const existing = seedsByPattern.get(key);
+    if (existing) existing.sources.add(source);
+    else seedsByPattern.set(key, { seed: observation, sources: new Set([source]) });
+  });
+  const seedPool = [...seedsByPattern.values()]
+    .sort((left, right) => (
+      right.sources.size * 24 + observationWeight(right.seed)
+      - (left.sources.size * 24 + observationWeight(left.seed))
+    ))
+    .slice(0, 72)
+    .map(({ seed }) => seed);
+
+  const candidates: FusedCandidate[] = seedPool.map((seed) => {
+    const seedCapture = seed.captureId ?? seed.frameId ?? seed.time.toFixed(4);
     const aligned: Aligned[] = [{
       observation: seed,
       colors: [...seed.colors],
@@ -397,6 +429,7 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
       conflict: 0,
     }];
 
+    const bestByCapture = new Map<string, Aligned & { score: number }>();
     ordered.forEach((observation) => {
       if (observation === seed) return;
       const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
@@ -409,6 +442,8 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
         let conflict = 0;
         let overlap = 0;
         let nonCenterOverlap = 0;
+        let matches = 0;
+        let mismatches = 0;
         colors.forEach((color, index) => {
           const reference = seed.colors[index];
           if (!color || !reference || index === 4) return;
@@ -416,8 +451,13 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
           nonCenterOverlap += 1;
           const weight = stickerWeight(observation, index, confidences)
             + stickerWeight(seed, index) * 0.6;
-          if (color === reference) agreement += weight;
-          else conflict += weight;
+          if (color === reference) {
+            agreement += weight;
+            matches += 1;
+          } else {
+            conflict += weight;
+            mismatches += 1;
+          }
         });
         return {
           colors,
@@ -426,16 +466,26 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
           conflict,
           overlap,
           nonCenterOverlap,
-          score: agreement * 2.2 - conflict * 3.4 + overlap * 0.08,
+          matches,
+          mismatches,
+          score: agreement * 2.6 - conflict * 5.2 + overlap * 0.08,
         };
       }).sort((left, right) => right.score - left.score);
       const best = rotations[0];
       const runnerUp = rotations[1];
-      const uniqueAlignment = !runnerUp || best.score - runnerUp.score >= 0.35;
-      const coherent = best.agreement >= Math.max(0.65, best.conflict * 1.8);
-      if (best.nonCenterOverlap < 2 || !uniqueAlignment || !coherent) return;
-      aligned.push({ observation, ...best });
+      const uniqueAlignment = !runnerUp || best.score - runnerUp.score >= 0.42;
+      const coherent = best.matches >= 3
+        && best.mismatches <= 1
+        && best.agreement >= Math.max(0.9, best.conflict * 3.2);
+      if (best.nonCenterOverlap < 3 || !uniqueAlignment || !coherent) return;
+      const capture = observation.captureId ?? observation.frameId ?? observation.time.toFixed(4);
+      if (capture === seedCapture) return;
+      const current = bestByCapture.get(capture);
+      if (!current || best.score > current.score) {
+        bestByCapture.set(capture, { observation, ...best });
+      }
     });
+    aligned.push(...[...bestByCapture.values()]);
 
     const colors = Array<CubeColor | null>(9).fill(null);
     const cellConfidences = Array<number>(9).fill(0);
@@ -462,13 +512,11 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
       const strongestSource = aligned.find((entry) => entry.colors[index] === winner[0])!.observation;
       const support = winner[1].sources.size;
       const singleStrongFrame = support === 1
-        && winner[1].strongest >= 86
-        && (
-          strongestSource.visibleCells >= 6
-          || (strongestSource.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
-        );
+        && winner[1].strongest >= 78
+        && strongestSource.visibleCells >= 7;
+      const suppliedBySeed = strongestSource === seed && seed.colors[index] === winner[0];
       const accepted = index === 4
-        || (ratio >= 0.67 && (support >= 2 || singleStrongFrame));
+        || (ratio >= 0.67 && (support >= 2 || singleStrongFrame || suppliedBySeed));
       if (!accepted) continue;
       colors[index] = winner[0];
       cellSupport[index] = support;
@@ -493,22 +541,62 @@ function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObse
       cellSupport,
       aligned,
       confidence,
-      score: acceptedCells * 15 + aligned.length * 7 + consensusStrength * 2.5 - consensusConflict * 4,
+      score: acceptedCells * 15 + aligned.length * 12 + consensusStrength * 2.5 - consensusConflict * 5,
     };
   });
 
-  const best = candidates.sort((left, right) => right.score - left.score)[0];
-  return {
-    ...best.seed,
-    colors: best.colors,
-    visibleCells: best.colors.filter(Boolean).length,
-    confidence: best.confidence,
-    cellConfidences: best.cellConfidences,
-    cellSupport: best.cellSupport,
-    sourceFrames: new Set(best.aligned.map(({ observation }) => (
-      observation.captureId ?? observation.frameId ?? observation.time.toFixed(4)
-    ))).size,
-  };
+  const fused = candidates
+    .sort((left, right) => right.score - left.score)
+    .map((candidate) => ({
+      rank: candidate.score,
+      observation: {
+        ...candidate.seed,
+        colors: candidate.colors,
+        visibleCells: candidate.colors.filter(Boolean).length,
+        confidence: candidate.confidence,
+        cellConfidences: candidate.cellConfidences,
+        cellSupport: candidate.cellSupport,
+        sourceFrames: new Set(candidate.aligned.map(({ observation }) => (
+          observation.captureId ?? observation.frameId ?? observation.time.toFixed(4)
+        ))).size,
+      },
+    }));
+  // Conserviamo anche le letture geometriche originali. Una faccia nitida può
+  // apparire soltanto per pochi decimi; diluirla nel consenso di molti falsi
+  // allineamenti (tipici dei cubi stickerless) eliminerebbe proprio la prova
+  // migliore. I vincoli fisici sceglieranno poi tra raw e consenso temporale.
+  const raw = [...seedsByPattern.values()]
+    .map(({ seed, sources }) => ({
+      rank: seed.visibleCells * 28 + seed.confidence + sources.size * 18,
+      observation: {
+        ...seed,
+        colors: [...seed.colors],
+        cellConfidences: seed.cellConfidences ? [...seed.cellConfidences] : undefined,
+        sourceFrames: sources.size,
+      },
+    }))
+    .sort((left, right) => right.rank - left.rank);
+  const rawLimit = Math.max(1, Math.ceil(Math.max(1, limit) * 0.75));
+  const preferred = [
+    ...raw.slice(0, rawLimit),
+    ...fused.slice(0, Math.max(1, limit - rawLimit)),
+    ...raw.slice(rawLimit),
+    ...fused.slice(Math.max(1, limit - rawLimit)),
+  ];
+  const seen = new Set<string>();
+  return preferred
+    .filter(({ observation }) => {
+      const key = rotationInvariantPattern(observation.colors);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, Math.max(1, limit))
+    .map(({ observation }) => observation);
+}
+
+export function fuseFaceObservations(observations: FaceGridObservation[]): FaceGridObservation {
+  return fuseFaceObservationCandidates(observations, 1)[0];
 }
 
 function permutationParity(permutation: number[]): 0 | 1 {
@@ -820,12 +908,17 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     const face = CANONICAL_COLOR_FACE[observation.centerColor];
     observationsByFace.set(face, [...(observationsByFace.get(face) ?? []), observation]);
   });
+  const hypothesesByFace = new Map<Face, FaceGridObservation[]>();
   const bestByFace = new Map<Face, FaceGridObservation>();
   observationsByFace.forEach((faceObservations, face) => {
-    bestByFace.set(face, fuseFaceObservations(faceObservations));
+    const hypotheses = fuseFaceObservationCandidates(faceObservations, 18);
+    hypothesesByFace.set(face, hypotheses);
+    if (hypotheses[0]) bestByFace.set(face, hypotheses[0]);
   });
 
-  const observedFaces = [...bestByFace.keys()];
+  const observedFaces = [...bestByFace.keys()].sort((left, right) => (
+    (bestByFace.get(right)?.visibleCells ?? 0) - (bestByFace.get(left)?.visibleCells ?? 0)
+  ));
   if (!observedFaces.length) {
     const facelets = withCanonicalCenters();
     return {
@@ -837,51 +930,60 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
   }
 
   const choices = observedFaces.map((face) => {
-    const observation = bestByFace.get(face)!;
+    const hypotheses = hypothesesByFace.get(face) ?? [bestByFace.get(face)!];
+    const rotationsByPattern = new Map<string, { grid: Array<CubeColor | null>; score: number }>();
+    hypotheses.forEach((observation, hypothesisIndex) => {
+      const turnsToTry = (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
+        ? [0]
+        : [0, 1, 2, 3];
+      turnsToTry.forEach((turns) => {
+        const grid = rotateGrid(observation.colors, turns);
+        const key = grid.map((color) => color?.[0] ?? '_').join('');
+        const score = observation.visibleCells * 12
+          + observation.confidence
+          + Math.min(18, (observation.sourceFrames ?? 1) * 3)
+          - hypothesisIndex * 2;
+        const existing = rotationsByPattern.get(key);
+        if (!existing || score > existing.score) rotationsByPattern.set(key, { grid, score });
+      });
+    });
     return {
       face,
-      rotations: (observation.orientationConfidence ?? 0) >= ORIENTATION_LOCK_CONFIDENCE
-        ? [observation.colors]
-        : [0, 1, 2, 3].map((turns) => rotateGrid(observation.colors, turns)),
+      rotations: [...rotationsByPattern.values()].sort((left, right) => right.score - left.score),
     };
   });
   const validStates = new Map<string, PartialFacelets>();
   let sawTruncation = false;
   let bestPartial = withCanonicalCenters();
+  let bestObservedPartial = withCanonicalCenters();
   let bestObserved = 0;
   let bestPieceInference: ForcedPieceInference | null = null;
-  const maximumRotationCombinations = 4096;
+  const beamWidth = 2000;
+  const maximumRotationCombinations = beamWidth;
   let rotationCombinations = 0;
 
-  function tryRotations(depth: number, partial: PartialFacelets) {
-    if (rotationCombinations >= maximumRotationCombinations || validStates.size >= 96) {
-      sawTruncation = true;
-      return;
+  function considerPartial(partial: PartialFacelets) {
+    if (!colorCountValid(partial)) return null;
+    const observedCount = countKnownFacelets(partial) - 6;
+    const pieceInference = inferForcedPieceFacelets(partial);
+    if (pieceInference.invalid) return null;
+    const inferredKnownCount = countKnownFacelets(pieceInference.facelets) - 6;
+    const bestKnownCount = countKnownFacelets(bestPartial) - 6;
+    if (observedCount > bestObserved || (observedCount === bestObserved && inferredKnownCount > bestKnownCount)) {
+      bestObserved = observedCount;
+      bestObservedPartial = cloneFacelets(partial);
+      bestPartial = cloneFacelets(pieceInference.facelets);
+      bestPieceInference = pieceInference;
     }
-    if (depth === choices.length) {
-      rotationCombinations += 1;
-      if (!colorCountValid(partial)) return;
-      const observedCount = FACES.reduce((total, face) => total + partial[face].filter(Boolean).length, 0) - 6;
-      const pieceInference = inferForcedPieceFacelets(partial);
-      if (pieceInference.invalid) return;
-      const inferredKnownCount = countKnownFacelets(pieceInference.facelets) - 6;
-      const bestKnownCount = countKnownFacelets(bestPartial) - 6;
-      if (observedCount > bestObserved || (observedCount === bestObserved && inferredKnownCount > bestKnownCount)) {
-        bestObserved = observedCount;
-        bestPartial = cloneFacelets(pieceInference.facelets);
-        bestPieceInference = pieceInference;
-      }
-      // With very little visual evidence the exact search space is enormous.
-      // Keep the observations, but do not manufacture a unique completion.
-      if (observedCount < 18) return;
-      const completion = completePartialFacelets(pieceInference.facelets);
-      sawTruncation ||= completion.truncated;
-      completion.complete.forEach((candidate) => validStates.set(faceletKey(candidate), candidate));
-      return;
-    }
-    const choice = choices[depth];
-    for (const grid of choice.rotations) {
-      const next = cloneFacelets(partial);
+    return pieceInference;
+  }
+
+  type BeamState = { facelets: PartialFacelets; score: number };
+  let beam: BeamState[] = [{ facelets: withCanonicalCenters(), score: 0 }];
+  choices.forEach((choice) => {
+    const nextByState = new Map<string, BeamState>();
+    beam.forEach((state) => choice.rotations.forEach(({ grid, score }) => {
+      const next = cloneFacelets(state.facelets);
       let conflict = false;
       grid.forEach((color, index) => {
         if (!color) return;
@@ -889,16 +991,97 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
         if (existing && existing !== color) conflict = true;
         next[choice.face][index] = color;
       });
-      if (!conflict && pieceEvidenceValid(next)) tryRotations(depth + 1, next);
-      if (sawTruncation && validStates.size >= 96) break;
+      if (conflict || !colorCountValid(next) || !pieceEvidenceValid(next)) return;
+      const key = faceletKey(next);
+      const candidate = { facelets: next, score: state.score + score };
+      const existing = nextByState.get(key);
+      if (!existing || candidate.score > existing.score) nextByState.set(key, candidate);
+    }));
+    const ranked = [...nextByState.values()].sort((left, right) => right.score - left.score);
+    if (ranked.length > beamWidth) sawTruncation = true;
+    beam = ranked.slice(0, beamWidth);
+    beam.forEach((state) => considerPartial(state.facelets));
+  });
+
+  for (const state of beam) {
+    if (rotationCombinations >= maximumRotationCombinations || validStates.size >= 96) {
+      sawTruncation = true;
+      break;
     }
+    rotationCombinations += 1;
+    const observedCount = countKnownFacelets(state.facelets) - 6;
+    const pieceInference = considerPartial(state.facelets);
+    if (!pieceInference || observedCount < 18) continue;
+    const completion = completePartialFacelets(pieceInference.facelets);
+    sawTruncation ||= completion.truncated;
+    completion.complete.forEach((candidate) => validStates.set(faceletKey(candidate), candidate));
   }
 
-  tryRotations(0, withCanonicalCenters());
+  // Se ogni faccia contiene anche una sola casella classificata male, nessuna
+  // combinazione completa può superare i vincoli del cubo. Recuperiamo allora
+  // lo stato migliore rimuovendo poche letture deboli e lasciando che gli
+  // angoli/spigoli validi ricostruiscano soltanto quelle caselle.
+  let relaxedFacelets = 0;
+  if (!validStates.size && bestObserved >= 18) {
+    const removable = FACES.flatMap((face) => {
+      const observation = bestByFace.get(face);
+      return bestObservedPartial[face].map((color, index) => ({
+        face,
+        index,
+        color,
+        reliability: (observation?.cellConfidences?.[index] ?? observation?.confidence ?? 45) * 0.7
+          + (observation?.confidence ?? 45) * 0.3,
+      }));
+    }).filter((cell) => cell.color && cell.index !== 4)
+      .sort((left, right) => left.reliability - right.reliability)
+      .slice(0, 18);
+    const relaxations: Array<{ indexes: number[]; score: number }> = [];
+    for (let first = 0; first < removable.length; first += 1) {
+      relaxations.push({ indexes: [first], score: removable[first].reliability });
+      for (let second = first + 1; second < removable.length; second += 1) {
+        relaxations.push({
+          indexes: [first, second],
+          score: removable[first].reliability + removable[second].reliability + 12,
+        });
+        for (let third = second + 1; third < removable.length; third += 1) {
+          relaxations.push({
+            indexes: [first, second, third],
+            score: removable[first].reliability + removable[second].reliability
+              + removable[third].reliability + 24,
+          });
+        }
+      }
+    }
+    relaxations.sort((left, right) => left.score - right.score);
+    for (const relaxation of relaxations.slice(0, 520)) {
+      const partial = cloneFacelets(bestObservedPartial);
+      relaxation.indexes.forEach((position) => {
+        const cell = removable[position];
+        partial[cell.face][cell.index] = null;
+      });
+      if (!pieceEvidenceValid(partial)) continue;
+      const inference = inferForcedPieceFacelets(partial);
+      if (inference.invalid) continue;
+      const completion = completePartialFacelets(inference.facelets, 16);
+      if (!completion.complete.length) continue;
+      relaxedFacelets = relaxation.indexes.length;
+      bestObserved = countKnownFacelets(partial) - 6;
+      bestObservedPartial = partial;
+      bestPartial = cloneFacelets(inference.facelets);
+      bestPieceInference = inference;
+      completion.complete.forEach((candidate) => validStates.set(faceletKey(candidate), candidate));
+      sawTruncation = true;
+      break;
+    }
+  }
   const candidates = [...validStates.values()];
   const candidateConsensus = consensusFacelets(candidates, bestPartial);
   const completeFacelets = candidates.length === 1 && !sawTruncation ? asComplete(candidates[0]) : null;
-  const displayFacelets = sawTruncation ? bestPartial : candidateConsensus;
+  // Anche quando più completamenti differiscono solo nelle caselle mai viste,
+  // mostriamo la migliore ricostruzione fisicamente valida. Lo stato resta
+  // "partial" finché il video non rende quella scelta univoca, quindi non viene
+  // usato silenziosamente come scramble certificato.
+  const displayFacelets = completeFacelets ?? candidates[0] ?? (sawTruncation ? bestPartial : candidateConsensus);
   const inferredFacelets = Math.max(0, countKnownFacelets(displayFacelets) - 6 - bestObserved);
   const cubieResolution = (definitions: PieceDefinition[]) => definitions.filter((position) => {
     const signatures = new Set(candidates.map((candidate) => position.faces.map((face, slot) => (
@@ -938,7 +1121,9 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     };
   }
   const partialMessage = inferredFacelets > 0
-    ? `Ho usato lo schema fisso di angoli e spigoli per dedurre ${inferredFacelets} caselle coperte; serve comunque un unico stato fisicamente valido per generare lo scramble.`
+    ? candidates.length > 0
+      ? `Schema completo: ${bestObserved} caselle lette dal video e ${inferredFacelets} completate con i vincoli fisici${relaxedFacelets ? `, correggendo ${relaxedFacelets} ${relaxedFacelets === 1 ? 'lettura debole' : 'letture deboli'}` : ''}. La ricostruzione è valida, ma non ancora unica.`
+      : `Ho usato lo schema fisso di angoli e spigoli per dedurre ${inferredFacelets} caselle coperte; serve comunque un unico stato fisicamente valido per generare lo scramble.`
     : 'Le caselle viste sono conservate; quelle mancanti vengono dedotte solo quando i vincoli dei pezzi le rendono uniche.';
   return {
     status: bestObserved >= 8 ? 'partial' : 'insufficient', observedFaces,
@@ -946,7 +1131,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     resolvedCorners, resolvedEdges, candidateCount: candidates.length, truncated: sawTruncation,
     confidence: baseConfidence, facelets: displayFacelets,
     faceCoverage: buildFaceCoverage(bestByFace, displayFacelets), completeFacelets: null,
-    message: sawTruncation
+    message: sawTruncation && candidates.length === 0
       ? 'La lettura è compatibile con molti stati: servono altre facce o caselle più nitide.'
       : partialMessage,
   };

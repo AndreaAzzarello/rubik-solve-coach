@@ -209,6 +209,25 @@ test('più fotogrammi multi-faccia concordi prevalgono su una lettura isolata er
   assert.ok(reconstruction.faceCoverage.U.evidenceFrames >= 3);
 });
 
+test('completa lo schema senza lasciare caselle vuote quando una lettura debole è incompatibile', () => {
+  const observations = observationsFor(CubeState.solved());
+  const noisy = observations.map((observation) => ({
+    ...observation,
+    cellConfidences: observation.colors.map(() => 94),
+  }));
+  noisy[5].colors = [...noisy[5].colors];
+  noisy[5].colors[0] = 'red';
+  noisy[5].cellConfidences![0] = 38;
+
+  const reconstruction = reconstructInspectionState(noisy);
+  const displayed = FACES.flatMap((face) => reconstruction.facelets[face]);
+  assert.equal(reconstruction.status, 'partial');
+  assert.equal(reconstruction.completeFacelets, null);
+  assert.equal(displayed.filter(Boolean).length, 54);
+  assert.ok(reconstruction.candidateCount >= 1);
+  assert.match(reconstruction.message, /correggendo 1 lettura debole/);
+});
+
 test('lo scramble prodotto dal solver riproduce esattamente lo stato ricostruito', () => {
   const scrambled = CubeState.solved().applyMoves(parseAlgorithm('R U F2 L2 D B2 U2 R2'));
   Cube.initSolver();
