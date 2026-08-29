@@ -337,7 +337,7 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <a href="/scanner" className="rounded-full bg-blue-600 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">Analizza video</a>
+            <a href="/scanner/" className="rounded-full bg-blue-600 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">Analizza video</a>
             <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 sm:inline">Passo 1</span>
           </div>
         </header>

@@ -4,7 +4,7 @@
   "short_name": "Cube Scanner",
   "description": "Analizza il video di un cubo di Rubik 3×3 e ricostruisce lo stato iniziale.",
   "lang": "it-IT",
-  "start_url": "/scanner",
+  "start_url": "/scanner/",
   "scope": "/scanner/",
   "display": "standalone",
   "display_override": ["fullscreen", "standalone"],
