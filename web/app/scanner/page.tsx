@@ -127,7 +127,7 @@ export default function VideoScannerPage() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      void navigator.serviceWorker.register('/scanner/sw.js', { scope: '/scanner/' });
+      void navigator.serviceWorker.register('/sw.js', { scope: '/' });
     }
     const handler = (event: Event) => {
       event.preventDefault();

@@ -1,5 +1,5 @@
-const CACHE_NAME = "cube-scanner-video-v2";
-const APP_SHELL = ["/scanner/", "/scanner/manifest.json", "/favicon.svg"];
+const CACHE_NAME = "cube-scanner-video-v3";
+const APP_SHELL = ["/scanner", "/scanner/manifest.json", "/favicon.svg"];
 const MEDIAPIPE_ORIGINS = new Set(["https://cdn.jsdelivr.net", "https://storage.googleapis.com"]);
 
 self.addEventListener("install", (event) => {
@@ -21,21 +21,19 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
 
-  // Navigazioni: rete prima, shell locale come fallback offline.
-  if (event.request.mode === "navigate") {
+  if (event.request.mode === "navigate" && url.pathname.startsWith("/scanner")) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/scanner/", copy));
+          caches.open(CACHE_NAME).then((cache) => cache.put("/scanner", copy));
           return response;
         })
-        .catch(() => caches.match("/scanner/")),
+        .catch(() => caches.match("/scanner")),
     );
     return;
   }
 
-  // File locali e risorse MediaPipe: cache-first con aggiornamento in background.
   const cacheable = url.origin === self.location.origin || MEDIAPIPE_ORIGINS.has(url.origin);
   if (!cacheable) return;
   event.respondWith(
