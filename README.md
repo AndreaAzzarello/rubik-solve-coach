@@ -177,7 +177,9 @@ parte dallo stato iniziale ricostruito dal video; quando lo schema colore è
 ancora incompleto, lo stato viene dedotto invertendo le mosse riconosciute. I
 controlli permettono di avviare, mettere in pausa, avanzare, tornare indietro,
 scorrere la timeline e cambiare velocità. Ogni passaggio mostra fase CFOP e
-confidenza della mossa, comprese le rotazioni `x`, `y` e `z` dell'ispezione.
+confidenza della mossa, comprese le rotazioni `x`, `y` e `z` dell'ispezione. La
+vista resta ferma durante il replay e mette in evidenza la faccia appena mossa,
+così i cambiamenti degli sticker sono leggibili anche su uno schermo piccolo.
 
 Per i video con una sola risoluzione non e necessario marcare manualmente
 l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili

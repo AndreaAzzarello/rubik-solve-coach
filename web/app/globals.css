@@ -66,34 +66,35 @@ button {
 .cube-stage {
   position: relative;
   display: grid;
-  min-height: 280px;
+  min-height: 310px;
   place-items: center;
-  perspective: 900px;
+  perspective: 1100px;
 }
 
-.cube-float {
+.cube-static {
   display: grid;
-  width: 150px;
-  height: 150px;
+  width: 184px;
+  height: 184px;
   place-items: center;
   transform-style: preserve-3d;
 }
 
 .cube-model {
   position: relative;
-  width: 138px;
-  height: 138px;
-  transform: rotateX(-25deg) rotateY(-35deg);
+  width: 164px;
+  height: 164px;
+  transform: rotateX(-24deg) rotateY(-38deg);
   transform-style: preserve-3d;
 }
 
 .cube-side {
   position: absolute;
   inset: 0;
-  width: 138px;
-  height: 138px;
+  width: 164px;
+  height: 164px;
   backface-visibility: hidden;
   transform-style: preserve-3d;
+  transition: filter 120ms ease, opacity 120ms ease;
 }
 
 .cube-face {
@@ -117,27 +118,34 @@ button {
 }
 
 .cube-side-front {
-  transform: translateZ(69px);
+  transform: translateZ(82px);
 }
 
 .cube-side-right {
-  transform: rotateY(90deg) translateZ(69px);
+  transform: rotateY(90deg) translateZ(82px);
 }
 
 .cube-side-top {
-  transform: rotateX(90deg) translateZ(69px);
+  transform: rotateX(90deg) translateZ(82px);
 }
 
 .cube-side-back {
-  transform: rotateY(180deg) translateZ(69px);
+  transform: rotateY(180deg) translateZ(82px);
 }
 
 .cube-side-left {
-  transform: rotateY(-90deg) translateZ(69px);
+  transform: rotateY(-90deg) translateZ(82px);
 }
 
 .cube-side-bottom {
-  transform: rotateX(-90deg) translateZ(69px);
+  transform: rotateX(-90deg) translateZ(82px);
+}
+
+.cube-side-active .cube-face {
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.35),
+    0 0 0 3px rgba(250,204,21,0.75),
+    0 0 24px rgba(250,204,21,0.38);
 }
 
 .cube-caption {
@@ -164,31 +172,10 @@ button {
 
 @media (max-width: 640px) {
   .cube-stage {
-    min-height: 250px;
+    min-height: 290px;
   }
 
-  .cube-float {
-    transform: scale(0.88);
+  .cube-static {
+    transform: scale(0.91);
   }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .cube-float {
-    animation: cube-float 5s ease-in-out infinite;
-  }
-
-  .cube-replay-step {
-    animation: cube-replay-step 340ms ease-out, cube-float 5s 340ms ease-in-out infinite;
-  }
-}
-
-@keyframes cube-float {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -8px; }
-}
-
-@keyframes cube-replay-step {
-  0% { scale: 0.92; rotate: -2deg; filter: brightness(1.45); }
-  62% { scale: 1.035; }
-  100% { scale: 1; rotate: 0deg; filter: brightness(1); }
 }

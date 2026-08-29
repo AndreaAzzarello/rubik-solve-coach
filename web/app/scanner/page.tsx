@@ -107,13 +107,16 @@ const REPLAY_SIDES: Array<{ face: Face; className: string }> = [
   { face: 'D', className: 'cube-side-bottom' },
 ];
 
-function ReplayCube({ facelets, animationKey }: { facelets: Record<Face, CubeColor[]>; animationKey: string }) {
+function ReplayCube({ facelets, moveToken }: { facelets: Record<Face, CubeColor[]>; moveToken: string | null }) {
+  const activeFace = moveToken && /^[URFDLBurfdlb]/.test(moveToken)
+    ? moveToken[0].toUpperCase() as Face
+    : null;
   return (
     <div className="cube-stage" aria-label="Cubo virtuale nello stato corrente">
-      <div key={animationKey} className="cube-float cube-replay-step">
+      <div className="cube-static">
         <div className="cube-model">
           {REPLAY_SIDES.map(({ face, className }) => (
-            <div key={face} className={`cube-side ${className}`} aria-label={`Faccia ${face}`}>
+            <div key={face} className={`cube-side ${className} ${activeFace === face ? 'cube-side-active' : ''}`} aria-label={`Faccia ${face}`}>
               <div className="cube-face">
                 {facelets[face].map((color, index) => (
                   <span key={`${face}-${index}`} style={{ backgroundColor: COLOR_HEX[color] }} />
@@ -167,7 +170,7 @@ function VirtualCubeReplay({ replay }: { replay: VirtualReplay }) {
         <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-black text-violet-200">{step}/{total}</span>
       </div>
 
-      <ReplayCube facelets={replay.frames[step]} animationKey={`${replay.signature}-${step}`} />
+      <ReplayCube facelets={replay.frames[step]} moveToken={currentMove?.token ?? null} />
 
       <div className="border-t border-white/10 bg-slate-950/55 p-3.5">
         <div className="mb-3 flex items-center justify-between gap-3">
