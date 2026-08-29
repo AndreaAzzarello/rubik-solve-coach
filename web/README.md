@@ -18,7 +18,9 @@ pnpm run build
 ## Funzioni attuali
 
 - analisi automatica dei fotogrammi dell’ispezione;
-- calibrazione dinamica dei colori basata sui sei centri;
+- campionamento del 25% centrale di ogni casella per escludere bordi e riflessi;
+- calibrazione HSV/Lab adattiva basata sulle medie dei sei centri;
+- classificazione globale bilanciata a 9 caselle per colore e controllo dei centri;
 - ricostruzione e validazione fisica dello schema 3×3;
 - stringa Singmaster `URFDLB` e scramble verificato;
 - layout responsive per computer e smartphone.

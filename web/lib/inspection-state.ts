@@ -5,7 +5,7 @@ import {
   type CubeColor,
   type Face,
 } from './cube.ts';
-import type { RgbSample } from './color-calibration.ts';
+import { validateCubeColorDistribution, type RgbSample } from './color-calibration.ts';
 
 export { CANONICAL_COLOR_FACE, CANONICAL_FACE_COLOR } from './cube.ts';
 
@@ -986,7 +986,10 @@ function consensusFacelets(candidates: PartialFacelets[], observed: PartialFacel
 
 function asComplete(facelets: PartialFacelets): Record<Face, CubeColor[]> | null {
   if (FACES.some((face) => facelets[face].some((color) => color === null))) return null;
-  return Object.fromEntries(FACES.map((face) => [face, facelets[face] as CubeColor[]])) as Record<Face, CubeColor[]>;
+  const complete = Object.fromEntries(
+    FACES.map((face) => [face, facelets[face] as CubeColor[]]),
+  ) as Record<Face, CubeColor[]>;
+  return validateCubeColorDistribution(complete).valid ? complete : null;
 }
 
 function buildFaceCoverage(

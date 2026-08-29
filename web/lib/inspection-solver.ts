@@ -1,5 +1,6 @@
 import { CubeState, invertMoves, movesToString, parseAlgorithm } from './cube.ts';
 import { faceletsToSolverString } from './inspection-state.ts';
+import { validateCubeColorDistribution } from './color-calibration.ts';
 import type { CubeColor, Face } from './cube.ts';
 
 let solverInitialization: Promise<typeof import('cubejs')> | null = null;
@@ -57,6 +58,10 @@ function compactMoves(moves: ReturnType<typeof parseAlgorithm>) {
 export async function createScrambleFromInspection(
   facelets: Record<Face, CubeColor[]>,
 ): Promise<InspectionScramble> {
+  const colorValidation = validateCubeColorDistribution(facelets);
+  if (!colorValidation.valid) {
+    throw new Error(colorValidation.issues.join(' '));
+  }
   const solverString = faceletsToSolverString(facelets);
   const solvedString = 'U'.repeat(9) + 'R'.repeat(9) + 'F'.repeat(9) + 'D'.repeat(9) + 'L'.repeat(9) + 'B'.repeat(9);
   if (solverString === solvedString) return {

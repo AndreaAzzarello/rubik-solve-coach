@@ -9,11 +9,20 @@ import {
   reconstructInspectionState,
 } from './inspection-state.ts';
 import {
-  buildColorCalibration,
+  buildInitialColorCalibration,
+  classifyBalancedCubeFacelets,
   classifyCalibratedColor,
+  createAdaptiveColorClassifier,
+  sampleCentralRoiRgb,
   type RgbSample,
 } from './color-calibration.ts';
-import { CUBE_COLORS, type CubeColor } from './cube.ts';
+import {
+  CANONICAL_FACE_COLOR,
+  CUBE_COLORS,
+  CUBE_FACES,
+  type CubeColor,
+  type Face,
+} from './cube.ts';
 
 export type MotionSample = {
   time: number;
@@ -196,32 +205,6 @@ function emptyColorCoverage(): ObservedColorCoverage {
   return { white: 0, red: 0, green: 0, yellow: 0, orange: 0, blue: 0 };
 }
 
-function rgbToObservedColor(red: number, green: number, blue: number): ObservedCubeColor | null {
-  const maximum = Math.max(red, green, blue) / 255;
-  const minimum = Math.min(red, green, blue) / 255;
-  const delta = maximum - minimum;
-  const saturation = maximum <= 0 ? 0 : delta / maximum;
-  if (maximum >= 0.58 && saturation <= 0.24) return 'white';
-  if (maximum < 0.24 || saturation < 0.34) return null;
-
-  let hue = 0;
-  const normalizedRed = red / 255;
-  const normalizedGreen = green / 255;
-  const normalizedBlue = blue / 255;
-  if (delta > 0) {
-    if (maximum === normalizedRed) hue = 60 * (((normalizedGreen - normalizedBlue) / delta) % 6);
-    else if (maximum === normalizedGreen) hue = 60 * ((normalizedBlue - normalizedRed) / delta + 2);
-    else hue = 60 * ((normalizedRed - normalizedGreen) / delta + 4);
-  }
-  if (hue < 0) hue += 360;
-  if (hue < 13 || hue >= 345) return 'red';
-  if (hue < 42) return 'orange';
-  if (hue < 76) return 'yellow';
-  if (hue < 175) return 'green';
-  if (hue < 270) return 'blue';
-  return 'red';
-}
-
 const median = (values: number[]) => {
   if (!values.length) return 0;
   const sorted = [...values].sort((left, right) => left - right);
@@ -247,9 +230,6 @@ function stickerComponents(labels: Int8Array, width: number, height: number, pix
     let maximumX = 0;
     let minimumY = height;
     let maximumY = 0;
-    let redTotal = 0;
-    let greenTotal = 0;
-    let blueTotal = 0;
     while (head < tail) {
       const index = queue[head++];
       const x = index % width;
@@ -261,11 +241,6 @@ function stickerComponents(labels: Int8Array, width: number, height: number, pix
       maximumX = Math.max(maximumX, x);
       minimumY = Math.min(minimumY, y);
       maximumY = Math.max(maximumY, y);
-      if (pixels) {
-        redTotal += pixels[index * 4];
-        greenTotal += pixels[index * 4 + 1];
-        blueTotal += pixels[index * 4 + 2];
-      }
       const neighbors = [index - 1, index + 1, index - width, index + width];
       neighbors.forEach((neighbor, direction) => {
         if (neighbor < 0 || neighbor >= labels.length || visited[neighbor] || labels[neighbor] !== label) return;
@@ -295,11 +270,12 @@ function stickerComponents(labels: Int8Array, width: number, height: number, pix
         y: sumY / area,
         width: componentWidth,
         height: componentHeight,
-        rawColor: pixels ? {
-          red: redTotal / area,
-          green: greenTotal / area,
-          blue: blueTotal / area,
-        } : undefined,
+        rawColor: pixels ? sampleCentralRoiRgb(pixels, width, height, {
+          x: minimumX,
+          y: minimumY,
+          width: componentWidth,
+          height: componentHeight,
+        }, 0.25) ?? undefined : undefined,
       });
     }
   }
@@ -496,6 +472,15 @@ function frameSignature(
   pixelLabels.fill(-1);
   let classifiedPixels = 0;
   let classifiedTopPixels = 0;
+  const adaptiveSamples: RgbSample[] = [];
+  const sampleStep = Math.max(2, Math.floor(Math.min(width, height) / 110));
+  for (let y = Math.floor(height * 0.1); y <= Math.ceil(height * 0.9); y += sampleStep) {
+    for (let x = Math.floor(width * 0.1); x <= Math.ceil(width * 0.9); x += sampleStep) {
+      const offset = (y * width + x) * 4;
+      adaptiveSamples.push({ red: data[offset], green: data[offset + 1], blue: data[offset + 2] });
+    }
+  }
+  const classifyFrameColor = createAdaptiveColorClassifier(adaptiveSamples);
 
   for (let source = 0, target = 0; source < data.length; source += 4, target += 1) {
     const red = data[source];
@@ -508,8 +493,9 @@ function frameSignature(
     const x = target % width;
     const y = Math.floor(target / width);
     if (x >= width * 0.12 && x <= width * 0.88 && y >= height * 0.12 && y <= height * 0.88) {
-      const color = rgbToObservedColor(red, green, blue);
-      if (color) {
+      const classification = classifyFrameColor({ red, green, blue });
+      const color = classification?.color ?? null;
+      if (color && (classification?.confidence ?? 0) >= 0.16) {
         pixelLabels[target] = OBSERVED_COLORS.indexOf(color);
         colorCounts[color] += 1;
         classifiedPixels += 1;
@@ -1349,7 +1335,9 @@ export function summarizeCubeObservation(
   // misura diagnostica, mentre consenso temporale e geometria pesano le celle.
   const useful = gridFrames.length ? gridFrames : selected;
   const originalObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
-  const calibration = buildColorCalibration(originalObservations.flatMap((observation) => {
+  // Prima fase: raccogliamo e salviamo le medie robuste dei centri. Solo dopo
+  // questa calibrazione iniziale riclassifichiamo le 48 caselle non centrali.
+  const calibrationProfile = buildInitialColorCalibration(originalObservations.flatMap((observation) => {
     const center = observation.rawColors?.[4];
     return center ? [{
       color: observation.centerColor,
@@ -1357,8 +1345,9 @@ export function summarizeCubeObservation(
       weight: observation.confidence / 100,
     }] : [];
   }));
-  const calibratedCenters = Object.keys(calibration).length;
-  const allObservations = calibratedCenters >= 3
+  const calibration = calibrationProfile.calibration;
+  const calibratedCenters = calibrationProfile.calibratedColors;
+  const calibratedObservations = calibratedCenters >= 3
     ? originalObservations.map((observation) => {
       if (!observation.rawColors) return observation;
       const colors = observation.colors.map((color, index) => {
@@ -1377,6 +1366,50 @@ export function summarizeCubeObservation(
       return { ...observation, colors, cellConfidences };
     })
     : originalObservations;
+  // Quando le sei facce sono leggibili, aggiungiamo una classificazione globale
+  // a capacità fissa: 8 caselle libere più il centro = esattamente 9 per colore.
+  const rawFacelets = Object.fromEntries(CUBE_FACES.map((face) => {
+    const centerColor = CANONICAL_FACE_COLOR[face];
+    const strongest = originalObservations
+      .filter((observation) => (
+        observation.centerColor === centerColor
+        && observation.rawColors?.length === 9
+        && observation.rawColors.every(Boolean)
+      ))
+      .sort((left, right) => (
+        right.visibleCells * 12 + right.confidence
+        - (left.visibleCells * 12 + left.confidence)
+      ))[0];
+    return [face, strongest?.rawColors ?? Array<RgbSample | null>(9).fill(null)];
+  })) as Record<Face, Array<RgbSample | null>>;
+  const balanced = calibrationProfile.ready
+    ? classifyBalancedCubeFacelets(rawFacelets, calibration)
+    : null;
+  const balancedObservations = balanced?.validation.valid
+    ? CUBE_FACES.map((face) => {
+      const centerColor = CANONICAL_FACE_COLOR[face];
+      const source = originalObservations
+        .filter((observation) => observation.centerColor === centerColor)
+        .sort((left, right) => right.confidence - left.confidence)[0];
+      const confidenceValues = balanced.confidences[face];
+      return {
+        ...(source ?? {
+          time: start,
+          centerColor,
+          visibleCells: 9,
+          confidence: 72,
+        }),
+        centerColor,
+        colors: balanced.facelets[face],
+        cellConfidences: confidenceValues.map((value) => Math.round(value * 100)),
+        visibleCells: 9,
+        confidence: Math.round(confidenceValues.reduce((total, value) => total + value, 0) / 9 * 100),
+        sourceFrames: Math.max(2, source?.sourceFrames ?? 1),
+        syntheticFusion: true,
+      };
+    })
+    : [];
+  const allObservations = [...calibratedObservations, ...balancedObservations];
   const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
   const reconstruction = reconstructInspectionState(allObservations);
   const keyframes = selectInspectionKeyframes(selected);

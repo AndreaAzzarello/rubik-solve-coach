@@ -7,6 +7,7 @@ import {
   classifyGuidedCaptures,
   medianRgb,
   rgbDifference,
+  sampleCentralRoiRgb,
   type GuidedFaceCapture,
   type RgbSample,
 } from '../lib/color-calibration';
@@ -62,11 +63,6 @@ function drawVideoCover(
   }
 }
 
-function channelMedian(values: number[]) {
-  values.sort((left, right) => left - right);
-  return values[Math.floor(values.length / 2)] ?? 0;
-}
-
 function readGrid(video: HTMLVideoElement, canvas: HTMLCanvasElement): FrameReading | null {
   if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
   const width = 360;
@@ -89,25 +85,25 @@ function readGrid(video: HTMLVideoElement, canvas: HTMLCanvasElement): FrameRead
     for (let column = 0; column < 3; column += 1) {
       const centerX = left + (column + 0.5) * cellSize;
       const centerY = top + (row + 0.5) * cellSize;
-      const radius = cellSize * 0.19;
+      const sample = sampleCentralRoiRgb(image.data, width, height, {
+        x: left + column * cellSize,
+        y: top + row * cellSize,
+        width: cellSize,
+        height: cellSize,
+      }, 0.25);
+      if (!sample) return null;
+      cells.push(sample);
+      const radius = cellSize * 0.25;
       const minimumX = Math.max(1, Math.floor(centerX - radius));
       const maximumX = Math.min(width - 2, Math.ceil(centerX + radius));
       const minimumY = Math.max(1, Math.floor(centerY - radius));
       const maximumY = Math.min(height - 2, Math.ceil(centerY + radius));
-      const reds: number[] = [];
-      const greens: number[] = [];
-      const blues: number[] = [];
       for (let y = minimumY; y <= maximumY; y += 2) {
         for (let x = minimumX; x <= maximumX; x += 2) {
           const index = (y * width + x) * 4;
           const red = image.data[index];
           const green = image.data[index + 1];
           const blue = image.data[index + 2];
-          const maximum = Math.max(red, green, blue);
-          if (maximum < 22) continue;
-          reds.push(red);
-          greens.push(green);
-          blues.push(blue);
           const right = index + 8;
           const bottom = index + width * 8;
           const luma = red * 0.299 + green * 0.587 + blue * 0.114;
@@ -117,8 +113,6 @@ function readGrid(video: HTMLVideoElement, canvas: HTMLCanvasElement): FrameRead
           edgePixels += 2;
         }
       }
-      if (reds.length < 12) return null;
-      cells.push({ red: channelMedian(reds), green: channelMedian(greens), blue: channelMedian(blues) });
     }
   }
   return { cells, sharpness: edgeTotal / Math.max(1, edgePixels), capturedAt: performance.now() };
@@ -184,7 +178,7 @@ export default function GuidedScanner({ onUpdate, onError }: GuidedScannerProps)
   const publishCaptures = useCallback((nextCaptures: GuidedFaceCapture[]) => {
     const result = classifyGuidedCaptures(nextCaptures);
     const facelets = result.facelets as PartialFacelets;
-    const complete = SCAN_ORDER.every(({ face }) => facelets[face].every(Boolean));
+    const complete = result.validation.valid;
     const solverString = complete
       ? faceletsToSolverString(facelets as Record<Face, CubeColor[]>)
       : null;
@@ -194,7 +188,9 @@ export default function GuidedScanner({ onUpdate, onError }: GuidedScannerProps)
       complete,
       solverString,
       message: complete
-        ? 'Sei facce acquisite e riclassificate usando tutti i centri. Verifico ora lo stato fisico del cubo.'
+        ? 'Sei facce calibrate: ogni colore compare 9 volte e i centri sono univoci. Verifico ora lo stato fisico del cubo.'
+        : nextCaptures.length >= 6
+          ? result.validation.issues.join(' ')
         : `${nextCaptures.length}/6 facce acquisite. Ogni nuovo centro aggiorna la calibrazione delle facce precedenti.`,
     });
   }, [onUpdate]);
