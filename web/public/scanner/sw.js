@@ -1,5 +1,5 @@
-const CACHE_NAME = "cube-scanner-live-v1";
-const APP_SHELL = ["./", "./index.html", "./manifest.json", "../favicon.svg"];
+const CACHE_NAME = "cube-scanner-video-v2";
+const APP_SHELL = ["/scanner", "/scanner/manifest.json", "/favicon.svg"];
 const MEDIAPIPE_ORIGINS = new Set(["https://cdn.jsdelivr.net", "https://storage.googleapis.com"]);
 
 self.addEventListener("install", (event) => {
@@ -10,7 +10,9 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys
+        .filter((key) => key.startsWith("cube-scanner-video-") && key !== CACHE_NAME)
+        .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -25,10 +27,10 @@ self.addEventListener("fetch", (event) => {
       fetch(event.request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", copy));
+          caches.open(CACHE_NAME).then((cache) => cache.put("/scanner", copy));
           return response;
         })
-        .catch(() => caches.match("./index.html")),
+        .catch(() => caches.match("/scanner")),
     );
     return;
   }
