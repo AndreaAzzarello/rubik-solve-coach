@@ -128,6 +128,18 @@ button {
   transform: rotateX(90deg) translateZ(69px);
 }
 
+.cube-side-back {
+  transform: rotateY(180deg) translateZ(69px);
+}
+
+.cube-side-left {
+  transform: rotateY(-90deg) translateZ(69px);
+}
+
+.cube-side-bottom {
+  transform: rotateX(-90deg) translateZ(69px);
+}
+
 .cube-caption {
   position: absolute;
   right: 0;
@@ -164,9 +176,19 @@ button {
   .cube-float {
     animation: cube-float 5s ease-in-out infinite;
   }
+
+  .cube-replay-step {
+    animation: cube-replay-step 340ms ease-out, cube-float 5s 340ms ease-in-out infinite;
+  }
 }
 
 @keyframes cube-float {
   0%, 100% { translate: 0 0; }
   50% { translate: 0 -8px; }
+}
+
+@keyframes cube-replay-step {
+  0% { scale: 0.92; rotate: -2deg; filter: brightness(1.45); }
+  62% { scale: 1.035; }
+  100% { scale: 1; rotate: 0deg; filter: brightness(1); }
 }

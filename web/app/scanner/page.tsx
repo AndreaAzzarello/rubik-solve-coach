@@ -28,6 +28,7 @@ import {
   formatTranscript,
   type SolveTranscript,
 } from '../../lib/solve-transcription';
+import { buildVirtualReplay, type VirtualReplay } from '../../lib/virtual-replay';
 
 const FACES = CUBE_FACES;
 const FACE_LABEL: Record<Face, string> = {
@@ -97,6 +98,110 @@ function CubeNet({ facelets }: { facelets: PartialFacelets }) {
   );
 }
 
+const REPLAY_SIDES: Array<{ face: Face; className: string }> = [
+  { face: 'F', className: 'cube-side-front' },
+  { face: 'R', className: 'cube-side-right' },
+  { face: 'U', className: 'cube-side-top' },
+  { face: 'B', className: 'cube-side-back' },
+  { face: 'L', className: 'cube-side-left' },
+  { face: 'D', className: 'cube-side-bottom' },
+];
+
+function ReplayCube({ facelets, animationKey }: { facelets: Record<Face, CubeColor[]>; animationKey: string }) {
+  return (
+    <div className="cube-stage" aria-label="Cubo virtuale nello stato corrente">
+      <div key={animationKey} className="cube-float cube-replay-step">
+        <div className="cube-model">
+          {REPLAY_SIDES.map(({ face, className }) => (
+            <div key={face} className={`cube-side ${className}`} aria-label={`Faccia ${face}`}>
+              <div className="cube-face">
+                {facelets[face].map((color, index) => (
+                  <span key={`${face}-${index}`} style={{ backgroundColor: COLOR_HEX[color] }} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="cube-caption"><span>U · sopra</span><span>F · fronte</span><span>R · destra</span></div>
+    </div>
+  );
+}
+
+function VirtualCubeReplay({ replay }: { replay: VirtualReplay }) {
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const total = replay.moves.length;
+  const currentMove = step > 0 ? replay.moves[step - 1] : null;
+
+  useEffect(() => {
+    if (!playing || step >= total) return;
+    const timer = window.setTimeout(() => {
+      const nextStep = Math.min(total, step + 1);
+      setStep(nextStep);
+      if (nextStep >= total) setPlaying(false);
+    }, 820 / speed);
+    return () => window.clearTimeout(timer);
+  }, [playing, speed, step, total]);
+
+  function seek(nextStep: number) {
+    setPlaying(false);
+    setStep(Math.max(0, Math.min(total, nextStep)));
+  }
+
+  function togglePlayback() {
+    if (step >= total) setStep(0);
+    setPlaying((value) => !value);
+  }
+
+  function cycleSpeed() {
+    const speeds = [0.5, 1, 1.5, 2];
+    setSpeed(speeds[(speeds.indexOf(speed) + 1) % speeds.length]);
+  }
+
+  return (
+    <section className="mt-3 overflow-hidden rounded-[20px] border border-violet-400/20 bg-slate-900/85">
+      <div className="flex items-start justify-between gap-3 p-3.5 pb-0">
+        <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-violet-300">Replay virtuale</p><h3 className="mt-1 text-sm font-black">Rivedi la solve mossa per mossa</h3></div>
+        <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-[10px] font-black text-violet-200">{step}/{total}</span>
+      </div>
+
+      <ReplayCube facelets={replay.frames[step]} animationKey={`${replay.signature}-${step}`} />
+
+      <div className="border-t border-white/10 bg-slate-950/55 p-3.5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[9px] font-black uppercase tracking-[.12em] text-slate-500">{currentMove?.label ?? 'Stato iniziale'}</p>
+            <p className="mt-1 truncate font-mono text-xl font-black text-yellow-200">{currentMove?.token ?? 'Pronto'}</p>
+          </div>
+          <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${!currentMove || currentMove.confidence >= 65 ? 'bg-emerald-500/10 text-emerald-300' : currentMove.confidence >= 48 ? 'bg-amber-500/10 text-amber-300' : 'bg-rose-500/10 text-rose-300'}`}>
+            {currentMove ? `${currentMove.confidence}%` : replay.derivedInitialState ? 'Stato dedotto' : 'Stato osservato'}
+          </span>
+        </div>
+
+        <input
+          type="range"
+          min={0}
+          max={total}
+          value={step}
+          onChange={(event) => seek(Number(event.target.value))}
+          aria-label="Posizione del replay"
+          className="mb-3 w-full accent-violet-500"
+        />
+        <div className="grid grid-cols-5 gap-2">
+          <button type="button" onClick={() => seek(0)} aria-label="Riavvia replay" className="replay-button">↺</button>
+          <button type="button" onClick={() => seek(step - 1)} disabled={step === 0} aria-label="Mossa precedente" className="replay-button disabled:opacity-35">◀</button>
+          <button type="button" onClick={togglePlayback} aria-label={playing ? 'Pausa replay' : 'Riproduci replay'} className="replay-button replay-button-primary">{playing ? '❚❚' : '▶'}</button>
+          <button type="button" onClick={() => seek(step + 1)} disabled={step === total} aria-label="Mossa successiva" className="replay-button disabled:opacity-35">▶</button>
+          <button type="button" onClick={cycleSpeed} aria-label="Cambia velocità" className="replay-button text-[11px]">{speed}×</button>
+        </div>
+        <p className="mt-3 text-[10px] leading-4 text-slate-500">Il cubo applica esattamente le mosse trascritte, incluse le rotazioni d’ispezione. Una bassa percentuale indica una mossa ancora incerta nell’analisi video.</p>
+      </div>
+    </section>
+  );
+}
+
 export default function VideoScannerPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +251,10 @@ export default function VideoScannerPage() {
   const transcriptText = useMemo(
     () => transcript ? formatTranscript(transcript, scramble?.verified ? scramble.scramble : '') : '',
     [transcript, scramble],
+  );
+  const replay = useMemo(
+    () => transcript ? buildVirtualReplay(transcript, completeFacelets) : null,
+    [transcript, completeFacelets],
   );
   const observedFaces = new Set(reconstruction?.observedFaces ?? []);
   const knownCells = Math.max(0, FACES.reduce((total, face) => total + facelets[face].filter(Boolean).length, 0) - 6);
@@ -457,6 +566,8 @@ export default function VideoScannerPage() {
             <button type="button" onClick={() => copyOutput(transcriptText, 'Trascrizione')} className="mt-3 w-full rounded-xl border border-blue-400/20 bg-blue-500/10 py-2.5 text-xs font-black text-blue-100">{copied ? 'Trascrizione copiata ✓' : 'Copia trascrizione completa'}</button>
           </section>
         )}
+
+        {replay && <VirtualCubeReplay key={replay.signature} replay={replay} />}
 
         {(solverString || scramble?.verified || solving) && (
           <section className="mt-3 rounded-[18px] border border-emerald-400/25 bg-emerald-500/[.08] p-3.5">

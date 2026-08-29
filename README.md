@@ -172,6 +172,13 @@ controllate. La scansione dei colori misura la copertura osservata, ma non
 dichiara ricostruito uno stato sticker-per-sticker quando il filmato non offre
 ancora abbastanza viste stabili.
 
+La trascrizione alimenta anche un replay tridimensionale interattivo. Il cubo
+parte dallo stato iniziale ricostruito dal video; quando lo schema colore è
+ancora incompleto, lo stato viene dedotto invertendo le mosse riconosciute. I
+controlli permettono di avviare, mettere in pausa, avanzare, tornare indietro,
+scorrere la timeline e cambiare velocità. Ogni passaggio mostra fase CFOP e
+confidenza della mossa, comprese le rotazioni `x`, `y` e `z` dell'ispezione.
+
 Per i video con una sola risoluzione non e necessario marcare manualmente
 l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili
 con scramble, ispezione e solve e seleziona l'ultimo blocco come proposta. Nei
