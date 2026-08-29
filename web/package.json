@@ -10,7 +10,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "test:inspection": "node --experimental-strip-types --experimental-specifier-resolution=node --test lib/color-calibration.test.ts lib/inspection-state.test.ts lib/video-decoder.test.ts"
+    "test:inspection": "node --experimental-strip-types --experimental-specifier-resolution=node --test lib/color-calibration.test.ts lib/inspection-state.test.ts lib/video-decoder.test.ts lib/solve-transcription.test.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",

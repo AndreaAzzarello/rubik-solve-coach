@@ -52,6 +52,10 @@ export type CfopStatus = {
   cubeSolved: boolean;
 };
 
+export type CfopProgress = CfopStatus & {
+  f2lPairsSolved: number;
+};
+
 export type AnalysisStep = {
   index: number;
   move: Move;
@@ -321,6 +325,27 @@ export function cfopStatus(cube: CubeState, crossColor: CubeColor): CfopStatus {
     .every((sticker) => sticker.color === lastColor);
 
   return { crossColor, crossFaceNormal: crossNormal, crossSolved, f2lSolved, ollSolved, cubeSolved: cube.isSolved() };
+}
+
+/**
+ * Conta anche le coppie F2L già inserite. Ogni coppia è composta dall'angolo
+ * del primo strato e dallo spigolo centrale che condivide i due colori laterali.
+ */
+export function cfopProgress(cube: CubeState, crossColor: CubeColor): CfopProgress {
+  const status = cfopStatus(cube, crossColor);
+  const centers = cube.centerColors();
+  const crossCenter = [...centers.values()].find((center) => center.color === crossColor);
+  if (!crossCenter) return { ...status, f2lPairsSolved: 0 };
+  const { axis, sign } = axisAndSign(crossCenter.normal);
+  const crossCorners = cube.cubiePositions().filter((position) => (
+    position[axis] === sign && position.filter((coordinate) => coordinate !== 0).length === 3
+  ));
+  const f2lPairsSolved = crossCorners.filter((corner) => {
+    const edge = [...corner] as [number, number, number];
+    edge[axis] = 0;
+    return positionSolved(cube, corner, centers) && positionSolved(cube, edge, centers);
+  }).length;
+  return { ...status, f2lPairsSolved };
 }
 
 export function classifyPhase(cube: CubeState, crossColor: CubeColor): Phase {

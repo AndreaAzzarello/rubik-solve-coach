@@ -12,15 +12,22 @@ import {
 import {
   decodeVideoMotion,
   inferInspectionEnd,
+  inferPllAndCrossColor,
   inferVideoSegmentation,
   lastInspectionFrameTime,
   scanInspectionFrames,
   summarizeCubeObservation,
   type CubeObservationSummary,
+  type MotionEvent,
   type MotionSample,
 } from '../../lib/video-decoder';
 import { createScrambleFromInspection, type InspectionScramble } from '../../lib/inspection-solver';
 import { faceletsToSolverString, type PartialFacelets } from '../../lib/inspection-state';
+import {
+  buildSolveTranscript,
+  formatTranscript,
+  type SolveTranscript,
+} from '../../lib/solve-transcription';
 
 const FACES = CUBE_FACES;
 const FACE_LABEL: Record<Face, string> = {
@@ -101,10 +108,12 @@ export default function VideoScannerPage() {
   const [phase, setPhase] = useState<AnalysisPhase>('idle');
   const [progress, setProgress] = useState(0);
   const [samples, setSamples] = useState<MotionSample[]>([]);
+  const [motionRuns, setMotionRuns] = useState<MotionEvent[][]>([]);
   const [runCount, setRunCount] = useState(0);
   const [summary, setSummary] = useState<CubeObservationSummary | null>(null);
   const [facelets, setFacelets] = useState<PartialFacelets>(() => blankFacelets());
   const [scramble, setScramble] = useState<InspectionScramble | null>(null);
+  const [transcript, setTranscript] = useState<SolveTranscript | null>(null);
   const [solving, setSolving] = useState(false);
   const [inspection, setInspection] = useState<{ start: number; end: number } | null>(null);
   const [message, setMessage] = useState('Carica un video MOV, MP4, M4V o WebM. Nessun file viene inviato online.');
@@ -133,6 +142,10 @@ export default function VideoScannerPage() {
   const solverString = useMemo(
     () => completeFacelets ? faceletsToSolverString(completeFacelets) : '',
     [completeFacelets],
+  );
+  const transcriptText = useMemo(
+    () => transcript ? formatTranscript(transcript, scramble?.verified ? scramble.scramble : '') : '',
+    [transcript, scramble],
   );
   const observedFaces = new Set(reconstruction?.observedFaces ?? []);
   const knownCells = Math.max(0, FACES.reduce((total, face) => total + facelets[face].filter(Boolean).length, 0) - 6);
@@ -166,10 +179,12 @@ export default function VideoScannerPage() {
     setPhase('idle');
     setProgress(0);
     setSamples([]);
+    setMotionRuns([]);
     setRunCount(0);
     setSummary(null);
     setFacelets(blankFacelets());
     setScramble(null);
+    setTranscript(null);
     setInspection(null);
     setCopied(false);
     setMessageTone('success');
@@ -210,6 +225,7 @@ export default function VideoScannerPage() {
     const generation = ++generationRef.current;
     const reanalysis = status === 'result' && samples.length > 0;
     let combined = reanalysis ? [...samples] : [];
+    let nextMotionRuns = reanalysis ? [...motionRuns] : [];
     let completedRuns = reanalysis ? runCount : 0;
     setStatus('running');
     setPhase('motion');
@@ -228,6 +244,7 @@ export default function VideoScannerPage() {
         onProgress: (value) => setProgress(value * 0.34),
       });
       if (generation !== generationRef.current) return;
+      nextMotionRuns = [...nextMotionRuns, decoded.events];
       const segmentation = inferVideoSegmentation(decoded.events, 0, video.duration);
       const solveWindow = segmentation.windows.find((candidate) => candidate.id === segmentation.defaultWindowId);
       const inspectionStage = solveWindow?.stages.find((stage) => stage.kind === 'inspection');
@@ -272,9 +289,20 @@ export default function VideoScannerPage() {
       setPhase('fusing');
       setProgress(0.99);
       const finalSummary = { ...latest, keyframes: [] };
+      const pllSummary = solveWindow
+        ? inferPllAndCrossColor(decoded.samples, solveWindow.start, solveWindow.end)
+        : null;
+      const nextTranscript = buildSolveTranscript(
+        nextMotionRuns,
+        solveWindow ?? null,
+        finalSummary.reconstruction.completeFacelets,
+        pllSummary?.crossColor ?? 'white',
+      );
       setSummary(finalSummary);
       setFacelets(copyFacelets(finalSummary.reconstruction.facelets));
       setSamples(combined);
+      setMotionRuns(nextMotionRuns);
+      setTranscript(nextTranscript);
       setRunCount(completedRuns);
       setProgress(1);
       setStatus('result');
@@ -301,10 +329,12 @@ export default function VideoScannerPage() {
     setPhase('idle');
     setProgress(0);
     setSamples([]);
+    setMotionRuns([]);
     setRunCount(0);
     setSummary(null);
     setFacelets(blankFacelets());
     setScramble(null);
+    setTranscript(null);
     setInspection(null);
     setMessageTone('info');
     setMessage('Carica un video MOV, MP4, M4V o WebM. Nessun file viene inviato online.');
@@ -395,6 +425,36 @@ export default function VideoScannerPage() {
           <section className="mt-3 rounded-[20px] border border-white/10 bg-slate-900/80 p-3.5">
             <div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-blue-400">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3></div><span className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-black text-slate-300">{knownCells}/48 caselle</span></div>
             <CubeNet facelets={facelets} />
+          </section>
+        )}
+
+        {transcript && transcript.moveCount > 0 && (
+          <section className="mt-3 rounded-[20px] border border-blue-400/20 bg-slate-900/85 p-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-blue-400">Trascrizione della solve</p><h3 className="mt-1 text-sm font-black">Movimenti e fasi rilevate</h3></div>
+              <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-black text-blue-200">Accuratezza {transcript.confidence}%</span>
+            </div>
+            <p className="mt-2 text-[10px] leading-4 text-slate-500">
+              {transcript.runCount > 1 ? `${transcript.runCount} analisi sovrapposte` : 'Prima analisi'} · {transcript.moveCount} mosse nella solve · {transcript.uncertainMoves} a bassa confidenza
+            </p>
+            <div className="mt-3 grid gap-2">
+              {transcript.segments.map((segment, index) => {
+                const value = segment.stage === 'scramble' && scramble?.verified
+                  ? scramble.scramble
+                  : segment.moves.map((move) => move.token).join(' ');
+                return (
+                  <article key={`${segment.stage}-${index}`} className="rounded-xl border border-white/[.08] bg-slate-950/65 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="text-[10px] font-black uppercase tracking-[.12em] text-slate-300">{segment.label}</strong>
+                      <span className={`text-[9px] font-black ${segment.confidence >= 65 ? 'text-emerald-300' : segment.confidence >= 48 ? 'text-amber-300' : 'text-rose-300'}`}>{segment.confidence || '—'}%</span>
+                    </div>
+                    <p className={`mt-1.5 break-words font-mono text-xs font-bold leading-5 ${value ? 'text-yellow-100' : 'text-slate-600'}`}>{value || 'Nessun movimento rilevato'}</p>
+                  </article>
+                );
+              })}
+            </div>
+            {!transcript.usedStateProgress && <p className="mt-2 text-[10px] leading-4 text-amber-300/75">I confini CFOP sono stimati perché le mosse riconosciute non producono ancora abbastanza cambi di stato certi. La rianalisi aggiorna gli stessi punti per migliorare il consenso.</p>}
+            <button type="button" onClick={() => copyOutput(transcriptText, 'Trascrizione')} className="mt-3 w-full rounded-xl border border-blue-400/20 bg-blue-500/10 py-2.5 text-xs font-black text-blue-100">{copied ? 'Trascrizione copiata ✓' : 'Copia trascrizione completa'}</button>
           </section>
         )}
 
