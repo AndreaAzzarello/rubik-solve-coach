@@ -336,7 +336,10 @@ export default function Home() {
               <p className="text-xs text-slate-500">Ricostruzione dello scramble 3×3</p>
             </div>
           </div>
-          <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">Passo 1</span>
+          <div className="flex items-center gap-2">
+            <a href="/scanner/index.html" className="rounded-full bg-blue-600 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">Scanner live</a>
+            <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 sm:inline">Passo 1</span>
+          </div>
         </header>
 
         <div className="grid gap-8 py-10 lg:grid-cols-[minmax(0,0.88fr)_minmax(520px,1.12fr)] lg:items-start lg:gap-12 lg:py-14">

@@ -17,6 +17,9 @@ pnpm run build
 
 ## Funzioni attuali
 
+- PWA autonoma in `public/scanner/`, installabile in modalità standalone su iOS e Android;
+- scansione webcam in ordine libero con stabilità su 15 letture consecutive;
+- tracciamento mani MediaPipe e classificazione CIELAB tramite CIEDE2000;
 - analisi automatica dei fotogrammi dell’ispezione;
 - campionamento del 25% centrale di ogni casella per escludere bordi e riflessi;
 - calibrazione HSV/Lab adattiva basata sulle medie dei sei centri;
