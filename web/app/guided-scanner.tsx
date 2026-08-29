@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { COLOR_HEX, COLOR_LABELS, type CubeColor, type Face } from '../lib/cube';
+import { CANONICAL_FACE_COLOR, COLOR_HEX, COLOR_LABELS, type CubeColor, type Face } from '../lib/cube';
 import {
   classifyCalibratedColor,
   classifyGuidedCaptures,
@@ -14,12 +14,12 @@ import { createHandMotionTracker } from '../lib/hand-motion';
 import { faceletsToSolverString, type PartialFacelets } from '../lib/inspection-state';
 
 const SCAN_ORDER: Array<{ face: Face; color: CubeColor; title: string; orientation: string }> = [
-  { face: 'U', color: 'white', title: 'Faccia bianca', orientation: 'Centro bianco verso la camera · verde sul bordo in basso' },
-  { face: 'R', color: 'red', title: 'Faccia rossa', orientation: 'Centro rosso verso la camera · bianco sul bordo in alto' },
-  { face: 'F', color: 'green', title: 'Faccia verde', orientation: 'Centro verde verso la camera · bianco sul bordo in alto' },
-  { face: 'D', color: 'yellow', title: 'Faccia gialla', orientation: 'Centro giallo verso la camera · verde sul bordo in alto' },
-  { face: 'L', color: 'orange', title: 'Faccia arancione', orientation: 'Centro arancione verso la camera · bianco sul bordo in alto' },
-  { face: 'B', color: 'blue', title: 'Faccia blu', orientation: 'Centro blu verso la camera · bianco sul bordo in alto' },
+  { face: 'U', color: CANONICAL_FACE_COLOR.U, title: 'Faccia bianca', orientation: 'Centro bianco verso la camera · verde sul bordo in basso' },
+  { face: 'R', color: CANONICAL_FACE_COLOR.R, title: 'Faccia rossa', orientation: 'Centro rosso verso la camera · bianco sul bordo in alto' },
+  { face: 'F', color: CANONICAL_FACE_COLOR.F, title: 'Faccia verde', orientation: 'Centro verde verso la camera · bianco sul bordo in alto' },
+  { face: 'D', color: CANONICAL_FACE_COLOR.D, title: 'Faccia gialla', orientation: 'Centro giallo verso la camera · verde sul bordo in alto' },
+  { face: 'L', color: CANONICAL_FACE_COLOR.L, title: 'Faccia arancione', orientation: 'Centro arancione verso la camera · bianco sul bordo in alto' },
+  { face: 'B', color: CANONICAL_FACE_COLOR.B, title: 'Faccia blu', orientation: 'Centro blu verso la camera · bianco sul bordo in alto' },
 ];
 
 type FrameReading = {

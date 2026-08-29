@@ -32,6 +32,7 @@ button {
   cursor: pointer;
 }
 
+/* Conservato intenzionalmente per il replay virtuale già previsto. */
 .replay-button {
   display: inline-grid;
   width: 38px;

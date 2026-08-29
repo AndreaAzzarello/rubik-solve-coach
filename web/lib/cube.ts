@@ -3,6 +3,28 @@ export type Face = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
 export type Phase = 'cross' | 'f2l' | 'oll' | 'pll' | 'complete';
 type Vector = readonly [number, number, number];
 
+export const CUBE_FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
+export const CUBE_COLORS: CubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
+
+/** Convenzione unica dell’app: bianco sopra e verde davanti. */
+export const CANONICAL_FACE_COLOR: Record<Face, CubeColor> = {
+  U: 'white',
+  R: 'red',
+  F: 'green',
+  D: 'yellow',
+  L: 'orange',
+  B: 'blue',
+};
+
+export const CANONICAL_COLOR_FACE: Record<CubeColor, Face> = {
+  white: 'U',
+  red: 'R',
+  green: 'F',
+  yellow: 'D',
+  orange: 'L',
+  blue: 'B',
+};
+
 export type Move = {
   base: string;
   turns: -1 | 1 | 2;
@@ -71,15 +93,6 @@ const FACE_NORMALS: Record<Face, Vector> = {
   D: [0, -1, 0],
   L: [-1, 0, 0],
   B: [0, 0, -1],
-};
-
-const DEFAULT_COLORS: Record<Face, CubeColor> = {
-  U: 'white',
-  R: 'red',
-  F: 'green',
-  D: 'yellow',
-  L: 'orange',
-  B: 'blue',
 };
 
 const MOVE_SPECS: Record<string, MoveSpec> = {
@@ -176,11 +189,11 @@ export class CubeState {
 
   static solved(): CubeState {
     const stickers: Sticker[] = [];
-    (Object.keys(FACE_NORMALS) as Face[]).forEach((face) => {
+    CUBE_FACES.forEach((face) => {
       const normal = FACE_NORMALS[face];
       for (let row = 0; row < 3; row += 1) {
         for (let column = 0; column < 3; column += 1) {
-          stickers.push({ position: faceletPosition(face, row, column), normal, color: DEFAULT_COLORS[face] });
+          stickers.push({ position: faceletPosition(face, row, column), normal, color: CANONICAL_FACE_COLOR[face] });
         }
       }
     });
@@ -189,7 +202,7 @@ export class CubeState {
 
   static fromFacelets(facelets: Record<Face, CubeColor[]>): CubeState {
     const stickers: Sticker[] = [];
-    (Object.keys(FACE_NORMALS) as Face[]).forEach((face) => {
+    CUBE_FACES.forEach((face) => {
       if (facelets[face]?.length !== 9) throw new Error(`Faccia ${face} incompleta`);
       const normal = FACE_NORMALS[face];
       facelets[face].forEach((color, index) => {
@@ -243,16 +256,13 @@ export class CubeState {
 
   faceletRecord(): Record<Face, CubeColor[]> {
     return Object.fromEntries(
-      (Object.keys(FACE_NORMALS) as Face[]).map((face) => [face, this.facelets(face)]),
+      CUBE_FACES.map((face) => [face, this.facelets(face)]),
     ) as Record<Face, CubeColor[]>;
   }
 
   faceletString(): string {
-    const colorFace = Object.fromEntries(
-      Object.entries(DEFAULT_COLORS).map(([face, color]) => [color, face]),
-    ) as Record<CubeColor, Face>;
-    return (Object.keys(FACE_NORMALS) as Face[])
-      .flatMap((face) => this.facelets(face).map((color) => colorFace[color]))
+    return CUBE_FACES
+      .flatMap((face) => this.facelets(face).map((color) => CANONICAL_COLOR_FACE[color]))
       .join('');
   }
 

@@ -1,5 +1,13 @@
-import type { CubeColor, Face } from './cube';
+import {
+  CANONICAL_COLOR_FACE,
+  CANONICAL_FACE_COLOR,
+  CUBE_FACES,
+  type CubeColor,
+  type Face,
+} from './cube.ts';
 import type { RgbSample } from './color-calibration.ts';
+
+export { CANONICAL_COLOR_FACE, CANONICAL_FACE_COLOR } from './cube.ts';
 
 type GridSide = 'top' | 'right' | 'bottom' | 'left';
 type Vector = readonly [number, number, number];
@@ -99,27 +107,9 @@ type ObservationGeometry = {
   downY: number;
 };
 
-const FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
+const FACES = CUBE_FACES;
 const GRID_SIDES: GridSide[] = ['top', 'right', 'bottom', 'left'];
 const ORIENTATION_LOCK_CONFIDENCE = 58;
-
-export const CANONICAL_FACE_COLOR: Record<Face, CubeColor> = {
-  U: 'white',
-  R: 'red',
-  F: 'green',
-  D: 'yellow',
-  L: 'orange',
-  B: 'blue',
-};
-
-export const CANONICAL_COLOR_FACE: Record<CubeColor, Face> = {
-  white: 'U',
-  red: 'R',
-  green: 'F',
-  yellow: 'D',
-  orange: 'L',
-  blue: 'B',
-};
 
 const CUBE_COLOR_VECTOR: Record<CubeColor, Vector> = {
   white: [0, 1, 0],

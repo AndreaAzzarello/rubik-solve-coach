@@ -2,7 +2,14 @@
 
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import GuidedScanner from './guided-scanner';
-import { COLOR_HEX, COLOR_LABELS, type CubeColor, type Face } from '../lib/cube';
+import {
+  CANONICAL_FACE_COLOR,
+  COLOR_HEX,
+  COLOR_LABELS,
+  CUBE_FACES,
+  type CubeColor,
+  type Face,
+} from '../lib/cube';
 import {
   lastInspectionFrameTime,
   decodeVideoMotion,
@@ -16,12 +23,9 @@ import {
 import { createScrambleFromInspection, type InspectionScramble } from '../lib/inspection-solver';
 import type { PartialFacelets } from '../lib/inspection-state';
 
-const FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
+const FACES = CUBE_FACES;
 const FACE_NAMES: Record<Face, string> = {
   U: 'Sopra', R: 'Destra', F: 'Fronte', D: 'Sotto', L: 'Sinistra', B: 'Retro',
-};
-const CENTER_COLORS: Record<Face, CubeColor> = {
-  U: 'white', R: 'red', F: 'green', D: 'yellow', L: 'orange', B: 'blue',
 };
 const NET_POSITION: Record<Face, string> = {
   U: 'col-start-2 row-start-1',
@@ -62,7 +66,7 @@ function formatFileSize(bytes: number) {
 function createBlankFacelets(): PartialFacelets {
   return Object.fromEntries(FACES.map((face) => {
     const colors = Array<CubeColor | null>(9).fill(null);
-    colors[4] = CENTER_COLORS[face];
+    colors[4] = CANONICAL_FACE_COLOR[face];
     return [face, colors];
   })) as PartialFacelets;
 }

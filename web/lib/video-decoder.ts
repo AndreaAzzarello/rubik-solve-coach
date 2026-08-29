@@ -13,6 +13,7 @@ import {
   classifyCalibratedColor,
   type RgbSample,
 } from './color-calibration.ts';
+import { CUBE_COLORS, type CubeColor } from './cube.ts';
 
 export type MotionSample = {
   time: number;
@@ -62,7 +63,7 @@ export type MotionEvent = {
   supportingRuns?: number;
 };
 
-export type ObservedCubeColor = 'white' | 'red' | 'green' | 'yellow' | 'orange' | 'blue';
+export type ObservedCubeColor = CubeColor;
 export type ObservedColorCoverage = Record<ObservedCubeColor, number>;
 
 export type CubeObservationSummary = {
@@ -171,7 +172,7 @@ type DifferenceMeasurement = {
   changeCentroidY: number;
 };
 
-const OBSERVED_COLORS: ObservedCubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
+const OBSERVED_COLORS = CUBE_COLORS;
 const OPPOSITE_COLOR: Record<ObservedCubeColor, ObservedCubeColor> = {
   white: 'yellow',
   yellow: 'white',

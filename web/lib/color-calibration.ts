@@ -1,4 +1,10 @@
-import type { CubeColor, Face } from './cube.ts';
+import {
+  CANONICAL_FACE_COLOR,
+  CUBE_COLORS,
+  CUBE_FACES,
+  type CubeColor,
+  type Face,
+} from './cube.ts';
 
 export type RgbSample = {
   red: number;
@@ -22,11 +28,8 @@ export type GuidedFaceCapture = {
   capturedAt: number;
 };
 
-const COLORS: CubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
-const FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
-const CENTER_COLOR: Record<Face, CubeColor> = {
-  U: 'white', R: 'red', F: 'green', D: 'yellow', L: 'orange', B: 'blue',
-};
+const COLORS = CUBE_COLORS;
+const FACES = CUBE_FACES;
 
 const FALLBACK_REFERENCE: Record<CubeColor, RgbSample> = {
   white: { red: 232, green: 235, blue: 238 },
@@ -164,7 +167,7 @@ export function classifyGuidedCaptures(captures: GuidedFaceCapture[]) {
   const facelets = Object.fromEntries(FACES.map((face) => [face, Array<CubeColor | null>(9).fill(null)])) as Record<Face, Array<CubeColor | null>>;
   const confidences = Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(0)])) as Record<Face, number[]>;
   FACES.forEach((face) => {
-    facelets[face][4] = CENTER_COLOR[face];
+    facelets[face][4] = CANONICAL_FACE_COLOR[face];
     confidences[face][4] = 1;
   });
   captures.forEach((capture) => {
