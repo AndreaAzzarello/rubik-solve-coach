@@ -8,6 +8,11 @@ import {
   type InspectionReconstruction,
   reconstructInspectionState,
 } from './inspection-state.ts';
+import {
+  buildColorCalibration,
+  classifyCalibratedColor,
+  type RgbSample,
+} from './color-calibration.ts';
 
 export type MotionSample = {
   time: number;
@@ -183,6 +188,7 @@ type StickerComponent = {
   y: number;
   width: number;
   height: number;
+  rawColor?: RgbSample;
 };
 
 function emptyColorCoverage(): ObservedColorCoverage {
@@ -222,7 +228,7 @@ const median = (values: number[]) => {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 };
 
-function stickerComponents(labels: Int8Array, width: number, height: number) {
+function stickerComponents(labels: Int8Array, width: number, height: number, pixels?: Uint8ClampedArray) {
   const visited = new Uint8Array(labels.length);
   const queue = new Int32Array(labels.length);
   const components: StickerComponent[] = [];
@@ -240,6 +246,9 @@ function stickerComponents(labels: Int8Array, width: number, height: number) {
     let maximumX = 0;
     let minimumY = height;
     let maximumY = 0;
+    let redTotal = 0;
+    let greenTotal = 0;
+    let blueTotal = 0;
     while (head < tail) {
       const index = queue[head++];
       const x = index % width;
@@ -251,6 +260,11 @@ function stickerComponents(labels: Int8Array, width: number, height: number) {
       maximumX = Math.max(maximumX, x);
       minimumY = Math.min(minimumY, y);
       maximumY = Math.max(maximumY, y);
+      if (pixels) {
+        redTotal += pixels[index * 4];
+        greenTotal += pixels[index * 4 + 1];
+        blueTotal += pixels[index * 4 + 2];
+      }
       const neighbors = [index - 1, index + 1, index - width, index + width];
       neighbors.forEach((neighbor, direction) => {
         if (neighbor < 0 || neighbor >= labels.length || visited[neighbor] || labels[neighbor] !== label) return;
@@ -280,15 +294,20 @@ function stickerComponents(labels: Int8Array, width: number, height: number) {
         y: sumY / area,
         width: componentWidth,
         height: componentHeight,
+        rawColor: pixels ? {
+          red: redTotal / area,
+          green: greenTotal / area,
+          blue: blueTotal / area,
+        } : undefined,
       });
     }
   }
   return components;
 }
 
-export function detectFaceGrids(labels: Int8Array, width: number, height: number) {
+export function detectFaceGrids(labels: Int8Array, width: number, height: number, pixels?: Uint8ClampedArray) {
   const minimumStickerArea = Math.max(6, width * height * 0.00012);
-  const components = stickerComponents(labels, width, height)
+  const components = stickerComponents(labels, width, height, pixels)
     .filter((component) => component.area >= minimumStickerArea)
     .sort((left, right) => right.area - left.area)
     .slice(0, 72);
@@ -343,6 +362,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.3);
       const used = new Set<StickerComponent>();
       const colors = Array<ObservedCubeColor | null>(9).fill(null);
+      const rawColors = Array<RgbSample | null>(9).fill(null);
       const cellConfidences = Array<number>(9).fill(0);
       let visibleCells = 0;
       let residual = 0;
@@ -364,6 +384,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
             used.add(best);
             const cellIndex = (row + 1) * 3 + column + 1;
             colors[cellIndex] = best.color;
+            rawColors[cellIndex] = best.rawColor ?? null;
             const geometryConfidence = Math.max(0, 1 - bestDistance / tolerance);
             const areaRatio = best.area / Math.max(1, center.area);
             const areaConfidence = Math.max(0, 1 - Math.min(1, Math.abs(Math.log(Math.max(0.08, areaRatio))) / 1.7));
@@ -379,6 +400,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       candidates.push({
         centerColor: center.color,
         colors,
+        rawColors,
         cellConfidences,
         visibleCells,
         confidence: Math.round(Math.min(94, Math.max(42, score * 100))),
@@ -410,6 +432,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
     .map((candidate) => ({
       centerColor: candidate.centerColor,
       colors: candidate.colors,
+      rawColors: candidate.rawColors,
       cellConfidences: candidate.cellConfidences,
       visibleCells: candidate.visibleCells,
       confidence: candidate.confidence,
@@ -530,7 +553,7 @@ function frameSignature(
     0,
     laplacianSquaredTotal / Math.max(1, laplacianPixels) - laplacianMean * laplacianMean,
   ));
-  const faceGrids = includeFaceGrids ? detectFaceGrids(pixelLabels, width, height) : [];
+  const faceGrids = includeFaceGrids ? detectFaceGrids(pixelLabels, width, height, data) : [];
   return {
     luma,
     chromaBlue,
@@ -1324,7 +1347,35 @@ export function summarizeCubeObservation(
   // essere l'unico momento in cui compare una faccia. La nitidezza resta una
   // misura diagnostica, mentre consenso temporale e geometria pesano le celle.
   const useful = gridFrames.length ? gridFrames : selected;
-  const allObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
+  const originalObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
+  const calibration = buildColorCalibration(originalObservations.flatMap((observation) => {
+    const center = observation.rawColors?.[4];
+    return center ? [{
+      color: observation.centerColor,
+      sample: center,
+      weight: observation.confidence / 100,
+    }] : [];
+  }));
+  const calibratedCenters = Object.keys(calibration).length;
+  const allObservations = calibratedCenters >= 3
+    ? originalObservations.map((observation) => {
+      if (!observation.rawColors) return observation;
+      const colors = observation.colors.map((color, index) => {
+        if (index === 4) return observation.centerColor;
+        const raw = observation.rawColors?.[index];
+        if (!raw) return color;
+        const classified = classifyCalibratedColor(raw, calibration);
+        return classified.confidence >= 0.22 ? classified.color : color;
+      });
+      const cellConfidences = observation.cellConfidences?.map((confidence, index) => {
+        const raw = observation.rawColors?.[index];
+        if (!raw || index === 4) return confidence;
+        const classified = classifyCalibratedColor(raw, calibration);
+        return Math.round(Math.min(96, Math.max(28, confidence * 0.58 + classified.confidence * 42)));
+      });
+      return { ...observation, colors, cellConfidences };
+    })
+    : originalObservations;
   const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
   const reconstruction = reconstructInspectionState(allObservations);
   const keyframes = selectInspectionKeyframes(selected);

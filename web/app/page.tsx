@@ -1,6 +1,7 @@
 'use client';
 
-import { ChangeEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import GuidedScanner from './guided-scanner';
 import { COLOR_HEX, COLOR_LABELS, type CubeColor, type Face } from '../lib/cube';
 import {
   lastInspectionFrameTime,
@@ -33,6 +34,13 @@ const NET_POSITION: Record<Face, string> = {
 
 type ScanStatus = 'idle' | 'running' | 'result' | 'failed';
 type SolverStatus = 'idle' | 'solving' | 'ready' | 'failed';
+type InputMode = 'video' | 'guided';
+type GuidedResult = {
+  capturedFaces: number;
+  complete: boolean;
+  solverString: string | null;
+  message: string;
+};
 
 function formatDuration(seconds: number) {
   if (!Number.isFinite(seconds)) return '0:00';
@@ -99,6 +107,7 @@ function CubeNetEditor({
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const analysisGeneration = useRef(0);
+  const [inputMode, setInputMode] = useState<InputMode>('video');
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoMeta, setVideoMeta] = useState({ duration: 0, width: 0, height: 0 });
@@ -114,6 +123,13 @@ export default function Home() {
   const [activeInterval, setActiveInterval] = useState<{ start: number; end: number } | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedFacelets, setCopiedFacelets] = useState(false);
+  const [guidedResult, setGuidedResult] = useState<GuidedResult>({
+    capturedFaces: 0,
+    complete: false,
+    solverString: null,
+    message: '',
+  });
 
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -148,15 +164,15 @@ export default function Home() {
     chooseVideo(event.target.files?.[0] ?? null);
   }
 
-  async function calculateScramble(reconstruction: CubeObservationSummary, generation: number) {
-    if (!reconstruction.reconstruction.completeFacelets) {
+  const calculateScrambleFromFacelets = useCallback(async (facelets: Record<Face, CubeColor[]> | null, generation: number) => {
+    if (!facelets) {
       setSolverStatus('idle');
       setScramble(null);
       return;
     }
     setSolverStatus('solving');
     try {
-      const result = await createScrambleFromInspection(reconstruction.reconstruction.completeFacelets);
+      const result = await createScrambleFromInspection(facelets);
       if (generation !== analysisGeneration.current) return;
       if (!result.verified) throw new Error('Lo scramble non riproduce tutte le caselle osservate.');
       setScramble(result);
@@ -167,7 +183,7 @@ export default function Home() {
       setSolverStatus('failed');
       setError(caught instanceof Error ? caught.message : 'Impossibile verificare lo scramble.');
     }
-  }
+  }, []);
 
   async function analyzeInspection() {
     const video = videoRef.current;
@@ -274,7 +290,7 @@ export default function Home() {
       setProgress(1);
       setScanStatus('result');
       setAnalysisPhase('idle');
-      await calculateScramble(finalSummary, generation);
+      await calculateScrambleFromFacelets(finalSummary.reconstruction.completeFacelets, generation);
     } catch (caught) {
       if (generation !== analysisGeneration.current) return;
       setScanStatus('failed');
@@ -295,13 +311,71 @@ export default function Home() {
     }
   }
 
+  const handleGuidedUpdate = useCallback((update: {
+    facelets: PartialFacelets;
+    capturedFaces: number;
+    complete: boolean;
+    solverString: string | null;
+    message: string;
+  }) => {
+    setSummary(null);
+    setSamples([]);
+    setRunCount(0);
+    setActiveInterval(null);
+    setCubeDraft(copyFacelets(update.facelets));
+    setGuidedResult({
+      capturedFaces: update.capturedFaces,
+      complete: update.complete,
+      solverString: update.solverString,
+      message: update.message,
+    });
+    setScanStatus(update.capturedFaces ? 'result' : 'idle');
+    setError('');
+    setCopied(false);
+    setCopiedFacelets(false);
+    if (!update.complete) {
+      analysisGeneration.current += 1;
+      setSolverStatus('idle');
+      setScramble(null);
+      return;
+    }
+    const generation = ++analysisGeneration.current;
+    const completeFacelets = update.facelets as Record<Face, CubeColor[]>;
+    void calculateScrambleFromFacelets(completeFacelets, generation);
+  }, [calculateScrambleFromFacelets]);
+
+  const handleGuidedError = useCallback((message: string) => setError(message), []);
+
+  function changeInputMode(mode: InputMode) {
+    if (mode === inputMode) return;
+    analysisGeneration.current += 1;
+    videoRef.current?.pause();
+    setInputMode(mode);
+    setSummary(null);
+    setCubeDraft(createBlankFacelets());
+    setScramble(null);
+    setSolverStatus('idle');
+    setScanStatus('idle');
+    setError('');
+    setCopied(false);
+    setCopiedFacelets(false);
+    setGuidedResult({ capturedFaces: 0, complete: false, solverString: null, message: '' });
+  }
+
   const reconstruction = summary?.reconstruction ?? null;
   const draftKnownFacelets = Math.max(0, FACES.reduce((total, face) => total + cubeDraft[face].filter(Boolean).length, 0) - 6);
-  const statusLabel = reconstruction?.status === 'complete'
+  const resultAvailable = Boolean(reconstruction) || guidedResult.capturedFaces > 0;
+  const guidedInvalid = guidedResult.complete && solverStatus === 'failed';
+  const resultComplete = reconstruction?.status === 'complete' || (guidedResult.complete && !guidedInvalid);
+  const resultMessage = reconstruction?.message || guidedResult.message;
+  const resultConfidence = summary?.confidence ?? (guidedResult.capturedFaces ? Math.round(guidedResult.capturedFaces / 6 * 100) : null);
+  const statusLabel = guidedInvalid
+    ? 'Lettura incoerente'
+    : resultComplete
     ? 'Stato completo'
     : reconstruction?.status === 'invalid'
       ? 'Lettura incoerente'
-      : reconstruction
+      : resultAvailable
         ? 'Stato parziale'
         : 'In attesa';
   const analysisPhaseLabel = analysisPhase === 'motion'
@@ -337,13 +411,18 @@ export default function Home() {
             <h1 className="max-w-2xl text-4xl font-black leading-[0.98] tracking-[-0.055em] sm:text-6xl">Ricostruiamo prima la mischiata.</h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg">Durante l’ispezione ruota soltanto il cubo e mostra tutte le facce. L’app usa quei fotogrammi per ricostruire i pezzi e creare lo scramble con bianco sopra e verde davanti.</p>
 
-            <div className="mt-8 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.35)] sm:p-7">
+            <div className="mt-7 grid grid-cols-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm" role="tablist" aria-label="Metodo di acquisizione">
+              <button type="button" role="tab" aria-selected={inputMode === 'video'} onClick={() => changeInputMode('video')} className={`rounded-xl px-3 py-3 text-xs font-black transition ${inputMode === 'video' ? 'bg-slate-950 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Video automatico</button>
+              <button type="button" role="tab" aria-selected={inputMode === 'guided'} onClick={() => changeInputMode('guided')} className={`rounded-xl px-3 py-3 text-xs font-black transition ${inputMode === 'guided' ? 'bg-slate-950 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}>Fotocamera guidata</button>
+            </div>
+
+            <div className="mt-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.35)] sm:p-7">
               <div className="flex items-center justify-between gap-4">
-                <div><p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-600">Video dell’ispezione</p><h2 className="mt-1 text-sm font-extrabold">Mostra lo stato prima di iniziare la solve</h2></div>
+                <div><p className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-600">{inputMode === 'video' ? 'Video dell’ispezione' : 'Scansione delle sei facce'}</p><h2 className="mt-1 text-sm font-extrabold">{inputMode === 'video' ? 'Mostra lo stato prima di iniziare la solve' : 'Acquisizione calibrata centro per centro'}</h2></div>
                 <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700">Locale</span>
               </div>
 
-              {videoUrl ? (
+              {inputMode === 'video' ? <>{videoUrl ? (
                 <>
                   <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-950">
                     <video
@@ -382,32 +461,44 @@ export default function Home() {
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-blue-100"><div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${progress * 100}%` }} /></div>
                   <p className="mt-2 text-[11px] leading-4 text-blue-800">I fotogrammi vengono elaborati senza essere mostrati né conservati. Alla fine resta soltanto lo schema colore ricostruito.</p>
                 </div>
-              ) : null}
+              ) : null}</> : (
+                <GuidedScanner onUpdate={handleGuidedUpdate} onError={handleGuidedError} />
+              )}
               {error ? <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
             </div>
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white/80 p-4">
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Per una lettura migliore</p>
-              <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600"><li><strong className="text-slate-900">1.</strong> Parti dal cubo già mischiato.</li><li><strong className="text-slate-900">2.</strong> Ruotalo lentamente senza girare singole facce.</li><li><strong className="text-slate-900">3.</strong> Lascia ogni lato visibile e fermo per circa mezzo secondo.</li></ol>
+              {inputMode === 'video' ? (
+                <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600"><li><strong className="text-slate-900">1.</strong> Parti dal cubo già mischiato.</li><li><strong className="text-slate-900">2.</strong> Ruotalo lentamente senza girare singole facce.</li><li><strong className="text-slate-900">3.</strong> Lascia ogni lato visibile e fermo per circa mezzo secondo.</li></ol>
+              ) : (
+                <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600"><li><strong className="text-slate-900">1.</strong> Segui esattamente l’orientamento indicato per ogni faccia.</li><li><strong className="text-slate-900">2.</strong> Fai coincidere i nove quadratini con la griglia.</li><li><strong className="text-slate-900">3.</strong> Tieni fermo il cubo: lo scatto parte automaticamente.</li></ol>
+              )}
             </div>
           </section>
 
           <section className="overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950 text-white shadow-[0_35px_90px_-38px_rgba(15,23,42,0.8)] lg:sticky lg:top-6">
             <div className="border-b border-white/10 bg-[radial-gradient(circle_at_70%_0%,#29458d_0%,#10172d_38%,#080c18_76%)] p-6 sm:p-8">
-              <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">Stato iniziale</p><h2 className="mt-2 text-2xl font-black tracking-tight">{statusLabel}</h2></div>{summary ? <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-black">{summary.confidence}%</span> : null}</div>
-              {!summary ? (
+              <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">Stato iniziale</p><h2 className="mt-2 text-2xl font-black tracking-tight">{statusLabel}</h2></div>{resultConfidence !== null ? <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-black">{resultConfidence}%</span> : null}</div>
+              {!resultAvailable ? (
                 <div className="grid min-h-48 place-items-center text-center"><div className="max-w-sm"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-2xl text-blue-300">◫</div><p className="mt-5 text-sm leading-6 text-slate-400">Qui compariranno soltanto i colori ricostruiti e lo scramble. Il riconoscimento delle mosse e delle fasi è sospeso.</p></div></div>
               ) : (
-                <><p className="mt-3 text-sm leading-6 text-slate-400">{reconstruction?.message}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Fotogrammi analizzati: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · arresto prima della prima mossa · immagini eliminate</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{draftKnownFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedCorners}/8</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction?.resolvedEdges}/12</p></div></div></>
+                <><p className="mt-3 text-sm leading-6 text-slate-400">{resultMessage}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Fotogrammi analizzati: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · arresto prima della prima mossa · immagini eliminate</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length ?? guidedResult.capturedFaces}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{draftKnownFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction ? `${reconstruction.resolvedCorners}/8` : scramble?.verified ? '8/8' : '—'}</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction ? `${reconstruction.resolvedEdges}/12` : scramble?.verified ? '12/12' : '—'}</p></div></div></>
               )}
             </div>
             <div className="bg-slate-100 p-4 text-slate-950 sm:p-6">
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3><p className="mt-1 max-w-md text-[10px] leading-4 text-slate-500">Risultato della fusione automatica dei fotogrammi precedenti alla prima vera mossa del cubo.</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3><p className="mt-1 max-w-md text-[10px] leading-4 text-slate-500">{inputMode === 'guided' ? 'Le facce vengono riclassificate dopo ogni nuovo centro; alla sesta acquisizione sono disponibili tutti i profili colore della sessione.' : 'Risultato della fusione automatica dei fotogrammi precedenti alla prima vera mossa del cubo.'}</p></div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{draftKnownFacelets}/48 caselle</span>
                 </div>
                 <div className="mt-4"><CubeNetEditor facelets={cubeDraft} /></div>
+                {guidedResult.solverString && scramble?.verified ? (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3"><p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">Stringa Singmaster · URFDLB</p><button type="button" onClick={() => { void navigator.clipboard.writeText(guidedResult.solverString ?? '').then(() => { setCopiedFacelets(true); window.setTimeout(() => setCopiedFacelets(false), 1800); }); }} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-black uppercase text-slate-600">{copiedFacelets ? 'Copiata ✓' : 'Copia'}</button></div>
+                    <p className="mt-2 break-all font-mono text-[10px] font-bold leading-5 text-slate-700">{guidedResult.solverString}</p>
+                  </div>
+                ) : null}
               </div>
             </div>
             <div className="border-t border-white/10 p-6 sm:p-8">
@@ -420,8 +511,8 @@ export default function Home() {
                   <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-slate-400"><span className="rounded-full bg-white/5 px-2.5 py-1.5">{scramble.moveCount} mosse HTM</span><span className="rounded-full bg-white/5 px-2.5 py-1.5">{scramble.candidatesTested} soluzioni verificate</span><span className="rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-emerald-300">54/54 caselle confrontate</span></div>
                   <p className="mt-4 text-[11px] leading-5 text-slate-500">Lo scramble è stato rieseguito virtualmente e riproduce esattamente lo stato letto. È il più breve trovato dalla ricerca multipla; la minimalità matematica assoluta richiederebbe una ricerca ottimale molto più pesante.</p>
                 </div>
-              ) : summary ? (
-                <div className={`rounded-2xl border p-5 ${reconstruction?.status === 'invalid' ? 'border-red-300/20 bg-red-300/5' : 'border-amber-300/20 bg-amber-300/5'}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${reconstruction?.status === 'invalid' ? 'text-red-300' : 'text-amber-300'}`}>Nessuno scramble ancora</p><p className="mt-2 text-sm leading-6 text-slate-300">Non mostro una sequenza stimata: prima deve esistere un unico stato fisicamente valido. Cerca di mostrare le facce “Manca” e completare quelle “Parziale”, poi usa “Rianalizza e confronta”.</p></div>
+              ) : resultAvailable ? (
+                <div className={`rounded-2xl border p-5 ${reconstruction?.status === 'invalid' || guidedInvalid ? 'border-red-300/20 bg-red-300/5' : 'border-amber-300/20 bg-amber-300/5'}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${reconstruction?.status === 'invalid' || guidedInvalid ? 'text-red-300' : 'text-amber-300'}`}>Nessuno scramble ancora</p><p className="mt-2 text-sm leading-6 text-slate-300">{guidedInvalid ? 'Le 54 caselle non formano ancora uno stato fisicamente possibile. Ricomincia la scansione seguendo con precisione l’orientamento indicato per ogni faccia.' : inputMode === 'guided' ? 'Completa le sei facce: dopo l’ultimo centro riclassifico tutte le caselle e verifico angoli, spigoli, orientamenti e parità.' : 'Non mostro una sequenza stimata: prima deve esistere un unico stato fisicamente valido. Cerca di mostrare le facce “Manca” e completare quelle “Parziale”, poi usa “Rianalizza e confronta”.'}</p></div>
               ) : <p className="text-center text-sm leading-6 text-slate-500">Lo scramble apparirà qui soltanto dopo una ricostruzione completa.</p>}
             </div>
           </section>

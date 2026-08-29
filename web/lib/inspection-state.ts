@@ -1,4 +1,5 @@
 import type { CubeColor, Face } from './cube';
+import type { RgbSample } from './color-calibration.ts';
 
 type GridSide = 'top' | 'right' | 'bottom' | 'left';
 type Vector = readonly [number, number, number];
@@ -26,6 +27,8 @@ export type FaceGridObservation = {
   sourceFrames?: number;
   cellSupport?: number[];
   syntheticFusion?: boolean;
+  /** Campioni RGB grezzi usati per ricalibrare i colori sui sei centri del video. */
+  rawColors?: Array<RgbSample | null>;
 };
 
 export type CubeOrientation = {
