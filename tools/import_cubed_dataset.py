@@ -16,7 +16,6 @@ from typing import Any
 
 import cv2
 import numpy as np
-from huggingface_hub import snapshot_download
 
 
 REPO_ID = "cubed-core/cubed-data-v1"
@@ -33,6 +32,11 @@ def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
 
 
 def download(root: Path, full: bool) -> None:
+    # Importato qui, e non a livello di modulo, cosi le altre funzioni di
+    # questo file (usate anche dai test) non richiedono huggingface_hub, che
+    # e' elencato solo in requirements-ml.txt e serve solo per il download.
+    from huggingface_hub import snapshot_download
+
     patterns = None if full else METADATA_PATTERNS
     snapshot_download(
         REPO_ID,

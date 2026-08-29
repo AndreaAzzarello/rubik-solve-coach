@@ -349,14 +349,14 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
           const targetY = center.y + right.dy * column + down.dy * row;
           let best: StickerComponent | null = null;
           let bestDistance = tolerance;
-          local.forEach((component) => {
-            if (used.has(component)) return;
+          for (const component of local) {
+            if (used.has(component)) continue;
             const distance = Math.hypot(component.x - targetX, component.y - targetY);
             if (distance < bestDistance) {
               best = component;
               bestDistance = distance;
             }
-          });
+          }
           if (best) {
             used.add(best);
             const cellIndex = (row + 1) * 3 + column + 1;

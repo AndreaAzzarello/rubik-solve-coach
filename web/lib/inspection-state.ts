@@ -241,8 +241,14 @@ function rotateSide(side: GridSide, turns: number) {
 
 function observationGeometry(observation: FaceGridObservation): ObservationGeometry | null {
   const { imageX, imageY, rightX, rightY, downX, downY } = observation;
-  const values = [imageX, imageY, rightX, rightY, downX, downY];
-  if (values.some((value) => typeof value !== 'number' || !Number.isFinite(value))) return null;
+  if (
+    !Number.isFinite(imageX) || !Number.isFinite(imageY)
+    || !Number.isFinite(rightX) || !Number.isFinite(rightY)
+    || !Number.isFinite(downX) || !Number.isFinite(downY)
+    || imageX === undefined || imageY === undefined
+    || rightX === undefined || rightY === undefined
+    || downX === undefined || downY === undefined
+  ) return null;
   return { imageX, imageY, rightX, rightY, downX, downY };
 }
 

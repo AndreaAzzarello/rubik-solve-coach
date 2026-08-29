@@ -45,7 +45,7 @@ function partialObservation(face: Face, known: Partial<Record<number, CubeColor>
   const colors = Array<CubeColor | null>(9).fill(null);
   colors[4] = CANONICAL_FACE_COLOR[face];
   Object.entries(known).forEach(([index, color]) => {
-    colors[Number(index)] = color;
+    if (color !== undefined) colors[Number(index)] = color;
   });
   return {
     time: 20,

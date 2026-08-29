@@ -2,8 +2,11 @@ import { CubeState, invertMoves, movesToString, parseAlgorithm } from './cube.ts
 import { faceletsToSolverString } from './inspection-state.ts';
 import { validateCubeColorDistribution } from './color-calibration.ts';
 import type { CubeColor, Face } from './cube.ts';
+import type CubeSolver from 'cubejs';
 
-let solverInitialization: Promise<typeof import('cubejs')> | null = null;
+type CubeConstructor = typeof CubeSolver;
+
+let solverInitialization: Promise<CubeConstructor> | null = null;
 
 const SEARCH_SETUPS = [
   '',
@@ -15,14 +18,27 @@ const SEARCH_SETUPS = [
   'B', "B'", 'B2',
 ];
 
-function loadSolver() {
+// `cubejs` is a CommonJS module (`export = Cube`). Depending on the bundler's
+// interop, a dynamic `import()` can resolve either to the constructor itself
+// or to a namespace object wrapping it in `.default`. We check both shapes at
+// runtime instead of assuming one, so this keeps working regardless of how
+// the bundler normalizes the module.
+function normalizeCubeModule(module: unknown): CubeConstructor {
+  if (typeof module === 'function') return module as CubeConstructor;
+  const withDefault = module as { default?: CubeConstructor };
+  if (typeof withDefault.default === 'function') return withDefault.default;
+  throw new Error('Impossibile caricare il modulo cubejs: formato inatteso.');
+}
+
+function loadSolver(): Promise<CubeConstructor> {
   if (!solverInitialization) {
     solverInitialization = import('cubejs').then(async (module) => {
       // Yield once before the pruning tables are built so the interface can
       // paint the "ricostruzione" state instead of appearing frozen.
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      module.default.initSolver();
-      return module;
+      const Cube = normalizeCubeModule(module);
+      Cube.initSolver();
+      return Cube;
     });
   }
   return solverInitialization;
@@ -67,7 +83,7 @@ export async function createScrambleFromInspection(
   if (solverString === solvedString) return {
     solution: '', scramble: '', moveCount: 0, candidatesTested: 1, verified: true,
   };
-  const Cube = (await loadSolver()).default;
+  const Cube = await loadSolver();
   const candidates = new Map<string, ReturnType<typeof parseAlgorithm>>();
 
   for (let index = 0; index < SEARCH_SETUPS.length; index += 1) {

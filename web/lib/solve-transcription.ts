@@ -89,15 +89,15 @@ export function mergeMotionEventRuns(runs: MotionEvent[][]): TranscribedMove[] {
   observations.forEach((observation) => {
     let best: Observation[] | null = null;
     let bestDistance = 0.24;
-    clusters.forEach((cluster) => {
-      if (cluster.some((candidate) => candidate.run === observation.run)) return;
+    for (const cluster of clusters) {
+      if (cluster.some((candidate) => candidate.run === observation.run)) continue;
       const center = cluster.reduce((total, candidate) => total + candidate.time, 0) / cluster.length;
       const distance = Math.abs(center - observation.time);
       if (distance <= bestDistance) {
         best = cluster;
         bestDistance = distance;
       }
-    });
+    }
     if (best) best.push(observation);
     else clusters.push([observation]);
   });
