@@ -1418,6 +1418,15 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       alignment.colors.forEach((color, index) => {
         if (!color || index === 4) return;
         if ((alignment.confidences[index] || stableRaw.confidence) < minimumCellConfidence) return;
+        const existing = displayFacelets[face][index];
+        if (existing === color) return;
+        // Ogni faccia viene sovrascritta in modo indipendente con la sua
+        // lettura grezza più sicura: senza questo controllo, letture sbagliate
+        // ma sicure su facce diverse (es. riflessi che confondono un colore)
+        // potrebbero sommarsi superando le 9 caselle fisicamente possibili.
+        const counts = colorCounts(displayFacelets);
+        if (existing) counts[existing] -= 1;
+        if (counts[color] >= 9) return;
         displayFacelets[face][index] = color;
       });
     });
