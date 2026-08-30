@@ -15,6 +15,7 @@ import {
   inferPllAndCrossColor,
   inferVideoSegmentation,
   lastInspectionFrameTime,
+  mapGridGeometryToVideoSpace,
   scanInspectionFrames,
   summarizeCubeObservation,
   type CubeObservationSummary,
@@ -22,7 +23,7 @@ import {
   type MotionSample,
 } from '../../lib/video-decoder';
 import { createScrambleFromInspection, type InspectionScramble } from '../../lib/inspection-solver';
-import { faceletsToSolverString, type PartialFacelets } from '../../lib/inspection-state';
+import { faceletsToSolverString, type InspectionReconstruction, type PartialFacelets } from '../../lib/inspection-state';
 import {
   buildSolveTranscript,
   formatTranscript,
@@ -228,6 +229,9 @@ export default function VideoScannerPage() {
   const [messageTone, setMessageTone] = useState<'info' | 'success' | 'error'>('info');
   const [copied, setCopied] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [frameSnapshots, setFrameSnapshots] = useState<Partial<Record<Face, string>>>({});
+  const [snapshotLoading, setSnapshotLoading] = useState<Face | null>(null);
+  const snapshotCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -431,6 +435,91 @@ export default function VideoScannerPage() {
     }
   }
 
+  async function captureFrameReference(face: Face, reference: NonNullable<InspectionReconstruction['faceReference'][Face]>) {
+    const video = videoRef.current;
+    const canvas = snapshotCanvasRef.current;
+    if (!video || !canvas || !video.duration) return;
+    setSnapshotLoading(face);
+    const originalTime = video.currentTime;
+    const wasPaused = video.paused;
+    if (!wasPaused) video.pause();
+    try {
+      await new Promise<void>((resolve) => {
+        const handleSeeked = () => { video.removeEventListener('seeked', handleSeeked); resolve(); };
+        video.addEventListener('seeked', handleSeeked);
+        video.currentTime = Math.min(video.duration - 0.01, Math.max(0, reference.time));
+      });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const geometry = mapGridGeometryToVideoSpace(reference, video);
+      if (geometry) {
+        const cellCorners = (row: number, column: number) => {
+          const cellCenterX = geometry.x + geometry.rightX * column + geometry.downX * row;
+          const cellCenterY = geometry.y + geometry.rightY * column + geometry.downY * row;
+          return [-0.5, 0.5].flatMap((dy) => [-0.5, 0.5].map((dx): [number, number] => [
+            cellCenterX + geometry.rightX * dx + geometry.downX * dy,
+            cellCenterY + geometry.rightY * dx + geometry.downY * dy,
+          ]));
+        };
+        const drawGridPath = () => {
+          context.beginPath();
+          for (let row = -1; row <= 1; row += 1) {
+            for (let column = -1; column <= 1; column += 1) {
+              const corners = cellCorners(row, column);
+              [[0, 1], [1, 3], [3, 2], [2, 0]].forEach(([a, b]) => {
+                context.moveTo(corners[a][0], corners[a][1]);
+                context.lineTo(corners[b][0], corners[b][1]);
+              });
+            }
+          }
+        };
+        // Contorno scuro sotto e uno chiaro sopra, spessi, così restano
+        // visibili sopra qualunque colore di sfondo anche in miniatura.
+        context.lineJoin = 'round';
+        context.strokeStyle = 'rgba(0,0,0,0.85)';
+        context.lineWidth = Math.max(6, canvas.width * 0.014);
+        drawGridPath();
+        context.stroke();
+        context.strokeStyle = '#22d3ee';
+        context.lineWidth = Math.max(3, canvas.width * 0.007);
+        drawGridPath();
+        context.stroke();
+        // Riempimento semi-trasparente sulla cella centrale: è quella il cui
+        // colore diventa il "centro" salvato per questa faccia.
+        const centerCorners = cellCorners(0, 0);
+        context.beginPath();
+        context.moveTo(centerCorners[0][0], centerCorners[0][1]);
+        [centerCorners[1], centerCorners[3], centerCorners[2]].forEach(([x, y]) => context.lineTo(x, y));
+        context.closePath();
+        context.fillStyle = 'rgba(250,204,21,0.38)';
+        context.fill();
+        context.strokeStyle = '#facc15';
+        context.lineWidth = Math.max(3, canvas.width * 0.007);
+        context.stroke();
+      } else {
+        context.fillStyle = 'rgba(0,0,0,0.55)';
+        context.fillRect(0, canvas.height * 0.44, canvas.width, canvas.height * 0.12);
+        context.fillStyle = '#f8fafc';
+        context.font = `${Math.round(canvas.width * 0.032)}px sans-serif`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText('Geometria della griglia non disponibile', canvas.width / 2, canvas.height * 0.5);
+      }
+      setFrameSnapshots((previous) => ({ ...previous, [face]: canvas.toDataURL('image/jpeg', 0.85) }));
+    } finally {
+      await new Promise<void>((resolve) => {
+        const handleSeeked = () => { video.removeEventListener('seeked', handleSeeked); resolve(); };
+        video.addEventListener('seeked', handleSeeked);
+        video.currentTime = originalTime;
+      });
+      if (!wasPaused) await video.play().catch(() => undefined);
+      setSnapshotLoading(null);
+    }
+  }
+
   function resetAll() {
     generationRef.current += 1;
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -537,6 +626,42 @@ export default function VideoScannerPage() {
           <section className="mt-3 rounded-[20px] border border-white/10 bg-slate-900/80 p-3.5">
             <div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-blue-400">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3></div><span className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-black text-slate-300">{knownCells}/48 caselle</span></div>
             <CubeNet facelets={facelets} />
+          </section>
+        )}
+
+        {reconstruction && Object.keys(reconstruction.faceReference).length > 0 && (
+          <section className="mt-3 rounded-[20px] border border-white/10 bg-slate-900/80 p-3.5">
+            <p className="text-[10px] font-black uppercase tracking-[.14em] text-blue-400">Fotogrammi scelti</p>
+            <h3 className="mt-1 text-sm font-black">Da dove viene ogni faccia</h3>
+            <p className="mt-1 text-[10px] leading-4 text-slate-500">Per ogni faccia, l&apos;istante del video la cui lettura è stata usata nella ricostruzione.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {FACES.filter((face) => reconstruction.faceReference[face]).map((face) => {
+                const reference = reconstruction.faceReference[face]!;
+                const snapshot = frameSnapshots[face];
+                return (
+                  <div key={face} className="rounded-xl border border-white/10 bg-slate-950/60 p-2">
+                    <div className="flex items-center gap-1.5">
+                      <i className="h-3 w-3 rounded-[3px] border border-white/20" style={{ backgroundColor: COLOR_HEX[CANONICAL_FACE_COLOR[face]] }} />
+                      <span className="text-[10px] font-black text-slate-200">{FACE_LABEL[face]}</span>
+                    </div>
+                    <p className="mt-1 text-[9px] text-slate-500">{formatTime(reference.time)} · {reference.sourceFrames > 1 ? `fuso da ${reference.sourceFrames} fotogrammi` : '1 fotogramma'}</p>
+                    {snapshot ? (
+                      <img src={snapshot} alt={`Fotogramma faccia ${FACE_LABEL[face]}`} className="mt-1.5 aspect-video w-full rounded-lg object-cover" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => captureFrameReference(face, reference)}
+                        disabled={snapshotLoading === face}
+                        className="mt-1.5 w-full rounded-lg border border-white/10 bg-white/5 py-1.5 text-[9px] font-black text-slate-300 disabled:opacity-50"
+                      >
+                        {snapshotLoading === face ? 'Carico…' : 'Vedi fotogramma'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <canvas ref={snapshotCanvasRef} className="hidden" />
           </section>
         )}
 

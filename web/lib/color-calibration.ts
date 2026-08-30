@@ -1,3 +1,4 @@
+import { diff as ciede2000Diff } from 'color-diff';
 import {
   CANONICAL_FACE_COLOR,
   CUBE_COLORS,
@@ -80,7 +81,7 @@ export function medianRgb(samples: RgbSample[]): RgbSample {
   };
 }
 
-function rgbToLab(sample: RgbSample) {
+export function rgbToLab(sample: RgbSample) {
   const linear = (value: number) => {
     const normalized = value / 255;
     return normalized <= 0.04045
@@ -232,24 +233,11 @@ export function buildColorCalibration(references: ColorReference[]): ColorCalibr
 
 function rankedCalibratedColors(sample: RgbSample, calibration: ColorCalibration) {
   const references = completedReferences(calibration);
-  const sourceLab = rgbToLab(sample);
-  const sourceHsv = rgbToHsv(sample);
+  const sourceColor = { R: sample.red, G: sample.green, B: sample.blue };
   return COLORS.map((color) => {
     const reference = references[color];
-    const targetLab = rgbToLab(reference);
-    const targetHsv = rgbToHsv(reference);
-    const labDistance = Math.hypot(
-      (sourceLab.lightness - targetLab.lightness) * 0.68,
-      sourceLab.a - targetLab.a,
-      sourceLab.b - targetLab.b,
-    );
-    const hueDelta = Math.min(
-      Math.abs(sourceHsv.hue - targetHsv.hue),
-      360 - Math.abs(sourceHsv.hue - targetHsv.hue),
-    );
-    const saturationPenalty = Math.abs(sourceHsv.saturation - targetHsv.saturation) * 18;
-    const huePenalty = Math.min(sourceHsv.saturation, targetHsv.saturation) * hueDelta * 0.1;
-    return { color, distance: labDistance + saturationPenalty + huePenalty };
+    const distance = ciede2000Diff(sourceColor, { R: reference.red, G: reference.green, B: reference.blue });
+    return { color, distance };
   }).sort((left, right) => left.distance - right.distance);
 }
 
@@ -257,8 +245,11 @@ export function classifyCalibratedColor(sample: RgbSample, calibration: ColorCal
   const ranked = rankedCalibratedColors(sample, calibration);
   const best = ranked[0];
   const second = ranked[1];
-  const margin = Math.max(0, (second?.distance ?? best.distance + 20) - best.distance);
-  const confidence = Math.max(0, Math.min(1, 0.28 + margin / 42 - Math.max(0, best.distance - 34) / 90));
+  const margin = Math.max(0, (second?.distance ?? best.distance + 8) - best.distance);
+  // Scala ricalibrata per il deltaE CIEDE2000 (tipicamente 0-30 tra colori
+  // ben distinti), molto più piccola della vecchia distanza LAB/HSV fatta in
+  // casa (tipicamente 0-140).
+  const confidence = Math.max(0, Math.min(1, 0.3 + margin / 11 - Math.max(0, best.distance - 9) / 24));
   return { color: best.color, confidence, distance: best.distance };
 }
 
@@ -280,14 +271,9 @@ export function createAdaptiveColorClassifier(
   return (sample: RgbSample) => {
     const hsv = rgbToHsv(sample);
     if (hsv.value < darkFloor) return null;
-    if (hsv.saturation <= whiteSaturation) {
-      if (hsv.value < whiteFloor) return null;
-      const whiteDistance = rankedCalibratedColors(sample, calibration)
-        .find((candidate) => candidate.color === 'white')?.distance ?? Number.POSITIVE_INFINITY;
-      return { color: 'white' as const, confidence: Math.max(0.24, 1 - whiteDistance / 115), distance: whiteDistance };
-    }
+    if (hsv.saturation <= whiteSaturation && hsv.value < whiteFloor) return null;
     const classified = classifyCalibratedColor(sample, calibration);
-    if (classified.distance > 132 && classified.confidence < 0.18) return null;
+    if (classified.distance > 22 && classified.confidence < 0.18) return null;
     return classified;
   };
 }

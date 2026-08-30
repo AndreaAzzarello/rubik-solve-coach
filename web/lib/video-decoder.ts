@@ -1315,9 +1315,8 @@ export function inferInspectionEnd(
   };
 }
 
-function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): MotionSample[] {
-  const portrait = video.videoHeight >= video.videoWidth;
-  const cropVariants = portrait
+export function inspectionCropVariants(portrait: boolean) {
+  return portrait
     ? [
       { x: 0.06, y: 0.06, width: 0.88, height: 0.72 },
       { x: 0.02, y: 0.02, width: 0.96, height: 0.88 },
@@ -1328,6 +1327,45 @@ function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number
       { x: 0.04, y: 0.04, width: 0.92, height: 0.92 },
       { x: 0, y: 0, width: 1, height: 1 },
     ];
+}
+
+// Le coordinate di una griglia (imageX/Y, rightX/Y, downX/Y) sono salvate nello
+// spazio del canvas di analisi (320 o 480px, dopo il ritaglio). Per
+// disegnarle sopra un fotogramma a piena risoluzione serve riportarle nello
+// spazio dell'intero video, usando il ritaglio indicato in frameId.
+export function mapGridGeometryToVideoSpace(
+  observation: Pick<FaceGridObservation, 'frameId' | 'imageX' | 'imageY' | 'rightX' | 'rightY' | 'downX' | 'downY'>,
+  video: { videoWidth: number; videoHeight: number },
+) {
+  const { imageX, imageY, rightX, rightY, downX, downY, frameId } = observation;
+  if (
+    imageX === undefined || imageY === undefined || rightX === undefined
+    || rightY === undefined || downX === undefined || downY === undefined
+  ) return null;
+  const cropIndex = Number(frameId?.split(':crop-')[1] ?? 0) || 0;
+  const portrait = video.videoHeight >= video.videoWidth;
+  const crop = inspectionCropVariants(portrait)[cropIndex] ?? inspectionCropVariants(portrait)[0];
+  const analysisWidth = portrait ? 320 : 480;
+  const analysisHeight = Math.round(
+    analysisWidth * (video.videoHeight * crop.height) / (video.videoWidth * crop.width),
+  );
+  const scaleX = (crop.width * video.videoWidth) / analysisWidth;
+  const scaleY = (crop.height * video.videoHeight) / analysisHeight;
+  const offsetX = crop.x * video.videoWidth;
+  const offsetY = crop.y * video.videoHeight;
+  return {
+    x: offsetX + imageX * scaleX,
+    y: offsetY + imageY * scaleY,
+    rightX: rightX * scaleX,
+    rightY: rightY * scaleY,
+    downX: downX * scaleX,
+    downY: downY * scaleY,
+  };
+}
+
+function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): MotionSample[] {
+  const portrait = video.videoHeight >= video.videoWidth;
+  const cropVariants = inspectionCropVariants(portrait);
 
   const captureId = time.toFixed(4);
   const readings = cropVariants.map((crop, cropIndex) => {

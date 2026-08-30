@@ -70,6 +70,17 @@ export type InspectionReconstruction = {
   }>;
   completeFacelets: Record<Face, CubeColor[]> | null;
   message: string;
+  faceReference: Partial<Record<Face, {
+    time: number;
+    sourceFrames: number;
+    frameId?: string;
+    imageX?: number;
+    imageY?: number;
+    rightX?: number;
+    rightY?: number;
+    downX?: number;
+    downY?: number;
+  }>>;
 };
 
 type PieceDefinition = {
@@ -914,6 +925,65 @@ function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string |
   return `Caselle ancora mancanti: ${shown.join('; ')}${suffix}.`;
 }
 
+function geometryQuality(observation: FaceGridObservation): number {
+  const { rightX, rightY, downX, downY } = observation;
+  if (rightX === undefined || rightY === undefined || downX === undefined || downY === undefined) return 0;
+  const rightLength = Math.hypot(rightX, rightY);
+  const downLength = Math.hypot(downX, downY);
+  if (!rightLength || !downLength) return 0;
+  const cosine = Math.abs((rightX * downX + rightY * downY) / (rightLength * downLength));
+  const ratio = rightLength / downLength;
+  const ratioDeviation = Math.abs(Math.log(ratio));
+  // 1 quando gli assi sono perfettamente perpendicolari e della stessa
+  // lunghezza (griglia vista dritta), via via più basso quanto più il
+  // parallelogramma risulta inclinato o sproporzionato.
+  return Math.max(0, 1 - cosine * 1.4 - ratioDeviation * 0.6);
+}
+
+function computeFaceReferences(
+  hypothesesByFace: Map<Face, FaceGridObservation[]>,
+  facelets: PartialFacelets,
+): InspectionReconstruction['faceReference'] {
+  const references: InspectionReconstruction['faceReference'] = {};
+  FACES.forEach((face) => {
+    const hypotheses = hypothesesByFace.get(face) ?? [];
+    let best: FaceGridObservation | null = null;
+    let bestMatches = -1;
+    let bestGeometry = -1;
+    hypotheses.forEach((hypothesis) => {
+      let matches = 0;
+      hypothesis.colors.forEach((color, index) => {
+        if (color && color === facelets[face][index]) matches += 1;
+      });
+      const geometry = geometryQuality(hypothesis);
+      // A parità di corrispondenza con il risultato finale, preferiamo
+      // l'ipotesi con la griglia meno storta: il pannello diagnostico deve
+      // mostrare un fotogramma leggibile, non necessariamente quello con lo
+      // score di fusione più alto (che può derivare da uno scorcio minuscolo).
+      if (matches > bestMatches || (matches === bestMatches && geometry > bestGeometry)) {
+        bestMatches = matches;
+        bestGeometry = geometry;
+        best = hypothesis;
+      }
+    });
+    if (best) {
+      const winner = best as FaceGridObservation;
+      references[face] = {
+        time: winner.time,
+        sourceFrames: winner.sourceFrames ?? 1,
+        frameId: winner.frameId,
+        imageX: winner.imageX,
+        imageY: winner.imageY,
+        rightX: winner.rightX,
+        rightY: winner.rightY,
+        downX: winner.downX,
+        downY: winner.downY,
+      };
+    }
+  });
+  return references;
+}
+
 function faceletKey(facelets: PartialFacelets) {
   return FACES.flatMap((face) => facelets[face].map((color) => color?.[0] ?? '_')).join('');
 }
@@ -1091,6 +1161,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       resolvedCorners: 0, resolvedEdges: 0, candidateCount: 0, truncated: false,
       confidence: 0, facelets, faceCoverage: buildFaceCoverage(bestByFace, facelets), completeFacelets: null,
       message: 'Nessuna griglia 3×3 abbastanza stabile è stata letta durante l’ispezione.',
+      faceReference: {},
     };
   }
 
@@ -1458,6 +1529,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       confidence: Math.min(55, baseConfidence), facelets: bestPartial,
       faceCoverage: buildFaceCoverage(bestByFace, bestPartial), completeFacelets: null,
       message: 'Le caselle osservate non formano uno stato fisicamente possibile: serve una nuova lettura dei fotogrammi sfocati o coperti.',
+      faceReference: computeFaceReferences(hypothesesByFace, bestPartial),
     };
   }
   if (completeFacelets) {
@@ -1467,6 +1539,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       confidence: baseConfidence, facelets: candidates[0],
       faceCoverage: buildFaceCoverage(bestByFace, candidates[0]), completeFacelets,
       message: 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.',
+      faceReference: computeFaceReferences(hypothesesByFace, candidates[0]),
     };
   }
   const displayedFacelets = countKnownFacelets(displayFacelets) - 6;
@@ -1485,6 +1558,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     message: `${sawTruncation && candidates.length === 0
       ? 'La lettura è compatibile con molti stati: servono altre facce o caselle più nitide.'
       : partialMessage}${missingDescription ? ` ${missingDescription}` : ''}`,
+    faceReference: computeFaceReferences(hypothesesByFace, displayFacelets),
   };
 }
 
