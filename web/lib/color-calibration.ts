@@ -49,7 +49,7 @@ export type GuidedFaceCapture = {
 const COLORS = CUBE_COLORS;
 const FACES = CUBE_FACES;
 
-const FALLBACK_REFERENCE: Record<CubeColor, RgbSample> = {
+export const FALLBACK_REFERENCE: Record<CubeColor, RgbSample> = {
   white: { red: 232, green: 235, blue: 238 },
   red: { red: 231, green: 55, blue: 53 },
   green: { red: 39, green: 184, blue: 94 },

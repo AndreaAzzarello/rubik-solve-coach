@@ -638,11 +638,17 @@ function orientedAssignments(position: PieceDefinition, piece: PieceDefinition) 
 }
 
 function pieceOptionsFor(position: PieceDefinition, pieces: PieceDefinition[], partial: PartialFacelets): PieceOption[] {
+  const counts = colorCounts(partial);
   return pieces.flatMap((piece, pieceIndex) => (
     orientedAssignments(position, piece)
-      .filter((assignment) => assignment.stickers.every(({ face, index, color }) => (
-        partial[face][index] === null || partial[face][index] === color
-      )))
+      .filter((assignment) => assignment.stickers.every(({ face, index, color }) => {
+        const current = partial[face][index];
+        if (current === color) return true;
+        if (current !== null) return false;
+        // Ogni colore compare esattamente 9 volte su un cubo reale: se è già
+        // esaurito altrove, questa assegnazione non può essere valida qui.
+        return counts[color] < 9;
+      }))
       .map((assignment) => ({ pieceIndex, stickers: assignment.stickers }))
   ));
 }
@@ -653,11 +659,15 @@ function enumeratePieceAssignments(
   partial: PartialFacelets,
   limit: number,
 ) {
+  const counts = colorCounts(partial);
   const options = positions.map((position) => pieces.flatMap((piece, pieceIndex) => (
     orientedAssignments(position, piece)
-      .filter((assignment) => assignment.stickers.every(({ face, index, color }) => (
-        partial[face][index] === null || partial[face][index] === color
-      )))
+      .filter((assignment) => assignment.stickers.every(({ face, index, color }) => {
+        const current = partial[face][index];
+        if (current === color) return true;
+        if (current !== null) return false;
+        return counts[color] < 9;
+      }))
       .map((assignment) => ({ ...assignment, pieceIndex }))
   )));
   if (options.some((positionOptions) => !positionOptions.length)) {
@@ -723,9 +733,13 @@ function inferForcedPieceGroup(
 
   for (let iteration = 0; iteration < positions.length + 2; iteration += 1) {
     let changed = false;
-    options = options.map((positionOptions) => positionOptions.filter((option) => option.stickers.every(({ face, index, color }) => (
-      facelets[face][index] === null || facelets[face][index] === color
-    ))));
+    const counts = colorCounts(facelets);
+    options = options.map((positionOptions) => positionOptions.filter((option) => option.stickers.every(({ face, index, color }) => {
+      const current = facelets[face][index];
+      if (current === color) return true;
+      if (current !== null) return false;
+      return counts[color] < 9;
+    })));
     if (options.some((positionOptions) => !positionOptions.length)) {
       invalid = true;
       break;
@@ -862,12 +876,42 @@ function completePartialFacelets(partial: PartialFacelets, limit = 96) {
   };
 }
 
-function colorCountValid(facelets: PartialFacelets) {
-  const counts = new Map<CubeColor, number>();
+function colorCounts(facelets: PartialFacelets): Record<CubeColor, number> {
+  const counts = Object.fromEntries(CUBE_COLORS.map((color) => [color, 0])) as Record<CubeColor, number>;
   FACES.forEach((face) => facelets[face].forEach((color) => {
-    if (color) counts.set(color, (counts.get(color) ?? 0) + 1);
+    if (color) counts[color] += 1;
   }));
-  return [...counts.values()].every((count) => count <= 9);
+  return counts;
+}
+
+function colorCountValid(facelets: PartialFacelets) {
+  const counts = colorCounts(facelets);
+  return Object.values(counts).every((count) => count <= 9);
+}
+
+const CELL_POSITION_LABEL = [
+  'in alto a sinistra', 'in alto al centro', 'in alto a destra',
+  'al centro a sinistra', 'centro', 'al centro a destra',
+  'in basso a sinistra', 'in basso al centro', 'in basso a destra',
+];
+
+const FACE_COLOR_ADJECTIVE: Record<Face, string> = {
+  U: 'bianca', R: 'rossa', F: 'verde', D: 'gialla', L: 'arancione', B: 'blu',
+};
+
+function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string | null {
+  const missing: string[] = [];
+  FACES.forEach((face) => {
+    facelets[face].forEach((color, index) => {
+      if (color === null && index !== 4) {
+        missing.push(`faccia ${FACE_COLOR_ADJECTIVE[face]} · casella ${CELL_POSITION_LABEL[index]}`);
+      }
+    });
+  });
+  if (!missing.length) return null;
+  const shown = missing.slice(0, limit);
+  const suffix = missing.length > limit ? `, e altre ${missing.length - limit}` : '';
+  return `Caselle ancora mancanti: ${shown.join('; ')}${suffix}.`;
 }
 
 function faceletKey(facelets: PartialFacelets) {
@@ -1422,15 +1466,16 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       ? `${displayedFacelets === 48 ? 'Schema completo' : `Schema ricostruito (${displayedFacelets}/48 caselle)`}: ${bestObserved} caselle lette dal video e ${inferredFacelets} completate con i vincoli fisici${relaxedFacelets ? `, correggendo ${relaxedFacelets} ${relaxedFacelets === 1 ? 'lettura debole' : 'letture deboli'}` : ''}. La ricostruzione è valida, ma non ancora unica.`
       : `Ho usato lo schema fisso di angoli e spigoli per dedurre ${inferredFacelets} caselle coperte; serve comunque un unico stato fisicamente valido per generare lo scramble.`
     : 'Le caselle viste sono conservate; quelle mancanti vengono dedotte solo quando i vincoli dei pezzi le rendono uniche.';
+  const missingDescription = describeMissingFacelets(displayFacelets);
   return {
     status: bestObserved >= 8 ? 'partial' : 'insufficient', observedFaces,
     observedFacelets: bestObserved, inferredFacelets,
     resolvedCorners, resolvedEdges, candidateCount: candidates.length, truncated: sawTruncation,
     confidence: baseConfidence, facelets: displayFacelets,
     faceCoverage: buildFaceCoverage(bestByFace, displayFacelets), completeFacelets: null,
-    message: sawTruncation && candidates.length === 0
+    message: `${sawTruncation && candidates.length === 0
       ? 'La lettura è compatibile con molti stati: servono altre facce o caselle più nitide.'
-      : partialMessage,
+      : partialMessage}${missingDescription ? ` ${missingDescription}` : ''}`,
   };
 }
 
