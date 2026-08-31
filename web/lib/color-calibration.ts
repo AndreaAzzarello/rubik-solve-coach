@@ -268,11 +268,18 @@ export function createAdaptiveColorClassifier(
   const darkFloor = Math.max(0.07, Math.min(0.3, percentile(values, 0.16) * 0.86));
   const whiteFloor = Math.max(0.34, percentile(values, 0.62) * 0.78);
   const whiteSaturation = Math.max(0.1, Math.min(0.34, percentile(saturations, 0.34) * 0.82 + 0.035));
+  // Gli sticker di un cubo sono colori pieni (saturazione tipica 0.75-0.90),
+  // la pelle no (0.38-0.48 anche in pieno sole). Senza questa soglia le mani
+  // producono falsi rossi/arancioni molto convinti, che rubano il posto alla
+  // faccia realmente rossa. La soglia si adatta alla scena ma resta dentro
+  // il divario fra i due gruppi.
+  const chromaFloor = Math.max(0.54, Math.min(0.68, percentile(saturations, 0.78) * 0.72));
   return (sample: RgbSample) => {
     const hsv = rgbToHsv(sample);
     if (hsv.value < darkFloor) return null;
     if (hsv.saturation <= whiteSaturation && hsv.value < whiteFloor) return null;
     const classified = classifyCalibratedColor(sample, calibration);
+    if (classified.color !== 'white' && hsv.saturation < chromaFloor) return null;
     if (classified.distance > 22 && classified.confidence < 0.18) return null;
     return classified;
   };

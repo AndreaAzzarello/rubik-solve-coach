@@ -455,6 +455,31 @@ export default function VideoScannerPage() {
       if (!context) return;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const geometry = mapGridGeometryToVideoSpace(reference, video);
+      if (geometry && reference.silhouette?.length) {
+        // La silhouette è nello stesso spazio della griglia: la riportiamo
+        // punto per punto usando la stessa trasformazione.
+        const mapped = reference.silhouette.map((vertex) => mapGridGeometryToVideoSpace({
+          frameId: reference.frameId,
+          imageX: vertex.x,
+          imageY: vertex.y,
+          rightX: 1, rightY: 0, downX: 0, downY: 1,
+        }, video));
+        if (mapped.every(Boolean)) {
+          context.beginPath();
+          mapped.forEach((point, index) => {
+            if (!point) return;
+            if (index === 0) context.moveTo(point.x, point.y);
+            else context.lineTo(point.x, point.y);
+          });
+          context.closePath();
+          context.strokeStyle = 'rgba(0,0,0,0.8)';
+          context.lineWidth = Math.max(6, canvas.width * 0.013);
+          context.stroke();
+          context.strokeStyle = '#fb923c';
+          context.lineWidth = Math.max(3, canvas.width * 0.006);
+          context.stroke();
+        }
+      }
       if (geometry) {
         const cellCorners = (row: number, column: number) => {
           const cellCenterX = geometry.x + geometry.rightX * column + geometry.downX * row;
@@ -645,6 +670,11 @@ export default function VideoScannerPage() {
                       <span className="text-[10px] font-black text-slate-200">{FACE_LABEL[face]}</span>
                     </div>
                     <p className="mt-1 text-[9px] text-slate-500">{formatTime(reference.time)} · {reference.sourceFrames > 1 ? `fuso da ${reference.sourceFrames} fotogrammi` : '1 fotogramma'}</p>
+                    {reference.gridSource && (
+                      <p className={`text-[9px] font-black ${reference.gridSource === 'silhouette' ? 'text-orange-400' : 'text-slate-600'}`}>
+                        {reference.gridSource === 'silhouette' ? 'da silhouette del cubo' : 'da coppie di sticker'}
+                      </p>
+                    )}
                     {snapshot ? (
                       <img src={snapshot} alt={`Fotogramma faccia ${FACE_LABEL[face]}`} className="mt-1.5 aspect-video w-full rounded-lg object-cover" />
                     ) : (

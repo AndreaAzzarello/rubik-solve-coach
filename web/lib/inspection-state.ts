@@ -37,6 +37,10 @@ export type FaceGridObservation = {
   syntheticFusion?: boolean;
   /** Campioni RGB grezzi usati per ricalibrare i colori sui sei centri del video. */
   rawColors?: Array<RgbSample | null>;
+  /** Come è stata ricavata la griglia: dalla silhouette del cubo o da coppie di sticker vicini. */
+  gridSource?: 'silhouette' | 'pairs';
+  /** Vertici della silhouette esagonale, quando la griglia viene da lì. */
+  silhouette?: Array<{ x: number; y: number }>;
 };
 
 export type CubeOrientation = {
@@ -80,6 +84,8 @@ export type InspectionReconstruction = {
     rightY?: number;
     downX?: number;
     downY?: number;
+    gridSource?: 'silhouette' | 'pairs';
+    silhouette?: Array<{ x: number; y: number }>;
   }>>;
 };
 
@@ -565,7 +571,8 @@ export function fuseFaceObservationCandidates(
       cellSupport,
       aligned,
       confidence,
-      score: (acceptedCells * 15 + aligned.length * 12 + consensusStrength * 2.5 - consensusConflict * 5)
+      score: (acceptedCells * 15 + aligned.length * 12 + consensusStrength * 2.5 - consensusConflict * 5
+        + frontalCleanlinessScore({ ...seed, cellConfidences }) * 85)
         * colorLayoutQuality(colors),
     };
   });
@@ -593,7 +600,11 @@ export function fuseFaceObservationCandidates(
   // migliore. I vincoli fisici sceglieranno poi tra raw e consenso temporale.
   const raw = [...seedsByPattern.values()]
     .map(({ seed, sources }) => ({
-      rank: (seed.visibleCells * 28 + seed.confidence + sources.size * 18)
+      rank: (seed.visibleCells * 28 + seed.confidence + sources.size * 18
+        // Fra più passaggi sulla stessa faccia, preferiamo quello visto
+        // frontalmente e senza dita davanti: da solo il conteggio celle non
+        // basta più, perché anche le celle occluse vengono campionate.
+        + frontalCleanlinessScore(seed) * 120)
         * colorLayoutQuality(seed.colors),
       observation: {
         ...seed,
@@ -940,6 +951,30 @@ function geometryQuality(observation: FaceGridObservation): number {
   return Math.max(0, 1 - cosine * 1.4 - ratioDeviation * 0.6);
 }
 
+/**
+ * Quanto una lettura è "frontale e pulita", cioè adatta a essere preferita fra
+ * più passaggi sulla stessa faccia:
+ *
+ * - frontalità: una faccia vista dritta è un quadrato, una vista di scorcio è
+ *   un parallelogramma inclinato (geometryQuality);
+ * - pulizia: le celle coperte da un dito vengono comunque campionate (leggendo
+ *   la pelle), quindi il conteggio di celle visibili da solo non basta più a
+ *   distinguerle; la confidenza media per cella invece cala quando la lettura
+ *   non corrisponde a uno sticker netto.
+ *
+ * Restituisce un valore neutro (0.5) quando i dati non sono disponibili, per
+ * non penalizzare osservazioni prive di geometria o di confidenze per cella.
+ */
+function frontalCleanlinessScore(observation: FaceGridObservation): number {
+  const hasGeometry = observation.rightX !== undefined && observation.downX !== undefined;
+  const frontality = hasGeometry ? geometryQuality(observation) : 0.5;
+  const confidences = (observation.cellConfidences ?? []).filter((value) => value > 0);
+  const cleanliness = confidences.length
+    ? Math.max(0, Math.min(1, (confidences.reduce((total, value) => total + value, 0) / confidences.length) / 90))
+    : 0.5;
+  return frontality * 0.6 + cleanliness * 0.4;
+}
+
 function computeFaceReferences(
   hypothesesByFace: Map<Face, FaceGridObservation[]>,
   facelets: PartialFacelets,
@@ -956,12 +991,15 @@ function computeFaceReferences(
         if (color && color === facelets[face][index]) matches += 1;
       });
       const geometry = geometryQuality(hypothesis);
-      // A parità di corrispondenza con il risultato finale, preferiamo
-      // l'ipotesi con la griglia meno storta: il pannello diagnostico deve
-      // mostrare un fotogramma leggibile, non necessariamente quello con lo
-      // score di fusione più alto (che può derivare da uno scorcio minuscolo).
-      if (matches > bestMatches || (matches === bestMatches && geometry > bestGeometry)) {
-        bestMatches = matches;
+      // Non solo un pareggio esatto: anche a un solo punto di distanza dal
+      // migliore, una griglia molto più pulita geometricamente (scorcio
+      // meno estremo, quindi più affidabile anche nella lettura colore)
+      // vale la pena preferirla per la visualizzazione diagnostica.
+      const isNearTie = matches >= bestMatches - 1;
+      const winsOnMatches = matches > bestMatches;
+      const winsOnGeometryNearTie = isNearTie && geometry > bestGeometry + 0.18;
+      if (winsOnMatches || winsOnGeometryNearTie) {
+        bestMatches = Math.max(bestMatches, matches);
         bestGeometry = geometry;
         best = hypothesis;
       }
@@ -978,6 +1016,8 @@ function computeFaceReferences(
         rightY: winner.rightY,
         downX: winner.downX,
         downY: winner.downY,
+        gridSource: winner.gridSource,
+        silhouette: winner.silhouette,
       };
     }
   });

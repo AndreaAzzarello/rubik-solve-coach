@@ -368,6 +368,167 @@ function applyLocalCenterCalibration(
   }
 }
 
+type Point = { x: number; y: number };
+
+// Guscio convesso (monotone chain). Serve a ottenere la silhouette esterna del
+// cubo a partire dagli sticker riconosciuti.
+function convexHull(points: Point[]): Point[] {
+  if (points.length < 3) return points;
+  const sorted = [...points].sort((a, b) => (a.x - b.x) || (a.y - b.y));
+  const cross = (o: Point, a: Point, b: Point) => (
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+  );
+  const build = (list: Point[]) => {
+    const chain: Point[] = [];
+    list.forEach((point) => {
+      while (chain.length >= 2 && cross(chain[chain.length - 2], chain[chain.length - 1], point) <= 0) {
+        chain.pop();
+      }
+      chain.push(point);
+    });
+    chain.pop();
+    return chain;
+  };
+  return [...build(sorted), ...build([...sorted].reverse())];
+}
+
+function polygonArea(polygon: Point[]): number {
+  let total = 0;
+  for (let index = 0; index < polygon.length; index += 1) {
+    const current = polygon[index];
+    const next = polygon[(index + 1) % polygon.length];
+    total += current.x * next.y - next.x * current.y;
+  }
+  return Math.abs(total) / 2;
+}
+
+// Riduce il guscio a `target` vertici togliendo ogni volta quello la cui
+// rimozione fa perdere meno area: il risultato approssima la silhouette con un
+// poligono semplice (per un cubo di tre quarti, un esagono).
+function simplifyPolygon(polygon: Point[], target: number): Point[] {
+  const vertices = [...polygon];
+  while (vertices.length > target) {
+    let bestIndex = 0;
+    let bestLoss = Infinity;
+    for (let index = 0; index < vertices.length; index += 1) {
+      const previous = vertices[(index - 1 + vertices.length) % vertices.length];
+      const current = vertices[index];
+      const next = vertices[(index + 1) % vertices.length];
+      const loss = Math.abs(
+        (current.x - previous.x) * (next.y - previous.y)
+        - (current.y - previous.y) * (next.x - previous.x),
+      ) / 2;
+      if (loss < bestLoss) { bestLoss = loss; bestIndex = index; }
+    }
+    vertices.splice(bestIndex, 1);
+  }
+  return vertices;
+}
+
+export type FaceQuad = { origin: Point; right: Point; down: Point };
+
+export type CubeSilhouette = { quads: FaceQuad[]; hexagon: Point[] };
+
+/**
+ * Un cubo visto di tre quarti ha una silhouette esagonale. I suoi 6 vertici
+ * più lo spigolo interno (l'angolo del cubo rivolto verso l'osservatore)
+ * definiscono esattamente le TRE facce visibili: (C,V0,V1,V2), (C,V2,V3,V4),
+ * (C,V4,V5,V0), dove C è lo spigolo interno.
+ *
+ * Segmentare prima la silhouette e poi leggere ogni faccia impedisce per
+ * costruzione che una griglia 3x3 finisca a cavallo di due facce - il difetto
+ * principale dell'approccio che parte dalle coppie di sticker vicini.
+ */
+function detectCubeFaceQuads(components: StickerComponent[]): CubeSilhouette {
+  const empty: CubeSilhouette = { quads: [], hexagon: [] };
+  if (components.length < 6) return empty;
+  const areas = components.map((component) => component.area).sort((a, b) => a - b);
+  const medianArea = areas[Math.floor(areas.length / 2)];
+  const plausible = components.filter((component) => (
+    component.area >= medianArea * 0.3 && component.area <= medianArea * 3.6
+  ));
+  if (plausible.length < 6) return empty;
+  const typicalSide = Math.sqrt(medianArea);
+  // Teniamo solo il gruppo spazialmente compatto: gli sticker del cubo stanno
+  // entro poche celle l'uno dall'altro, i frammenti di sfondo no.
+  const radius = typicalSide * 3.6;
+  let cluster: StickerComponent[] = [];
+  plausible.forEach((anchor) => {
+    const members = plausible.filter((component) => (
+      Math.hypot(component.x - anchor.x, component.y - anchor.y) <= radius
+    ));
+    if (members.length > cluster.length) cluster = members;
+  });
+  if (cluster.length < 6) return empty;
+
+  // La silhouette esterna passa per i bordi degli sticker periferici, non per
+  // i loro centri: usiamo i quattro angoli del riquadro di ciascuno.
+  const points: Point[] = [];
+  cluster.forEach((component) => {
+    const halfWidth = component.width / 2;
+    const halfHeight = component.height / 2;
+    points.push(
+      { x: component.x - halfWidth, y: component.y - halfHeight },
+      { x: component.x + halfWidth, y: component.y - halfHeight },
+      { x: component.x - halfWidth, y: component.y + halfHeight },
+      { x: component.x + halfWidth, y: component.y + halfHeight },
+    );
+  });
+  const hull = convexHull(points);
+  if (hull.length < 6) return empty;
+  const hexagon = simplifyPolygon(hull, 6);
+  if (hexagon.length !== 6) return empty;
+  if (polygonArea(hexagon) < typicalSide * typicalSide * 4) return empty;
+
+  // Per ciascuna delle due alternanze possibili stimiamo lo spigolo interno:
+  // se (C,Va,Vb,Vc) è un parallelogramma allora C = Va + Vc - Vb. Le tre stime
+  // devono concordare; scegliamo l'alternanza in cui concordano di più.
+  let bestQuads: FaceQuad[] = [];
+  let bestSpread = Infinity;
+  for (let offset = 0; offset < 2; offset += 1) {
+    const estimates: Point[] = [];
+    for (let step = 0; step < 3; step += 1) {
+      const a = hexagon[(offset + step * 2) % 6];
+      const b = hexagon[(offset + step * 2 + 1) % 6];
+      const c = hexagon[(offset + step * 2 + 2) % 6];
+      estimates.push({ x: a.x + c.x - b.x, y: a.y + c.y - b.y });
+    }
+    const center = {
+      x: estimates.reduce((total, point) => total + point.x, 0) / 3,
+      y: estimates.reduce((total, point) => total + point.y, 0) / 3,
+    };
+    const spread = estimates.reduce(
+      (total, point) => total + Math.hypot(point.x - center.x, point.y - center.y),
+      0,
+    ) / 3;
+    if (spread >= bestSpread) continue;
+    const quads: FaceQuad[] = [];
+    for (let step = 0; step < 3; step += 1) {
+      const a = hexagon[(offset + step * 2) % 6];
+      const c = hexagon[(offset + step * 2 + 2) % 6];
+      // Una faccia copre 3 celle per lato: il passo è un terzo del lato.
+      quads.push({
+        origin: center,
+        right: { x: (a.x - center.x) / 3, y: (a.y - center.y) / 3 },
+        down: { x: (c.x - center.x) / 3, y: (c.y - center.y) / 3 },
+      });
+    }
+    const plausibleScale = quads.every((quad) => {
+      const rightLength = Math.hypot(quad.right.x, quad.right.y);
+      const downLength = Math.hypot(quad.down.x, quad.down.y);
+      return rightLength >= typicalSide * 0.55 && rightLength <= typicalSide * 2.6
+        && downLength >= typicalSide * 0.55 && downLength <= typicalSide * 2.6;
+    });
+    if (!plausibleScale) continue;
+    bestSpread = spread;
+    bestQuads = quads;
+  }
+  // Lo spigolo interno stimato deve cadere dentro la silhouette: se le tre
+  // stime divergono troppo, il poligono non era un cubo di tre quarti.
+  if (bestSpread > typicalSide * 1.5) return empty;
+  return { quads: bestQuads, hexagon };
+}
+
 export function detectFaceGrids(labels: Int8Array, width: number, height: number, pixels?: Uint8ClampedArray) {
   const minimumStickerArea = Math.max(6, width * height * 0.00012);
   const components = stickerComponents(labels, width, height, pixels)
@@ -422,6 +583,18 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       const determinant = right.dx * down.dy - right.dy * down.dx;
       const ratio = right.length / down.length;
       if (cosine > 0.52 || determinant <= 1.8 || ratio < 0.5 || ratio > 2) return;
+      // Il passo fra celle adiacenti deve essere compatibile con la dimensione
+      // dello sticker centrale: su una faccia reale vale circa un lato di
+      // sticker piu' la fuga. Senza questo vincolo l'algoritmo accetta coppie
+      // di sticker non adiacenti, producendo griglie molto piu' grandi della
+      // faccia (fino a coprire l'intera inquadratura).
+      const centerSide = Math.max(3, (center.width + center.height) / 2);
+      const stepRatioRight = right.length / centerSide;
+      const stepRatioDown = down.length / centerSide;
+      if (
+        stepRatioRight < 0.62 || stepRatioRight > 2.15
+        || stepRatioDown < 0.62 || stepRatioDown > 2.15
+      ) return;
       const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.3);
       const used = new Set<StickerComponent>();
       const colors = Array<ObservedCubeColor | null>(9).fill(null);
@@ -491,8 +664,70 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
         downX: down.dx,
         downY: down.dy,
         score,
+        gridSource: 'pairs',
       });
     }));
+  });
+
+  // Candidati dalla silhouette: segmentiamo prima il cubo nelle sue tre facce
+  // visibili, poi leggiamo ciascuna separatamente. Per costruzione nessuna
+  // griglia puo' cadere a cavallo di due facce.
+  const silhouette = detectCubeFaceQuads(components);
+  silhouette.quads.forEach((quad) => {
+    const quadColors = Array<ObservedCubeColor | null>(9).fill(null);
+    const quadRaw = Array<RgbSample | null>(9).fill(null);
+    const quadConfidences = Array<number>(9).fill(0);
+    let quadVisible = 0;
+    let quadResidual = 0;
+    const sampleRadius = Math.max(2, Math.min(
+      Math.hypot(quad.right.x, quad.right.y),
+      Math.hypot(quad.down.x, quad.down.y),
+    ) * 0.3);
+    // Il centro della faccia sta a un passo e mezzo dallo spigolo interno
+    // lungo entrambi gli assi.
+    const faceCenterX = quad.origin.x + (quad.right.x + quad.down.x) * 1.5;
+    const faceCenterY = quad.origin.y + (quad.right.y + quad.down.y) * 1.5;
+    for (let row = -1; row <= 1; row += 1) {
+      for (let column = -1; column <= 1; column += 1) {
+        const targetX = faceCenterX + quad.right.x * column + quad.down.x * row;
+        const targetY = faceCenterY + quad.right.y * column + quad.down.y * row;
+        const virtual = sampleVirtualCell(labels, width, height, targetX, targetY, sampleRadius);
+        const cellIndex = (row + 1) * 3 + column + 1;
+        if (!virtual) continue;
+        quadColors[cellIndex] = OBSERVED_COLORS[virtual.label];
+        quadRaw[cellIndex] = pixels ? sampleCentralRoiRgb(pixels, width, height, {
+          x: Math.round(targetX - sampleRadius),
+          y: Math.round(targetY - sampleRadius),
+          width: Math.round(sampleRadius * 2),
+          height: Math.round(sampleRadius * 2),
+        }, 0.4) ?? null : null;
+        quadConfidences[cellIndex] = Math.round(Math.min(90, Math.max(35, virtual.confidence * 90)));
+        quadVisible += 1;
+        quadResidual += 1 - virtual.confidence;
+      }
+    }
+    const quadCenterColor = quadColors[4];
+    if (quadVisible < 6 || !quadCenterColor) return;
+    applyLocalCenterCalibration(quadCenterColor, quadRaw, quadColors, quadConfidences);
+    const quadFit = Math.max(0, 1 - quadResidual / quadVisible);
+    const quadScore = quadVisible / 9 * 0.78 + quadFit * 0.22;
+    candidates.push({
+      centerColor: quadCenterColor,
+      colors: quadColors,
+      rawColors: quadRaw,
+      cellConfidences: quadConfidences,
+      visibleCells: quadVisible,
+      confidence: Math.round(Math.min(94, Math.max(42, quadScore * 100))),
+      imageX: faceCenterX,
+      imageY: faceCenterY,
+      rightX: quad.right.x,
+      rightY: quad.right.y,
+      downX: quad.down.x,
+      downY: quad.down.y,
+      score: quadScore,
+      gridSource: 'silhouette',
+      silhouette: silhouette.hexagon,
+    });
   });
 
   // Su un cubo stickerless due cubie dello stesso colore possono apparire come
