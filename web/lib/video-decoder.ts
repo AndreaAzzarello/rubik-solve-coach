@@ -1761,7 +1761,15 @@ export function summarizeCubeObservation(
   const balanced = calibrationProfile.ready
     ? classifyBalancedCubeFacelets(rawFacelets, calibration)
     : null;
-  const balancedObservations = balanced?.validation.valid
+  // Accettiamo il bilanciamento anche quando lo schema non e' completo: con
+  // le righe fittizie nessun colore puo' superare le 9 occorrenze, quindi il
+  // risultato resta fisicamente coerente, e le caselle non lette restano
+  // semplicemente nulle. Richiediamo pero' che i centri siano corretti.
+  const balancedUsable = !!balanced && (
+    balanced.validation.valid
+    || (balanced.observedCells >= 40 && balanced.validation.centersCanonical)
+  );
+  const balancedObservations = balancedUsable && balanced
     ? CUBE_FACES.map((face) => {
       const centerColor = CANONICAL_FACE_COLOR[face];
       const source = originalObservations
@@ -1778,7 +1786,7 @@ export function summarizeCubeObservation(
         centerColor,
         colors: balanced.facelets[face],
         cellConfidences: confidenceValues.map((value) => Math.round(value * 100)),
-        visibleCells: 9,
+        visibleCells: balanced.facelets[face].filter(Boolean).length,
         confidence: Math.round(confidenceValues.reduce((total, value) => total + value, 0) / 9 * 100),
         sourceFrames: Math.max(2, source?.sourceFrames ?? 1),
         syntheticFusion: true,

@@ -374,15 +374,26 @@ export function classifyBalancedCubeFacelets(
   const entries = FACES.flatMap((face) => rawFacelets[face].flatMap((sample, index) => (
     index !== 4 && sample ? [{ face, index, sample }] : []
   )));
-  if (entries.length !== 48) return null;
+  // Il bilanciamento globale e' proprio il meccanismo che corregge gli errori
+  // di classificazione della singola casella (forzando 9 sticker per colore),
+  // quindi e' quando la lettura e' IMPERFETTA che serve di piu'. Pretendere
+  // tutte e 48 le caselle lo disattivava esattamente nei casi utili.
+  if (entries.length < 40) return null;
   const slots = COLORS.flatMap((color) => Array<CubeColor>(8).fill(color));
-  const costs = entries.map((entry) => {
+  const realCosts = entries.map((entry) => {
     const distances = new Map(rankedCalibratedColors(entry.sample, calibration)
       .map((candidate) => [candidate.color, candidate.distance]));
     return slots.map((color) => distances.get(color) ?? 999);
   });
+  // minimumCostAssignment richiede una matrice quadrata: completiamo con righe
+  // fittizie a costo nullo, che assorbono gli slot delle caselle non lette
+  // senza influenzare l'assegnazione di quelle reali.
+  const costs = [
+    ...realCosts,
+    ...Array.from({ length: slots.length - entries.length }, () => Array<number>(slots.length).fill(0)),
+  ];
   const assignment = minimumCostAssignment(costs);
-  if (assignment.length !== entries.length || assignment.some((slot) => slot < 0)) return null;
+  if (assignment.length !== costs.length || assignment.some((slot) => slot < 0)) return null;
   const facelets = Object.fromEntries(FACES.map((face) => {
     const colors = Array<CubeColor | null>(9).fill(null);
     colors[4] = CANONICAL_FACE_COLOR[face];
@@ -400,7 +411,10 @@ export function classifyBalancedCubeFacelets(
     confidences[entry.face][entry.index] = Math.max(0.12, Math.min(1, 0.3 + margin / 48));
   });
   const validation = validateCubeColorDistribution(facelets);
-  return { facelets, confidences, validation };
+  // Numero di caselle realmente lette dal video (esclusi i sei centri): serve
+  // a chi consuma il risultato per distinguere uno schema completo da uno
+  // parziale ma comunque bilanciato.
+  return { facelets, confidences, validation, observedCells: entries.length };
 }
 
 export function classifyGuidedCaptures(captures: GuidedFaceCapture[]) {
