@@ -299,6 +299,7 @@ export default function VideoScannerPage() {
     setRunCount(0);
     setSummary(null);
     setFacelets(blankFacelets());
+    setFrameSnapshots({});
     setScramble(null);
     setTranscript(null);
     setInspection(null);
@@ -559,6 +560,7 @@ export default function VideoScannerPage() {
     setRunCount(0);
     setSummary(null);
     setFacelets(blankFacelets());
+    setFrameSnapshots({});
     setScramble(null);
     setTranscript(null);
     setInspection(null);

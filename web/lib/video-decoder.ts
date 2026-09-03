@@ -757,6 +757,8 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       rightY: candidate.rightY,
       downX: candidate.downX,
       downY: candidate.downY,
+      gridSource: candidate.gridSource,
+      silhouette: candidate.silhouette,
     }));
 }
 
