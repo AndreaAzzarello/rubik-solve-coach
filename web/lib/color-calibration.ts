@@ -6,6 +6,7 @@ import {
   type CubeColor,
   type Face,
 } from './cube.ts';
+import { DBG, dbg, dbgState } from './dbg-metrics.ts'; // DBG
 
 export type RgbSample = {
   red: number;
@@ -274,13 +275,22 @@ export function createAdaptiveColorClassifier(
   // faccia realmente rossa. La soglia si adatta alla scena ma resta dentro
   // il divario fra i due gruppi.
   const chromaFloor = Math.max(0.54, Math.min(0.68, percentile(saturations, 0.78) * 0.72));
+  // DBG: contatori dei pixel scartati per motivo. Solo sui frame dell'ispezione:
+  // questa closure gira anche nella passata di rilevamento movimento.
+  const dbgOn = DBG && dbgState.framePhase === 'inspection'; // DBG
+  if (dbgOn) { // DBG
+    dbg.thresholds.chromaFloor.push(chromaFloor); // DBG
+    dbg.thresholds.whiteFloor.push(whiteFloor); // DBG
+    dbg.thresholds.darkFloor.push(darkFloor); // DBG
+  } // DBG
   return (sample: RgbSample) => {
     const hsv = rgbToHsv(sample);
-    if (hsv.value < darkFloor) return null;
-    if (hsv.saturation <= whiteSaturation && hsv.value < whiteFloor) return null;
+    if (hsv.value < darkFloor) { if (dbgOn) dbg.pixelClass.dark += 1; return null; } // DBG
+    if (hsv.saturation <= whiteSaturation && hsv.value < whiteFloor) { if (dbgOn) dbg.pixelClass.whiteGrey += 1; return null; } // DBG
     const classified = classifyCalibratedColor(sample, calibration);
-    if (classified.color !== 'white' && hsv.saturation < chromaFloor) return null;
-    if (classified.distance > 22 && classified.confidence < 0.18) return null;
+    if (classified.color !== 'white' && hsv.saturation < chromaFloor) { if (dbgOn) dbg.pixelClass.chromaFloor += 1; return null; } // DBG
+    if (classified.distance > 22 && classified.confidence < 0.18) { if (dbgOn) dbg.pixelClass.colorDistance += 1; return null; } // DBG
+    if (dbgOn) dbg.pixelClass.passed += 1; // DBG
     return classified;
   };
 }

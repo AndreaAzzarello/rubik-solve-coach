@@ -6,6 +6,7 @@ import {
   type Face,
 } from './cube.ts';
 import { validateCubeColorDistribution, type RgbSample } from './color-calibration.ts';
+import { DBG, dbg } from './dbg-metrics.ts'; // DBG
 
 export { CANONICAL_COLOR_FACE, CANONICAL_FACE_COLOR } from './cube.ts';
 
@@ -507,11 +508,12 @@ export function fuseFaceObservationCandidates(
       const coherent = best.matches >= 3
         && best.mismatches <= 1
         && best.agreement >= Math.max(0.9, best.conflict * 3.2);
-      if (best.nonCenterOverlap < 3 || !uniqueAlignment || !coherent) return;
+      if (best.nonCenterOverlap < 3 || !uniqueAlignment || !coherent) { if (DBG) dbg.fusionAlign.rejIncoherent += 1; return; } // DBG
       const capture = observation.captureId ?? observation.frameId ?? observation.time.toFixed(4);
       if (capture === seedCapture) return;
       const current = bestByCapture.get(capture);
       if (!current || best.score > current.score) {
+        if (DBG && !current) dbg.fusionAlign.accepted += 1; // DBG
         bestByCapture.set(capture, { observation, ...best });
       }
     });
@@ -547,7 +549,11 @@ export function fuseFaceObservationCandidates(
       const suppliedBySeed = strongestSource === seed && seed.colors[index] === winner[0];
       const accepted = index === 4
         || (ratio >= 0.67 && (support >= 2 || singleStrongFrame || suppliedBySeed));
-      if (!accepted) continue;
+      if (!accepted) {
+        if (DBG && index !== 4) { if (ratio < 0.67) dbg.fusionCell.rejVoteSplit += 1; else dbg.fusionCell.rejWeakSingleFrame += 1; } // DBG
+        continue;
+      }
+      if (DBG && index !== 4) dbg.fusionCell.accepted += 1; // DBG
       colors[index] = winner[0];
       cellSupport[index] = support;
       cellConfidences[index] = Math.round(Math.min(98, Math.max(35, ratio * 82 + Math.min(14, support * 3))));
@@ -1179,7 +1185,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
   const orientedObservations = normalizeObservationOrientations(observations);
   const observationsByFace = new Map<Face, FaceGridObservation[]>();
   orientedObservations.forEach((observation) => {
-    if (observation.colors.length !== 9 || observation.visibleCells < 5) return;
+    if (observation.colors.length !== 9 || observation.visibleCells < 5) { if (DBG) dbg.reconstruct.droppedLowVisible += 1; return; } // DBG
     const face = CANONICAL_COLOR_FACE[observation.centerColor];
     observationsByFace.set(face, [...(observationsByFace.get(face) ?? []), observation]);
   });
