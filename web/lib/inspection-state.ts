@@ -6,7 +6,6 @@ import {
   type Face,
 } from './cube.ts';
 import { validateCubeColorDistribution, type RgbSample } from './color-calibration.ts';
-import { DBG, dbg } from './dbg-metrics.ts'; // DBG
 
 export { CANONICAL_COLOR_FACE, CANONICAL_FACE_COLOR } from './cube.ts';
 
@@ -508,12 +507,11 @@ export function fuseFaceObservationCandidates(
       const coherent = best.matches >= 3
         && best.mismatches <= 1
         && best.agreement >= Math.max(0.9, best.conflict * 3.2);
-      if (best.nonCenterOverlap < 3 || !uniqueAlignment || !coherent) { if (DBG) dbg.fusionAlign.rejIncoherent += 1; return; } // DBG
+      if (best.nonCenterOverlap < 3 || !uniqueAlignment || !coherent) return;
       const capture = observation.captureId ?? observation.frameId ?? observation.time.toFixed(4);
       if (capture === seedCapture) return;
       const current = bestByCapture.get(capture);
       if (!current || best.score > current.score) {
-        if (DBG && !current) dbg.fusionAlign.accepted += 1; // DBG
         bestByCapture.set(capture, { observation, ...best });
       }
     });
@@ -549,11 +547,7 @@ export function fuseFaceObservationCandidates(
       const suppliedBySeed = strongestSource === seed && seed.colors[index] === winner[0];
       const accepted = index === 4
         || (ratio >= 0.67 && (support >= 2 || singleStrongFrame || suppliedBySeed));
-      if (!accepted) {
-        if (DBG && index !== 4) { if (ratio < 0.67) dbg.fusionCell.rejVoteSplit += 1; else dbg.fusionCell.rejWeakSingleFrame += 1; } // DBG
-        continue;
-      }
-      if (DBG && index !== 4) dbg.fusionCell.accepted += 1; // DBG
+      if (!accepted) continue;
       colors[index] = winner[0];
       cellSupport[index] = support;
       cellConfidences[index] = Math.round(Math.min(98, Math.max(35, ratio * 82 + Math.min(14, support * 3))));
@@ -699,7 +693,7 @@ function enumeratePieceAssignments(
       .map((assignment) => ({ ...assignment, pieceIndex }))
   )));
   if (options.some((positionOptions) => !positionOptions.length)) {
-    return { candidates: [] as AssignmentCandidate[], truncated: false, localOptions: options };
+    return { candidates: [] as AssignmentCandidate[], truncated: false };
   }
 
   const order = positions.map((_, index) => index).sort((left, right) => options[left].length - options[right].length);
@@ -738,7 +732,7 @@ function enumeratePieceAssignments(
   }
 
   visit(0, 0);
-  return { candidates, truncated, localOptions: options };
+  return { candidates, truncated };
 }
 
 function countKnownFacelets(facelets: PartialFacelets) {
@@ -899,8 +893,6 @@ function completePartialFacelets(partial: PartialFacelets, limit = 96) {
   return {
     complete,
     truncated,
-    cornerOptions: corners.localOptions,
-    edgeOptions: edges.localOptions,
   };
 }
 
@@ -1181,11 +1173,14 @@ function buildFaceCoverage(
   })) as InspectionReconstruction['faceCoverage'];
 }
 
-export function reconstructInspectionState(observations: FaceGridObservation[]): InspectionReconstruction {
+export function reconstructInspectionState(
+  observations: FaceGridObservation[],
+  balancedInfo: { observedCells: number; usable: boolean } = { observedCells: 0, usable: false },
+): InspectionReconstruction {
   const orientedObservations = normalizeObservationOrientations(observations);
   const observationsByFace = new Map<Face, FaceGridObservation[]>();
   orientedObservations.forEach((observation) => {
-    if (observation.colors.length !== 9 || observation.visibleCells < 5) { if (DBG) dbg.reconstruct.droppedLowVisible += 1; return; } // DBG
+    if (observation.colors.length !== 9 || observation.visibleCells < 5) return;
     const face = CANONICAL_COLOR_FACE[observation.centerColor];
     observationsByFace.set(face, [...(observationsByFace.get(face) ?? []), observation]);
   });
@@ -1288,6 +1283,9 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
   type RankedCompleteState = { facelets: PartialFacelets; sourceScore: number; relaxed: number };
   const validStates = new Map<string, RankedCompleteState>();
   let sawTruncation = false;
+  function markTruncation() {
+    sawTruncation = true;
+  }
   let bestPartial = withCanonicalCenters();
   let bestObservedPartial = withCanonicalCenters();
   let bestObservedReliability = Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(0)])) as Record<Face, number[]>;
@@ -1369,7 +1367,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
       if (!existing || candidate.score > existing.score) nextByState.set(key, candidate);
     }));
     const ranked = [...nextByState.values()].sort((left, right) => right.score - left.score);
-    if (ranked.length > beamWidth) sawTruncation = true;
+    if (ranked.length > beamWidth) markTruncation();
     beam = ranked.slice(0, beamWidth);
     beam.forEach((state) => considerPartial(state.facelets, state.reliability, state.score));
   });
@@ -1377,7 +1375,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
   let relaxedFacelets = 0;
   for (const state of beam) {
     if (rotationCombinations >= maximumRotationCombinations || validStates.size >= 256) {
-      sawTruncation = true;
+      markTruncation();
       break;
     }
     rotationCombinations += 1;
@@ -1385,10 +1383,10 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
     const pieceInference = considerPartial(state.facelets, state.reliability, state.score);
     if (!pieceInference || observedCount < 18) continue;
     const completion = completePartialFacelets(pieceInference.facelets);
-    sawTruncation ||= completion.truncated;
+    if (completion.truncated) markTruncation();
     if (state.relaxed > 0) {
       relaxedFacelets = relaxedFacelets ? Math.min(relaxedFacelets, state.relaxed) : state.relaxed;
-      sawTruncation = true;
+      markTruncation();
     }
     completion.complete.forEach((candidate) => storeCompleteState(candidate, state.score, state.relaxed));
   }
@@ -1479,7 +1477,7 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
         ));
         sourceSuccesses += 1;
         successfulRelaxations += 1;
-        sawTruncation = true;
+        markTruncation();
         if (sourceSuccesses >= 3 || successfulRelaxations >= 36 || validStates.size >= 320) break;
       }
       if (successfulRelaxations >= 36 || validStates.size >= 320) break;
@@ -1497,7 +1495,19 @@ export function reconstructInspectionState(observations: FaceGridObservation[]):
   if (rankedCandidates[0]?.relaxed) relaxedFacelets = rankedCandidates[0].relaxed;
   const candidates = rankedCandidates.map((candidate) => candidate.facelets);
   const candidateConsensus = consensusFacelets(candidates, withCanonicalCenters());
-  const completeFacelets = candidates.length === 1 && !sawTruncation ? asComplete(candidates[0]) : null;
+  // Il troncamento (beam/rotazioni/completion) segnala solo che la ricerca potrebbe aver
+  // tagliato altri stati validi, non che li ha trovati. Se resta comunque un solo candidato
+  // E tutte e 48 le caselle sono state lette dal video (via il bilanciamento globale a
+  // capacità fissa, non il bestObserved della ricerca interna: quest'ultimo conta solo il
+  // miglior "partial" trovato dal beam-search e resta spesso sotto 48 anche quando il
+  // bilanciamento ha usato letture dirette per tutte le caselle), il taglio non ha lasciato
+  // ambiguità reale da mostrare: accettiamo lo stato come completo invece di declassarlo a
+  // partial per prudenza.
+  const unambiguousDespiteTruncation = candidates.length === 1 && sawTruncation
+    && balancedInfo.usable && balancedInfo.observedCells === 48;
+  const completeFacelets = candidates.length === 1 && (!sawTruncation || unambiguousDespiteTruncation)
+    ? asComplete(candidates[0])
+    : null;
   // Anche quando più completamenti differiscono solo nelle caselle mai viste,
   // mostriamo la migliore ricostruzione fisicamente valida. Lo stato resta
   // "partial" finché il video non rende quella scelta univoca, quindi non viene

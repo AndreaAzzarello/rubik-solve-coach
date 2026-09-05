@@ -24,7 +24,6 @@ import {
   type CubeColor,
   type Face,
 } from './cube.ts';
-import { DBG, dbg, dbgState, resetDbgMetrics, dumpDbgMetrics } from './dbg-metrics.ts'; // DBG
 
 export type MotionSample = {
   time: number;
@@ -270,13 +269,6 @@ export function stickerComponents(labels: Int8Array, width: number, height: numb
       && aspect <= 3.1
       && fill >= 0.28
     );
-    if (DBG && dbgState.framePhase === 'inspection') { // DBG
-      if (passesShape) dbg.components.kept += 1; // DBG
-      else if (area < 4 || componentWidth < 2 || componentHeight < 2) dbg.components.tooSmall += 1; // DBG
-      else if (area > width * height * 0.16) dbg.components.tooLarge += 1; // DBG
-      else if (aspect < 0.32 || aspect > 3.1) dbg.components.aspect += 1; // DBG
-      else dbg.components.fill += 1; // DBG
-    } // DBG
     if (passesShape) {
       components.push({
         color: OBSERVED_COLORS[label],
@@ -450,13 +442,13 @@ export type CubeSilhouette = { quads: FaceQuad[]; hexagon: Point[] };
  */
 function detectCubeFaceQuads(components: StickerComponent[]): CubeSilhouette {
   const empty: CubeSilhouette = { quads: [], hexagon: [] };
-  if (components.length < 6) { if (DBG) dbg.silhouette.fewComponents += 1; return empty; } // DBG
+  if (components.length < 6) return empty;
   const areas = components.map((component) => component.area).sort((a, b) => a - b);
   const medianArea = areas[Math.floor(areas.length / 2)];
   const plausible = components.filter((component) => (
     component.area >= medianArea * 0.3 && component.area <= medianArea * 3.6
   ));
-  if (plausible.length < 6) { if (DBG) dbg.silhouette.fewPlausible += 1; return empty; } // DBG
+  if (plausible.length < 6) return empty;
   const typicalSide = Math.sqrt(medianArea);
   // Teniamo solo il gruppo spazialmente compatto: gli sticker del cubo stanno
   // entro poche celle l'uno dall'altro, i frammenti di sfondo no.
@@ -468,7 +460,7 @@ function detectCubeFaceQuads(components: StickerComponent[]): CubeSilhouette {
     ));
     if (members.length > cluster.length) cluster = members;
   });
-  if (cluster.length < 6) { if (DBG) dbg.silhouette.fewCluster += 1; return empty; } // DBG
+  if (cluster.length < 6) return empty;
 
   // La silhouette esterna passa per i bordi degli sticker periferici, non per
   // i loro centri: usiamo i quattro angoli del riquadro di ciascuno.
@@ -484,10 +476,10 @@ function detectCubeFaceQuads(components: StickerComponent[]): CubeSilhouette {
     );
   });
   const hull = convexHull(points);
-  if (hull.length < 6) { if (DBG) dbg.silhouette.hullTooSmall += 1; return empty; } // DBG
+  if (hull.length < 6) return empty;
   const hexagon = simplifyPolygon(hull, 6);
-  if (hexagon.length !== 6) { if (DBG) dbg.silhouette.notHexagon += 1; return empty; } // DBG
-  if (polygonArea(hexagon) < typicalSide * typicalSide * 4) { if (DBG) dbg.silhouette.areaGate += 1; return empty; } // DBG
+  if (hexagon.length !== 6) return empty;
+  if (polygonArea(hexagon) < typicalSide * typicalSide * 4) return empty;
 
   // Per ciascuna delle due alternanze possibili stimiamo lo spigolo interno:
   // se (C,Va,Vb,Vc) è un parallelogramma allora C = Va + Vc - Vb. Le tre stime
@@ -534,12 +526,7 @@ function detectCubeFaceQuads(components: StickerComponent[]): CubeSilhouette {
   }
   // Lo spigolo interno stimato deve cadere dentro la silhouette: se le tre
   // stime divergono troppo, il poligono non era un cubo di tre quarti.
-  if (bestSpread > typicalSide * 1.5) {
-    // DBG: bestQuads vuoto = nessuna alternanza ha passato il vincolo di scala.
-    if (DBG) { if (bestQuads.length) dbg.silhouette.spreadGate += 1; else dbg.silhouette.scaleGate += 1; } // DBG
-    return empty;
-  }
-  if (DBG) dbg.silhouette.built += 1; // DBG
+  if (bestSpread > typicalSide * 1.5) return empty;
   return { quads: bestQuads, hexagon };
 }
 
@@ -596,7 +583,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       const cosine = Math.abs((right.dx * down.dx + right.dy * down.dy) / (right.length * down.length));
       const determinant = right.dx * down.dy - right.dy * down.dx;
       const ratio = right.length / down.length;
-      if (cosine > 0.52 || determinant <= 1.8 || ratio < 0.5 || ratio > 2) { if (DBG) dbg.pairsGrid.rejGeometry += 1; return; } // DBG
+      if (cosine > 0.6 || determinant <= 1.8 || ratio < 0.5 || ratio > 2) return;
       // Il passo fra celle adiacenti deve essere compatibile con la dimensione
       // dello sticker centrale: su una faccia reale vale circa un lato di
       // sticker piu' la fuga. Senza questo vincolo l'algoritmo accetta coppie
@@ -608,7 +595,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       if (
         stepRatioRight < 0.62 || stepRatioRight > 2.15
         || stepRatioDown < 0.62 || stepRatioDown > 2.15
-      ) { if (DBG) dbg.pairsGrid.rejGeometry += 1; return; } // DBG
+      ) return;
       const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.3);
       const used = new Set<StickerComponent>();
       const colors = Array<ObservedCubeColor | null>(9).fill(null);
@@ -660,11 +647,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
           }
         }
       }
-      if (visibleCells < 6 || colors[4] !== center.color) {
-        if (DBG) { if (visibleCells < 6) dbg.pairsGrid.rejVisibleCells += 1; else dbg.pairsGrid.rejCenterMismatch += 1; } // DBG
-        return;
-      }
-      if (DBG) dbg.pairsGrid.kept += 1; // DBG
+      if (visibleCells < 6 || colors[4] !== center.color) return;
       applyLocalCenterCalibration(center.color, rawColors, colors, cellConfidences);
       const fit = Math.max(0, 1 - residual / visibleCells);
       const score = visibleCells / 9 * 0.78 + fit * 0.22;
@@ -819,10 +802,6 @@ function frameSignature(
   height: number,
   includeFaceGrids = true,
 ): FrameSignature {
-  if (DBG) { // DBG
-    dbgState.framePhase = includeFaceGrids ? 'inspection' : 'motion'; // DBG
-    if (includeFaceGrids) dbg.framesInspection += 1; else dbg.framesMotion += 1; // DBG
-  } // DBG
   const { data } = context.getImageData(0, 0, width, height);
   const size = width * height;
   const luma = new Uint8Array(size);
@@ -861,13 +840,10 @@ function frameSignature(
         pixelLabels[target] = OBSERVED_COLORS.indexOf(color);
         colorCounts[color] += 1;
         classifiedPixels += 1;
-        if (DBG && includeFaceGrids) dbg.pixelLabel.labelled += 1; // DBG
         if (x >= width * 0.22 && x <= width * 0.78 && y >= height * 0.18 && y <= height * 0.52) {
           topColorCounts[color] += 1;
           classifiedTopPixels += 1;
         }
-      } else if (DBG && includeFaceGrids && color) {
-        dbg.pixelLabel.lowConfidence += 1; // DBG
       }
     }
   }
@@ -1796,12 +1772,6 @@ export function summarizeCubeObservation(
     balanced.validation.valid
     || (balanced.observedCells >= 40 && balanced.validation.centersCanonical)
   );
-  if (DBG) { // DBG
-    dbg.balanced.calibratedCenters = calibratedCenters;
-    dbg.balanced.ran = !!balanced;
-    dbg.balanced.observedCells = balanced?.observedCells ?? 0;
-    dbg.balanced.usable = balancedUsable;
-  } // DBG
   const balancedObservations = balancedUsable && balanced
     ? CUBE_FACES.map((face) => {
       const centerColor = CANONICAL_FACE_COLOR[face];
@@ -1828,16 +1798,10 @@ export function summarizeCubeObservation(
     : [];
   const allObservations = [...calibratedObservations, ...balancedObservations];
   const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
-  const reconstruction = reconstructInspectionState(allObservations);
-  if (DBG) { // DBG
-    dbg.reconstruct.observationsIn = allObservations.length;
-    dbg.reconstruct.bestObserved = reconstruction.observedFacelets;
-    dbg.reconstruct.inferredFacelets = reconstruction.inferredFacelets;
-    dbg.reconstruct.candidateCount = reconstruction.candidateCount;
-    dbg.reconstruct.sawTruncation = reconstruction.truncated;
-    dbg.reconstruct.status = reconstruction.status;
-    dumpDbgMetrics(`ispezione ${start.toFixed(1)}–${end.toFixed(1)}s`);
-  } // DBG
+  const reconstruction = reconstructInspectionState(allObservations, {
+    observedCells: balanced?.observedCells ?? 0,
+    usable: balancedUsable,
+  });
   const keyframes = selectInspectionKeyframes(selected);
   const coverage = emptyColorCoverage();
   useful.forEach((sample) => {
@@ -2057,8 +2021,6 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   if (!Number.isFinite(video.duration) || video.duration <= 0 || !video.videoWidth || !video.videoHeight) {
     throw new Error('Attendi che il video sia pronto prima di avviare l’analisi.');
   }
-  if (DBG) resetDbgMetrics(); // DBG: azzera i contatori all'inizio di ogni analisi
-
   const startTime = Math.max(0, Math.min(options.startTime, video.duration));
   const endTime = Math.max(startTime, Math.min(options.endTime, video.duration));
   const duration = endTime - startTime;

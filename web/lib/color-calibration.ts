@@ -6,7 +6,6 @@ import {
   type CubeColor,
   type Face,
 } from './cube.ts';
-import { DBG, dbg, dbgState } from './dbg-metrics.ts'; // DBG
 
 export type RgbSample = {
   red: number;
@@ -269,28 +268,19 @@ export function createAdaptiveColorClassifier(
   const darkFloor = Math.max(0.07, Math.min(0.3, percentile(values, 0.16) * 0.86));
   const whiteFloor = Math.max(0.34, percentile(values, 0.62) * 0.78);
   const whiteSaturation = Math.max(0.1, Math.min(0.34, percentile(saturations, 0.34) * 0.82 + 0.035));
-  // Gli sticker di un cubo sono colori pieni (saturazione tipica 0.75-0.90),
-  // la pelle no (0.38-0.48 anche in pieno sole). Senza questa soglia le mani
-  // producono falsi rossi/arancioni molto convinti, che rubano il posto alla
-  // faccia realmente rossa. La soglia si adatta alla scena ma resta dentro
-  // il divario fra i due gruppi.
-  const chromaFloor = Math.max(0.54, Math.min(0.68, percentile(saturations, 0.78) * 0.72));
-  // DBG: contatori dei pixel scartati per motivo. Solo sui frame dell'ispezione:
-  // questa closure gira anche nella passata di rilevamento movimento.
-  const dbgOn = DBG && dbgState.framePhase === 'inspection'; // DBG
-  if (dbgOn) { // DBG
-    dbg.thresholds.chromaFloor.push(chromaFloor); // DBG
-    dbg.thresholds.whiteFloor.push(whiteFloor); // DBG
-    dbg.thresholds.darkFloor.push(darkFloor); // DBG
-  } // DBG
+  // Su video da telefono gli sticker opachi hanno saturazione ~0.45-0.65, la
+  // pelle ~0.38-0.48 anche in pieno sole. Senza questa soglia le mani producono
+  // falsi rossi/arancioni molto convinti, che rubano il posto alla faccia
+  // realmente rossa. La soglia si adatta alla scena ma resta incastrata nel
+  // divario fra i due gruppi: sopra la pelle, sotto gli sticker spenti.
+  const chromaFloor = Math.max(0.4, Math.min(0.46, percentile(saturations, 0.78) * 0.72));
   return (sample: RgbSample) => {
     const hsv = rgbToHsv(sample);
-    if (hsv.value < darkFloor) { if (dbgOn) dbg.pixelClass.dark += 1; return null; } // DBG
-    if (hsv.saturation <= whiteSaturation && hsv.value < whiteFloor) { if (dbgOn) dbg.pixelClass.whiteGrey += 1; return null; } // DBG
+    if (hsv.value < darkFloor) return null;
+    if (hsv.saturation <= whiteSaturation && hsv.value < whiteFloor) return null;
     const classified = classifyCalibratedColor(sample, calibration);
-    if (classified.color !== 'white' && hsv.saturation < chromaFloor) { if (dbgOn) dbg.pixelClass.chromaFloor += 1; return null; } // DBG
-    if (classified.distance > 22 && classified.confidence < 0.18) { if (dbgOn) dbg.pixelClass.colorDistance += 1; return null; } // DBG
-    if (dbgOn) dbg.pixelClass.passed += 1; // DBG
+    if (classified.color !== 'white' && hsv.saturation < chromaFloor) return null;
+    if (classified.distance > 22 && classified.confidence < 0.18) return null;
     return classified;
   };
 }
