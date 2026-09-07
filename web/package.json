@@ -10,7 +10,8 @@
     "build": "vinext build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "test:inspection": "node --experimental-strip-types --experimental-specifier-resolution=node --test lib/color-calibration.test.ts lib/inspection-state.test.ts lib/video-decoder.test.ts lib/solve-transcription.test.ts lib/virtual-replay.test.ts"
+    "test:inspection": "node --experimental-strip-types --experimental-specifier-resolution=node --test lib/color-calibration.test.ts lib/inspection-state.test.ts lib/video-decoder.test.ts lib/solve-transcription.test.ts lib/virtual-replay.test.ts bench/score.test.ts",
+    "bench": "node --experimental-strip-types bench/run-bench.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.0.1",
@@ -32,6 +33,7 @@
     "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "playwright": "^1.62.1",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",

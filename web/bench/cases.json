@@ -1,0 +1,19 @@
+{
+  "_comment": "Banco di prova ripetibile per la ricostruzione dello stato. I video restano locali (fuori dal repo). Override della cartella: variabile d'ambiente BENCH_VIDEO_DIR. Convenzione scramble: cubo risolto con bianco sopra e verde davanti.",
+  "videoDir": "C:/Users/Andrea/Desktop/App/lenti",
+  "repeats": 3,
+  "cases": [
+    {
+      "id": "IMG_6107",
+      "video": "IMG_6107.mp4",
+      "scramble": "F L2 B2 D F2 D' U' B2 D' F2 L2 D2 R2 B' D' F R U' F2 U",
+      "orientation": "white-U/green-F"
+    },
+    {
+      "id": "IMG_6108",
+      "video": "IMG_6108.mp4",
+      "scramble": "B' R2 B2 F2 U F2 D B2 U2 B2 F2 R2 B' R B L' D2 B D' F'",
+      "orientation": "white-U/green-F"
+    }
+  ]
+}

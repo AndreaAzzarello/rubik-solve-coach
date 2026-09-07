@@ -1,0 +1,166 @@
+{
+  "case": "IMG_6107",
+  "scramble": "F L2 B2 D F2 D' U' B2 D' F2 L2 D2 R2 B' D' F R U' F2 U",
+  "status": "partial",
+  "observedFaces": [
+    "U",
+    "L",
+    "D",
+    "R",
+    "B",
+    "F"
+  ],
+  "facesWithReference": 6,
+  "interval": {
+    "start": 0.96,
+    "end": 21.163333333333334
+  },
+  "videoSize": [
+    1080,
+    1920
+  ],
+  "durationMs": 215163,
+  "images": [
+    {
+      "file": "1-U-white.png",
+      "face": "U",
+      "centerColor": "white",
+      "time": 4.4658,
+      "frameId": "4.4658:crop-2",
+      "gridSource": "pairs",
+      "colorSource": "osservazione",
+      "readColors": [
+        "red",
+        "red",
+        "red",
+        "orange",
+        "white",
+        "yellow",
+        "green",
+        "green",
+        "green"
+      ],
+      "hasGeometry": true,
+      "hasSilhouette": false
+    },
+    {
+      "file": "2-R-red.png",
+      "face": "R",
+      "centerColor": "red",
+      "time": 2.9633,
+      "frameId": "2.9633:crop-0",
+      "gridSource": "pairs",
+      "colorSource": "osservazione",
+      "readColors": [
+        "green",
+        "green",
+        "yellow",
+        "red",
+        "red",
+        "white",
+        "red",
+        "blue",
+        "yellow"
+      ],
+      "hasGeometry": true,
+      "hasSilhouette": false
+    },
+    {
+      "file": "3-F-green.png",
+      "face": "F",
+      "centerColor": "green",
+      "time": 15.4842,
+      "frameId": "15.4842:crop-0",
+      "gridSource": "pairs",
+      "colorSource": "osservazione",
+      "readColors": [
+        null,
+        "red",
+        "red",
+        "blue",
+        "green",
+        "orange",
+        "red",
+        "yellow",
+        "green"
+      ],
+      "hasGeometry": true,
+      "hasSilhouette": false
+    },
+    {
+      "file": "4-D-yellow.png",
+      "face": "D",
+      "centerColor": "yellow",
+      "time": 18.99,
+      "frameId": "18.9900:crop-2",
+      "gridSource": "pairs",
+      "colorSource": "osservazione",
+      "readColors": [
+        "white",
+        "orange",
+        "white",
+        "white",
+        "yellow",
+        "white",
+        "blue",
+        "blue",
+        "blue"
+      ],
+      "hasGeometry": true,
+      "hasSilhouette": false
+    },
+    {
+      "file": "5-L-orange.png",
+      "face": "L",
+      "centerColor": "orange",
+      "time": 12.4792,
+      "frameId": "12.4792:crop-1",
+      "gridSource": "pairs",
+      "colorSource": "osservazione",
+      "readColors": [
+        "green",
+        "green",
+        "red",
+        "green",
+        "orange",
+        "yellow",
+        "orange",
+        "blue",
+        "green"
+      ],
+      "hasGeometry": true,
+      "hasSilhouette": false
+    },
+    {
+      "file": "6-B-blue.png",
+      "face": "B",
+      "centerColor": "blue",
+      "time": 13.9817,
+      "frameId": "13.9817:crop-2",
+      "gridSource": "pairs",
+      "colorSource": "osservazione",
+      "readColors": [
+        "red",
+        null,
+        "red",
+        "green",
+        "blue",
+        "orange",
+        "yellow",
+        "orange",
+        "green"
+      ],
+      "hasGeometry": true,
+      "hasSilhouette": false
+    }
+  ],
+  "missingFaces": [],
+  "legend": {
+    "cyan": "contorno della griglia 3x3 scelta",
+    "magenta": "9 punti di campionamento (+ intorno mediato per il colore)",
+    "swatch": "colore letto dall’algoritmo in quel punto (etichetta accanto al punto)",
+    "yellow": "cella centrale (il suo colore diventa il centro faccia)",
+    "orange": "silhouette esagonale (solo se la griglia viene dalla silhouette)",
+    "colorSource": "\"osservazione\" = colori del frame scelto · \"facelet-fuso\" = stato ricostruito (ripiego)"
+  }
+}
