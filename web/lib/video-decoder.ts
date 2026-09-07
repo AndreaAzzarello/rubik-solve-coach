@@ -308,6 +308,7 @@ function sampleVirtualCell(
   const minY = Math.max(0, Math.round(y - radius));
   const maxY = Math.min(height - 1, Math.round(y + radius));
   if (maxX <= minX || maxY <= minY) return null;
+  const roiArea = (maxX - minX + 1) * (maxY - minY + 1);
   const counts = new Map<number, number>();
   let total = 0;
   for (let py = minY; py <= maxY; py += 1) {
@@ -319,13 +320,20 @@ function sampleVirtualCell(
     }
   }
   if (total < 10) return null;
+  // Un punto che cade davvero al centro di una casella ha l'intorno quasi
+  // interamente classificato come colore del cubo. Se meno di meta' dei pixel
+  // dell'intorno hanno un colore-cubo (bordo nero, ombra, pelle, sfondo), il
+  // punto e' fuori faccia: meglio nessuna lettura che un "rosso/arancio" caldo.
+  if (total / roiArea < 0.5) return null;
   let bestLabel = -1;
   let bestCount = 0;
   counts.forEach((count, label) => {
     if (count > bestCount) { bestCount = count; bestLabel = label; }
   });
   const share = bestCount / total;
-  if (bestLabel < 0 || share < 0.72) return null;
+  // Soglia di accordo alzata da 0.72 a 0.80: una casella vera e' un colore
+  // pieno, una regione ambigua a cavallo di due caselle no.
+  if (bestLabel < 0 || share < 0.8) return null;
   return { label: bestLabel, confidence: share };
 }
 
@@ -592,15 +600,24 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
       const centerSide = Math.max(3, (center.width + center.height) / 2);
       const stepRatioRight = right.length / centerSide;
       const stepRatioDown = down.length / centerSide;
+      // Il passo nominale fra centroidi adiacenti e' ~1x il lato dello sticker
+      // (piu' il sottile bordo nero); la prospettiva puo' allargarlo un po' sul
+      // lato vicino. 2.15 lasciava passare griglie che scavalcano una casella
+      // (es. faccia F ~1.8x troppo larga): 1.6 le esclude tenendo margine per
+      // lo scorcio.
       if (
-        stepRatioRight < 0.62 || stepRatioRight > 2.15
-        || stepRatioDown < 0.62 || stepRatioDown > 2.15
+        stepRatioRight < 0.62 || stepRatioRight > 1.6
+        || stepRatioDown < 0.62 || stepRatioDown > 1.6
       ) return;
       const tolerance = Math.max(2.2, Math.min(right.length, down.length) * 0.3);
       const used = new Set<StickerComponent>();
       const colors = Array<ObservedCubeColor | null>(9).fill(null);
       const rawColors = Array<RgbSample | null>(9).fill(null);
       const cellConfidences = Array<number>(9).fill(0);
+      // Celle riempite da uno sticker reale (non dal fallback virtuale): servono
+      // a distinguere un vero centro faccia da uno sticker di bordo usato come
+      // ancora (che avrebbe un vicino ortogonale fuori faccia).
+      const realCell = Array<boolean>(9).fill(false);
       let visibleCells = 0;
       let residual = 0;
       for (let row = -1; row <= 1; row += 1) {
@@ -620,6 +637,7 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
           if (best) {
             used.add(best);
             const cellIndex = (row + 1) * 3 + column + 1;
+            realCell[cellIndex] = true;
             colors[cellIndex] = best.color;
             rawColors[cellIndex] = best.rawColor ?? null;
             const geometryConfidence = Math.max(0, 1 - bestDistance / tolerance);
@@ -648,9 +666,17 @@ export function detectFaceGrids(labels: Int8Array, width: number, height: number
         }
       }
       if (visibleCells < 6 || colors[4] !== center.color) return;
+      // Anti-traslazione di ~1 cella: un'ancora che e' davvero il centro faccia
+      // ha stickers su tutti e quattro i lati (celle 1/3/5/7 = N/O/E/S). Se un
+      // vicino ortogonale manca, o meno di due sono stickers reali, l'ancora e'
+      // un bordo/spigolo e la griglia scivolerebbe fuori faccia.
+      const orthoIndices = [1, 3, 5, 7];
+      const orthoPresent = orthoIndices.filter((i) => colors[i] !== null).length;
+      const orthoReal = orthoIndices.filter((i) => realCell[i]).length;
+      if (orthoPresent < 4 || orthoReal < 2) return;
       applyLocalCenterCalibration(center.color, rawColors, colors, cellConfidences);
       const fit = Math.max(0, 1 - residual / visibleCells);
-      const score = visibleCells / 9 * 0.78 + fit * 0.22;
+      const score = visibleCells / 9 * 0.7 + fit * 0.18 + orthoReal / 4 * 0.12;
       candidates.push({
         centerColor: center.color,
         colors,
