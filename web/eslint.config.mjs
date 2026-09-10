@@ -5,7 +5,10 @@ import nextTs from 'eslint-config-next/typescript';
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
+  // Runtime Emscripten di MediaPipe congelato per il bench: codice generato da
+  // Google, non nostro. Lintarlo produce solo falsi positivi (require() del
+  // loader, this-alias, "react-hooks" su _emscripten_glUseProgram).
+  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts', 'bench/vendor/**']),
 ]);
 
 export default eslintConfig;
