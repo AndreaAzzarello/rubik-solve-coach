@@ -16,7 +16,9 @@ import {
   scanInspectionFrames,
   summarizeCubeObservation,
   type CubeObservationSummary,
+  type MotionEvent,
   type MotionSample,
+  type SolveWindow,
 } from './video-decoder.ts';
 
 export type InspectionRunPhase = 'motion' | 'boundary' | 'frames' | 'fusing';
@@ -26,6 +28,16 @@ export type InspectionRunResult = {
   samples: MotionSample[];
   runCount: number;
   interval: { start: number; end: number };
+  /**
+   * Eventi di moto della prima passata (`decodeVideoMotion`). Servono allo
+   * scanner per trascrizione mosse, replay virtuale e stima PLL: la pagina
+   * unica li prende da qui invece di rifare una seconda passata di decodifica.
+   */
+  motionEvents: MotionEvent[];
+  /** Campioni di moto grezzi della prima passata (input di `inferPllAndCrossColor`). */
+  motionSamples: MotionSample[];
+  /** Finestra di solve individuata dalla segmentazione, `null` se non trovata. */
+  solveWindow: SolveWindow | null;
 };
 
 export type InspectionRunOptions = {
@@ -136,5 +148,8 @@ export async function reconstructInspectionFromVideo(
     samples: combinedSamples,
     runCount: completedRuns,
     interval,
+    motionEvents: decoded.events,
+    motionSamples: decoded.samples,
+    solveWindow: solveWindow ?? null,
   };
 }
