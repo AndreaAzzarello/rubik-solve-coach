@@ -24,11 +24,19 @@ import {
   formatScoreReport,
   type ReconstructionScore,
 } from './lib/score.ts';
+import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import type { CubeColor, Face } from '../lib/cube.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
 const RESULTS_DIR = path.join(HERE, 'results');
+
+// MediaPipe servito in locale dai file vendorizzati (bench/vendor/mediapipe):
+// niente CDN esterni, niente deriva del modello o del runtime nel tempo.
+const VENDOR_DIR = path.join(HERE, 'vendor', 'mediapipe');
+const VENDOR_WASM_DIR = path.join(VENDOR_DIR, 'wasm');
+const MEDIAPIPE_WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/';
+const MEDIAPIPE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 
 type CaseSpec = {
   id: string;
@@ -257,14 +265,29 @@ async function main() {
 // decodificare gli .mp4 usiamo il Chrome di sistema. Fallback al bundle se
 // manca (con .webm/VP9 funziona lo stesso).
   const headless = !process.env.BENCH_HEADFUL;
-  let browser: Browser;
-  try {
-    browser = await chromium.launch({ headless, channel: process.env.BENCH_CHANNEL || 'chrome' });
-    log(`browser: Chrome di sistema (canale "${process.env.BENCH_CHANNEL || 'chrome'}")`);
-  } catch (caught) {
-    log(`Chrome di sistema non disponibile (${caught instanceof Error ? caught.message.split('\n')[0] : caught}); uso il Chromium di Playwright`);
-    browser = await chromium.launch({ headless });
-  }
+  // Chrome for Testing pinnato: ha i codec proprietari per gli .mp4 e non si
+  // aggiorna da solo. GL forzato su SwiftShader: i calculator GL di MediaPipe
+  // non devono dipendere dalla GPU della macchina. Senza GPU reale il delegate
+  // TFLite ricade su CPU/XNNPACK, che viene verificato a fine run.
+  const chromeExecutable = pinnedChromeExecutable();
+  const glArgs = [
+    '--use-gl=angle',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--disable-gpu',
+  ];
+  const browser: Browser = await chromium.launch({
+    headless,
+    executablePath: chromeExecutable,
+    args: glArgs,
+  });
+  log(`browser: Chrome for Testing ${CHROME_BUILD_ID} (pinnato) · GL SwiftShader`);
+
+  // Sentinelle di determinismo, verificate dopo il run.
+  let sawCpuDelegate = false;
+  let sawGpuDelegate = false;
+  let vendorWasmHits = 0;
+  let vendorModelHits = 0;
   const startedAt = new Date();
   const report: {
     startedAt: string;
@@ -288,8 +311,39 @@ async function main() {
   try {
     const page = await browser.newPage();
     page.on('console', (message) => {
-      if (message.type() === 'error') log(`console.error: ${message.text()}`);
+      const text = message.text();
+      if (/XNNPACK delegate for CPU/i.test(text)) sawCpuDelegate = true;
+      if (/delegate for GPU|GPU delegate/i.test(text)) sawGpuDelegate = true;
+      if (message.type() === 'error') log(`console.error: ${text}`);
     });
+
+    // MediaPipe (runtime WASM + modello mani) servito dai file vendorizzati.
+    await page.route(`${MEDIAPIPE_WASM_CDN}**`, async (route) => {
+      const rel = route.request().url().slice(MEDIAPIPE_WASM_CDN.length).split(/[?#]/)[0];
+      const abs = path.join(VENDOR_WASM_DIR, rel);
+      if (!abs.startsWith(VENDOR_WASM_DIR) || !fs.existsSync(abs)) {
+        await route.fulfill({ status: 404, body: `non vendorizzato: ${rel}` });
+        return;
+      }
+      vendorWasmHits += 1;
+      const type = rel.endsWith('.wasm') ? 'application/wasm'
+        : rel.endsWith('.js') ? 'text/javascript'
+        : 'application/octet-stream';
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': type, 'access-control-allow-origin': '*' },
+        body: fs.readFileSync(abs),
+      });
+    });
+    await page.route(MEDIAPIPE_MODEL_URL, async (route) => {
+      vendorModelHits += 1;
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream', 'access-control-allow-origin': '*' },
+        body: fs.readFileSync(path.join(VENDOR_DIR, 'hand_landmarker.task')),
+      });
+    });
+
     await page.goto(`${dev.baseUrl}/bench`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__benchReady === true, null, { timeout: 30000 });
 
@@ -387,6 +441,29 @@ async function main() {
   fs.writeFileSync(outPath, JSON.stringify(report, null, 2));
   fs.writeFileSync(path.join(RESULTS_DIR, 'latest.json'), JSON.stringify(report, null, 2));
   log(`report salvato: ${path.relative(WEB_ROOT, outPath)}`);
+
+  // --- sentinelle di determinismo ---
+  const determinismIssues: string[] = [];
+  if (vendorWasmHits === 0) {
+    determinismIssues.push('runtime WASM MediaPipe NON servito dai file vendorizzati (starebbe scaricando dal CDN)');
+  }
+  if (vendorModelHits === 0) {
+    determinismIssues.push('modello mani MediaPipe NON servito dai file vendorizzati (starebbe scaricando da googleapis)');
+  }
+  if (!sawCpuDelegate) {
+    determinismIssues.push('atteso il delegate TFLite "XNNPACK for CPU": non rilevato nei log del browser');
+  }
+  if (sawGpuDelegate) {
+    determinismIssues.push('rilevato un delegate GPU: il risultato dipenderebbe dalla GPU della macchina');
+  }
+  if (determinismIssues.length) {
+    console.log('\n[bench] ⚠ DETERMINISMO NON GARANTITO:');
+    for (const issue of determinismIssues) console.log(`  - ${issue}`);
+    console.log('  Il numero qui sopra NON e\' un baseline affidabile.');
+    process.exitCode = 1;
+  } else {
+    log('determinismo: WASM+modello locali · delegate CPU/XNNPACK · GL SwiftShader ✓');
+  }
 
   const anyRun = report.cases.some((entry) => entry.representative);
   if (!anyRun) process.exitCode = 1;
