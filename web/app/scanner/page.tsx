@@ -4,7 +4,6 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   CANONICAL_FACE_COLOR,
   COLOR_HEX,
-  COLOR_LABELS,
   CUBE_FACES,
   type CubeColor,
   type Face,
@@ -30,15 +29,11 @@ import {
   type SolveTranscript,
 } from '../../lib/solve-transcription';
 import { buildVirtualReplay, type VirtualReplay } from '../../lib/virtual-replay';
+import { createBlankFacelets, copyFacelets, FACE_LABELS } from '../../lib/facelets-ui';
+import { formatPreciseTime, formatFileSize } from '../../lib/format';
+import { CubeNet } from '../../components/CubeNet';
 
 const FACES = CUBE_FACES;
-const FACE_LABEL: Record<Face, string> = {
-  U: 'Sopra', R: 'Destra', F: 'Fronte', D: 'Sotto', L: 'Sinistra', B: 'Retro',
-};
-const NET_POSITION: Record<Face, string> = {
-  U: 'col-start-2 row-start-1', L: 'col-start-1 row-start-2', F: 'col-start-2 row-start-2',
-  R: 'col-start-3 row-start-2', B: 'col-start-4 row-start-2', D: 'col-start-2 row-start-3',
-};
 
 type ScanStatus = 'idle' | 'ready' | 'running' | 'result' | 'failed';
 type AnalysisPhase = 'idle' | 'motion' | 'boundary' | 'frames' | 'fusing';
@@ -46,58 +41,6 @@ type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
-
-function blankFacelets(): PartialFacelets {
-  return Object.fromEntries(FACES.map((face) => {
-    const colors = Array<CubeColor | null>(9).fill(null);
-    colors[4] = CANONICAL_FACE_COLOR[face];
-    return [face, colors];
-  })) as PartialFacelets;
-}
-
-function copyFacelets(facelets: PartialFacelets): PartialFacelets {
-  return Object.fromEntries(FACES.map((face) => [face, [...facelets[face]]])) as PartialFacelets;
-}
-
-function formatTime(seconds: number) {
-  if (!Number.isFinite(seconds)) return '0:00.0';
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${(seconds % 60).toFixed(1).padStart(4, '0')}`;
-}
-
-function formatSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`;
-}
-
-function CubeNet({ facelets }: { facelets: PartialFacelets }) {
-  return (
-    <div className="overflow-x-auto pb-1">
-      <div className="grid min-w-[430px] grid-cols-4 grid-rows-3 gap-2">
-        {FACES.map((face) => (
-          <article key={face} className={`${NET_POSITION[face]} rounded-xl border border-white/10 bg-slate-900/85 p-2`}>
-            <div className="mb-1.5 flex items-center justify-between gap-1">
-              <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">{face} · {FACE_LABEL[face]}</p>
-              <span className="text-[8px] font-bold text-slate-500">{facelets[face].filter(Boolean).length}/9</span>
-            </div>
-            <div className="grid aspect-square grid-cols-3 gap-1 rounded-lg bg-slate-950 p-1.5">
-              {facelets[face].map((color, index) => (
-                <span
-                  key={`${face}-${index}`}
-                  className={`rounded-[4px] border border-black/30 ${index === 4 ? 'ring-1 ring-white/70' : ''}`}
-                  style={color
-                    ? { backgroundColor: COLOR_HEX[color] }
-                    : { background: 'repeating-linear-gradient(135deg,#334155 0,#334155 5px,#1e293b 5px,#1e293b 10px)' }}
-                  title={`${face} casella ${index + 1}: ${color ? COLOR_LABELS[color] : 'non determinata'}`}
-                />
-              ))}
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 const REPLAY_SIDES: Array<{ face: Face; className: string }> = [
   { face: 'F', className: 'cube-side-front' },
@@ -220,7 +163,7 @@ export default function VideoScannerPage() {
   const [motionRuns, setMotionRuns] = useState<MotionEvent[][]>([]);
   const [runCount, setRunCount] = useState(0);
   const [summary, setSummary] = useState<CubeObservationSummary | null>(null);
-  const [facelets, setFacelets] = useState<PartialFacelets>(() => blankFacelets());
+  const [facelets, setFacelets] = useState<PartialFacelets>(() => createBlankFacelets());
   const [scramble, setScramble] = useState<InspectionScramble | null>(null);
   const [transcript, setTranscript] = useState<SolveTranscript | null>(null);
   const [solving, setSolving] = useState(false);
@@ -298,7 +241,7 @@ export default function VideoScannerPage() {
     setMotionRuns([]);
     setRunCount(0);
     setSummary(null);
-    setFacelets(blankFacelets());
+    setFacelets(createBlankFacelets());
     setFrameSnapshots({});
     setScramble(null);
     setTranscript(null);
@@ -559,7 +502,7 @@ export default function VideoScannerPage() {
     setMotionRuns([]);
     setRunCount(0);
     setSummary(null);
-    setFacelets(blankFacelets());
+    setFacelets(createBlankFacelets());
     setFrameSnapshots({});
     setScramble(null);
     setTranscript(null);
@@ -640,7 +583,7 @@ export default function VideoScannerPage() {
           <button type="button" onClick={resetAll} disabled={status === 'running'} aria-label="Azzera analisi" className="min-h-12 rounded-[15px] border border-white/10 bg-slate-900/80 px-4 text-lg font-black text-slate-300 disabled:opacity-45">↺</button>
         </div>
 
-        {videoFile && <p className="mt-2 text-center text-[10px] text-slate-500">{formatSize(videoFile.size)} · {formatTime(duration)}{inspection ? ` · ispezione ${formatTime(inspection.start)}–${formatTime(inspection.end)}` : ''}</p>}
+        {videoFile && <p className="mt-2 text-center text-[10px] text-slate-500">{formatFileSize(videoFile.size)} · {formatPreciseTime(duration)}{inspection ? ` · ispezione ${formatPreciseTime(inspection.start)}–${formatPreciseTime(inspection.end)}` : ''}</p>}
 
         <div className="mt-3 grid grid-cols-6 gap-1.5" aria-label="Facce rilevate">
           {FACES.map((face) => {
@@ -652,7 +595,7 @@ export default function VideoScannerPage() {
         {reconstruction && (
           <section className="mt-3 rounded-[20px] border border-white/10 bg-slate-900/80 p-3.5">
             <div className="mb-3 flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-blue-400">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3></div><span className="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-black text-slate-300">{knownCells}/48 caselle</span></div>
-            <CubeNet facelets={facelets} />
+            <CubeNet facelets={facelets} theme="dark" />
           </section>
         )}
 
@@ -669,16 +612,16 @@ export default function VideoScannerPage() {
                   <div key={face} className="rounded-xl border border-white/10 bg-slate-950/60 p-2">
                     <div className="flex items-center gap-1.5">
                       <i className="h-3 w-3 rounded-[3px] border border-white/20" style={{ backgroundColor: COLOR_HEX[CANONICAL_FACE_COLOR[face]] }} />
-                      <span className="text-[10px] font-black text-slate-200">{FACE_LABEL[face]}</span>
+                      <span className="text-[10px] font-black text-slate-200">{FACE_LABELS[face]}</span>
                     </div>
-                    <p className="mt-1 text-[9px] text-slate-500">{formatTime(reference.time)} · {reference.sourceFrames > 1 ? `fuso da ${reference.sourceFrames} fotogrammi` : '1 fotogramma'}</p>
+                    <p className="mt-1 text-[9px] text-slate-500">{formatPreciseTime(reference.time)} · {reference.sourceFrames > 1 ? `fuso da ${reference.sourceFrames} fotogrammi` : '1 fotogramma'}</p>
                     {reference.gridSource && (
                       <p className={`text-[9px] font-black ${reference.gridSource === 'silhouette' ? 'text-orange-400' : 'text-slate-600'}`}>
                         {reference.gridSource === 'silhouette' ? 'da silhouette del cubo' : 'da coppie di sticker'}
                       </p>
                     )}
                     {snapshot ? (
-                      <img src={snapshot} alt={`Fotogramma faccia ${FACE_LABEL[face]}`} className="mt-1.5 aspect-video w-full rounded-lg object-cover" />
+                      <img src={snapshot} alt={`Fotogramma faccia ${FACE_LABELS[face]}`} className="mt-1.5 aspect-video w-full rounded-lg object-cover" />
                     ) : (
                       <button
                         type="button"

@@ -1,14 +1,7 @@
 'use client';
 
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import {
-  CANONICAL_FACE_COLOR,
-  COLOR_HEX,
-  COLOR_LABELS,
-  CUBE_FACES,
-  type CubeColor,
-  type Face,
-} from '../lib/cube';
+import { CUBE_FACES, type CubeColor, type Face } from '../lib/cube';
 import {
   type CubeObservationSummary,
   type MotionSample,
@@ -16,84 +9,14 @@ import {
 import { reconstructInspectionFromVideo } from '../lib/inspection-pipeline';
 import { createScrambleFromInspection, type InspectionScramble } from '../lib/inspection-solver';
 import type { PartialFacelets } from '../lib/inspection-state';
+import { createBlankFacelets, copyFacelets } from '../lib/facelets-ui';
+import { formatDuration, formatPreciseTime, formatFileSize } from '../lib/format';
+import { CubeNet } from '../components/CubeNet';
 
 const FACES = CUBE_FACES;
-const FACE_NAMES: Record<Face, string> = {
-  U: 'Sopra', R: 'Destra', F: 'Fronte', D: 'Sotto', L: 'Sinistra', B: 'Retro',
-};
-const NET_POSITION: Record<Face, string> = {
-  U: 'col-start-2 row-start-1',
-  L: 'col-start-1 row-start-2',
-  F: 'col-start-2 row-start-2',
-  R: 'col-start-3 row-start-2',
-  B: 'col-start-4 row-start-2',
-  D: 'col-start-2 row-start-3',
-};
 
 type ScanStatus = 'idle' | 'running' | 'result' | 'failed';
 type SolverStatus = 'idle' | 'solving' | 'ready' | 'failed';
-
-function formatDuration(seconds: number) {
-  if (!Number.isFinite(seconds)) return '0:00';
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${Math.round(seconds % 60).toString().padStart(2, '0')}`;
-}
-
-function formatPreciseTime(seconds: number) {
-  if (!Number.isFinite(seconds)) return '0:00.0';
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${(seconds % 60).toFixed(1).padStart(4, '0')}`;
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(bytes > 100 * 1024 * 1024 ? 0 : 1)} MB`;
-}
-
-function createBlankFacelets(): PartialFacelets {
-  return Object.fromEntries(FACES.map((face) => {
-    const colors = Array<CubeColor | null>(9).fill(null);
-    colors[4] = CANONICAL_FACE_COLOR[face];
-    return [face, colors];
-  })) as PartialFacelets;
-}
-
-function copyFacelets(facelets: PartialFacelets): PartialFacelets {
-  return Object.fromEntries(FACES.map((face) => [face, [...facelets[face]]])) as PartialFacelets;
-}
-
-function CubeNetEditor({
-  facelets,
-}: {
-  facelets: PartialFacelets;
-}) {
-  return (
-    <div className="overflow-x-auto pb-2">
-      <div className="grid min-w-[430px] grid-cols-4 grid-rows-3 gap-2">
-        {FACES.map((face) => (
-            <article key={face} className={`${NET_POSITION[face]} min-w-0 rounded-xl border border-slate-200 bg-white p-2 shadow-sm`}>
-              <div className="mb-1.5 flex items-center justify-between gap-1">
-                <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">{face} · {FACE_NAMES[face]}</p>
-                <span className="text-[8px] font-bold text-slate-400">{facelets[face].filter(Boolean).length}/9</span>
-              </div>
-              <div className="grid aspect-square grid-cols-3 gap-1 rounded-lg bg-slate-950 p-1.5">
-                {facelets[face].map((color, index) => (
-                  <span
-                    key={`${face}-${index}`}
-                    className={`rounded-[4px] border border-black/15 ${index === 4 ? 'ring-1 ring-white/70' : ''}`}
-                    style={color
-                      ? { backgroundColor: COLOR_HEX[color] }
-                      : { background: 'repeating-linear-gradient(135deg,#334155 0,#334155 5px,#1e293b 5px,#1e293b 10px)' }}
-                    title={`${face} casella ${index + 1}: ${color ? COLOR_LABELS[color] : 'non determinata'}`}
-                  />
-                ))}
-              </div>
-            </article>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -347,7 +270,7 @@ export default function Home() {
                   <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3><p className="mt-1 max-w-md text-[10px] leading-4 text-slate-500">Risultato della fusione automatica dei fotogrammi precedenti alla prima vera mossa del cubo.</p></div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{draftKnownFacelets}/48 caselle</span>
                 </div>
-                <div className="mt-4"><CubeNetEditor facelets={cubeDraft} /></div>
+                <div className="mt-4"><CubeNet facelets={cubeDraft} theme="light" /></div>
               </div>
             </div>
             <div className="border-t border-white/10 p-6 sm:p-8">
