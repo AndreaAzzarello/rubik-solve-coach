@@ -1,15 +1,16 @@
 'use client';
 
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { CUBE_FACES, type CubeColor, type Face } from '../lib/cube';
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CANONICAL_FACE_COLOR, COLOR_HEX, CUBE_FACES, type CubeColor, type Face } from '../lib/cube';
 import {
+  mapGridGeometryToVideoSpace,
   type CubeObservationSummary,
   type MotionSample,
 } from '../lib/video-decoder';
 import { reconstructInspectionFromVideo } from '../lib/inspection-pipeline';
 import { createScrambleFromInspection, type InspectionScramble } from '../lib/inspection-solver';
-import type { PartialFacelets } from '../lib/inspection-state';
-import { createBlankFacelets, copyFacelets } from '../lib/facelets-ui';
+import { faceletsToSolverString, type InspectionReconstruction, type PartialFacelets } from '../lib/inspection-state';
+import { createBlankFacelets, copyFacelets, FACE_LABELS } from '../lib/facelets-ui';
 import { formatDuration, formatPreciseTime, formatFileSize } from '../lib/format';
 import { CubeNet } from '../components/CubeNet';
 
@@ -20,6 +21,7 @@ type SolverStatus = 'idle' | 'solving' | 'ready' | 'failed';
 
 export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const snapshotCanvasRef = useRef<HTMLCanvasElement>(null);
   const analysisGeneration = useRef(0);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
@@ -36,6 +38,9 @@ export default function Home() {
   const [activeInterval, setActiveInterval] = useState<{ start: number; end: number } | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [frameSnapshots, setFrameSnapshots] = useState<Partial<Record<Face, string>>>({});
+  const [snapshotLoading, setSnapshotLoading] = useState<Face | null>(null);
+  const [solverCopied, setSolverCopied] = useState(false);
 
   useEffect(() => () => {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
@@ -63,6 +68,8 @@ export default function Home() {
     setScramble(null);
     setActiveInterval(null);
     setCopied(false);
+    setFrameSnapshots({});
+    setSolverCopied(false);
     setError('');
   }
 
@@ -151,7 +158,126 @@ export default function Home() {
     }
   }
 
+  async function copySolverString(value: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setSolverCopied(true);
+      setTimeout(() => setSolverCopied(false), 1800);
+    } catch {
+      setSolverCopied(false);
+    }
+  }
+
+  async function captureFrameReference(face: Face, reference: NonNullable<InspectionReconstruction['faceReference'][Face]>) {
+    const video = videoRef.current;
+    const canvas = snapshotCanvasRef.current;
+    if (!video || !canvas || !video.duration) return;
+    setSnapshotLoading(face);
+    const originalTime = video.currentTime;
+    const wasPaused = video.paused;
+    if (!wasPaused) video.pause();
+    try {
+      await new Promise<void>((resolve) => {
+        const handleSeeked = () => { video.removeEventListener('seeked', handleSeeked); resolve(); };
+        video.addEventListener('seeked', handleSeeked);
+        video.currentTime = Math.min(video.duration - 0.01, Math.max(0, reference.time));
+      });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const geometry = mapGridGeometryToVideoSpace(reference, video);
+      if (geometry && reference.silhouette?.length) {
+        const mapped = reference.silhouette.map((vertex) => mapGridGeometryToVideoSpace({
+          frameId: reference.frameId,
+          imageX: vertex.x,
+          imageY: vertex.y,
+          rightX: 1, rightY: 0, downX: 0, downY: 1,
+        }, video));
+        if (mapped.every(Boolean)) {
+          context.beginPath();
+          mapped.forEach((point, index) => {
+            if (!point) return;
+            if (index === 0) context.moveTo(point.x, point.y);
+            else context.lineTo(point.x, point.y);
+          });
+          context.closePath();
+          context.strokeStyle = 'rgba(0,0,0,0.8)';
+          context.lineWidth = Math.max(6, canvas.width * 0.013);
+          context.stroke();
+          context.strokeStyle = '#fb923c';
+          context.lineWidth = Math.max(3, canvas.width * 0.006);
+          context.stroke();
+        }
+      }
+      if (geometry) {
+        const cellCorners = (row: number, column: number) => {
+          const cellCenterX = geometry.x + geometry.rightX * column + geometry.downX * row;
+          const cellCenterY = geometry.y + geometry.rightY * column + geometry.downY * row;
+          return [-0.5, 0.5].flatMap((dy) => [-0.5, 0.5].map((dx): [number, number] => [
+            cellCenterX + geometry.rightX * dx + geometry.downX * dy,
+            cellCenterY + geometry.rightY * dx + geometry.downY * dy,
+          ]));
+        };
+        const drawGridPath = () => {
+          context.beginPath();
+          for (let row = -1; row <= 1; row += 1) {
+            for (let column = -1; column <= 1; column += 1) {
+              const corners = cellCorners(row, column);
+              [[0, 1], [1, 3], [3, 2], [2, 0]].forEach(([a, b]) => {
+                context.moveTo(corners[a][0], corners[a][1]);
+                context.lineTo(corners[b][0], corners[b][1]);
+              });
+            }
+          }
+        };
+        context.lineJoin = 'round';
+        context.strokeStyle = 'rgba(0,0,0,0.85)';
+        context.lineWidth = Math.max(6, canvas.width * 0.014);
+        drawGridPath();
+        context.stroke();
+        context.strokeStyle = '#22d3ee';
+        context.lineWidth = Math.max(3, canvas.width * 0.007);
+        drawGridPath();
+        context.stroke();
+        const centerCorners = cellCorners(0, 0);
+        context.beginPath();
+        context.moveTo(centerCorners[0][0], centerCorners[0][1]);
+        [centerCorners[1], centerCorners[3], centerCorners[2]].forEach(([x, y]) => context.lineTo(x, y));
+        context.closePath();
+        context.fillStyle = 'rgba(250,204,21,0.38)';
+        context.fill();
+        context.strokeStyle = '#facc15';
+        context.lineWidth = Math.max(3, canvas.width * 0.007);
+        context.stroke();
+      } else {
+        context.fillStyle = 'rgba(0,0,0,0.55)';
+        context.fillRect(0, canvas.height * 0.44, canvas.width, canvas.height * 0.12);
+        context.fillStyle = '#f8fafc';
+        context.font = `${Math.round(canvas.width * 0.032)}px sans-serif`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText('Geometria della griglia non disponibile', canvas.width / 2, canvas.height * 0.5);
+      }
+      setFrameSnapshots((previous) => ({ ...previous, [face]: canvas.toDataURL('image/jpeg', 0.85) }));
+    } finally {
+      await new Promise<void>((resolve) => {
+        const handleSeeked = () => { video.removeEventListener('seeked', handleSeeked); resolve(); };
+        video.addEventListener('seeked', handleSeeked);
+        video.currentTime = originalTime;
+      });
+      if (!wasPaused) await video.play().catch(() => undefined);
+      setSnapshotLoading(null);
+    }
+  }
+
   const reconstruction = summary?.reconstruction ?? null;
+  const solverString = useMemo(
+    () => reconstruction?.completeFacelets ? faceletsToSolverString(reconstruction.completeFacelets) : '',
+    [reconstruction],
+  );
   const draftKnownFacelets = Math.max(0, FACES.reduce((total, face) => total + cubeDraft[face].filter(Boolean).length, 0) - 6);
   const resultAvailable = Boolean(reconstruction);
   const resultComplete = reconstruction?.status === 'complete';
@@ -272,6 +398,47 @@ export default function Home() {
                 </div>
                 <div className="mt-4"><CubeNet facelets={cubeDraft} theme="light" /></div>
               </div>
+
+              {reconstruction && Object.keys(reconstruction.faceReference).length > 0 ? (
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Fotogrammi scelti</p>
+                  <h3 className="mt-1 text-sm font-black">Da dove viene ogni faccia</h3>
+                  <p className="mt-1 max-w-md text-[10px] leading-4 text-slate-500">Per ogni faccia, l’istante del video la cui lettura è stata usata nella ricostruzione.</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {FACES.filter((face) => reconstruction.faceReference[face]).map((face) => {
+                      const reference = reconstruction.faceReference[face]!;
+                      const snapshot = frameSnapshots[face];
+                      return (
+                        <div key={face} className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-3 w-3 rounded-[3px] border border-black/10" style={{ backgroundColor: COLOR_HEX[CANONICAL_FACE_COLOR[face]] }} />
+                            <span className="text-[10px] font-black text-slate-700">{FACE_LABELS[face]}</span>
+                          </div>
+                          <p className="mt-1 text-[9px] text-slate-500">{formatPreciseTime(reference.time)} · {reference.sourceFrames > 1 ? `fuso da ${reference.sourceFrames} fotogrammi` : '1 fotogramma'}</p>
+                          {reference.gridSource ? (
+                            <p className={`text-[9px] font-black ${reference.gridSource === 'silhouette' ? 'text-orange-600' : 'text-slate-400'}`}>
+                              {reference.gridSource === 'silhouette' ? 'da silhouette del cubo' : 'da coppie di sticker'}
+                            </p>
+                          ) : null}
+                          {snapshot ? (
+                            <img src={snapshot} alt={`Fotogramma faccia ${FACE_LABELS[face]}`} className="mt-1.5 aspect-video w-full rounded-lg object-cover" />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { void captureFrameReference(face, reference); }}
+                              disabled={snapshotLoading === face}
+                              className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white py-1.5 text-[9px] font-black text-slate-600 disabled:opacity-50"
+                            >
+                              {snapshotLoading === face ? 'Carico…' : 'Vedi fotogramma'}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <canvas ref={snapshotCanvasRef} className="hidden" />
+                </div>
+              ) : null}
             </div>
             <div className="border-t border-white/10 p-6 sm:p-8">
               {solverStatus === 'solving' ? (
@@ -286,6 +453,16 @@ export default function Home() {
               ) : resultAvailable ? (
                 <div className={`rounded-2xl border p-5 ${reconstruction?.status === 'invalid' ? 'border-red-300/20 bg-red-300/5' : 'border-amber-300/20 bg-amber-300/5'}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${reconstruction?.status === 'invalid' ? 'text-red-300' : 'text-amber-300'}`}>Nessuno scramble ancora</p><p className="mt-2 text-sm leading-6 text-slate-300">Non mostro una sequenza stimata: prima deve esistere un unico stato fisicamente valido. Cerca di mostrare le facce “Manca” e completare quelle “Parziale”, poi usa “Rianalizza e confronta”.</p></div>
               ) : <p className="text-center text-sm leading-6 text-slate-500">Lo scramble apparirà qui soltanto dopo una ricostruzione completa.</p>}
+
+              {solverString ? (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Stringa Singmaster · URFDLB</span>
+                    <button type="button" onClick={() => { void copySolverString(solverString); }} className="rounded-lg border border-white/15 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wide text-slate-300 hover:bg-white/10 hover:text-white">{solverCopied ? 'Copiato ✓' : 'Copia'}</button>
+                  </div>
+                  <textarea value={solverString} readOnly spellCheck={false} className="mt-2 min-h-20 w-full resize-none rounded-xl border border-white/10 bg-slate-950/75 p-2.5 font-mono text-[11px] font-bold leading-5 text-yellow-200 outline-none" />
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
