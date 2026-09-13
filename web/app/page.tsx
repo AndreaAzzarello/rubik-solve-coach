@@ -46,6 +46,12 @@ export default function Home() {
     if (videoUrl) URL.revokeObjectURL(videoUrl);
   }, [videoUrl]);
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      void navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    }
+  }, []);
+
   function chooseVideo(file: File | null) {
     if (!file) return;
     const isVideo = file.type.startsWith('video/') || /\.(mov|mp4|m4v|webm)$/i.test(file.name);
@@ -313,10 +319,6 @@ export default function Home() {
               <p className="text-sm font-black tracking-[-0.02em]">CubeSolve Coach</p>
               <p className="text-xs text-slate-500">Ricostruzione dello scramble 3×3</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <a href="/scanner/" className="rounded-full bg-blue-600 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700">Analizza video</a>
-            <span className="hidden rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 sm:inline">Passo 1</span>
           </div>
         </header>
 
