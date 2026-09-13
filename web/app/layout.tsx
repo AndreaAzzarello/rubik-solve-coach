@@ -1,9 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'CubeSolve Coach — Ricostruisci lo scramble',
   description: 'Analizza il video o scansiona le sei facce del cubo 3×3 per ricostruire e verificare lo scramble.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CubeSolve Coach',
+  },
   openGraph: {
     title: 'CubeSolve Coach — Ricostruisci lo scramble',
     description: 'Analizza il video o scansiona le sei facce del cubo 3×3 per ricostruire e verificare lo scramble.',
@@ -15,6 +21,11 @@ export const metadata: Metadata = {
     title: 'CubeSolve Coach — Ricostruisci lo scramble',
     description: 'Video automatico, scansione guidata e scramble 3×3 verificato.',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#2563eb',
+  colorScheme: 'light',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
