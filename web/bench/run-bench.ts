@@ -59,6 +59,7 @@ type HarnessResult = {
   observedFaces?: Face[];
   facelets?: Record<Face, Array<CubeColor | null>>;
   completeFacelets?: Record<Face, CubeColor[]> | null;
+  cellConfidence?: Record<Face, number[]>;
   interval?: { start: number; end: number };
   runCount?: number;
   durationMs?: number;
@@ -303,6 +304,7 @@ async function main() {
       reconstructed: {
         facelets?: Record<Face, Array<CubeColor | null>>;
         completeFacelets?: Record<Face, CubeColor[]> | null;
+        cellConfidence?: Record<Face, number[]>;
       } | null;
       errors: string[];
     }>;
@@ -371,6 +373,7 @@ async function main() {
           completeFacelets: result.completeFacelets ?? null,
           status: result.status,
           scramble: entry.scramble,
+          cellConfidence: result.cellConfidence,
         });
         scores.push(score);
         harnessResults.push(result);
@@ -403,6 +406,7 @@ async function main() {
           ? {
             facelets: representativeResult.facelets,
             completeFacelets: representativeResult.completeFacelets ?? null,
+            cellConfidence: representativeResult.cellConfidence,
           }
           : null,
         errors,

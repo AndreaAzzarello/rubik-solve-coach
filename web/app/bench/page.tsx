@@ -20,6 +20,7 @@ type BenchResult = {
   observedFaces?: Face[];
   facelets?: Record<Face, Array<CubeColor | null>>;
   completeFacelets?: Record<Face, CubeColor[]> | null;
+  cellConfidence?: Record<Face, number[]>;
   interval?: { start: number; end: number };
   runCount?: number;
   durationMs?: number;
@@ -105,6 +106,7 @@ export default function BenchHarness() {
           observedFaces: reconstruction.observedFaces,
           facelets: reconstruction.facelets,
           completeFacelets: reconstruction.completeFacelets,
+          cellConfidence: reconstruction.cellConfidence,
           interval: result.interval,
           runCount: result.runCount,
           durationMs: Math.round(performance.now() - startedAt),
