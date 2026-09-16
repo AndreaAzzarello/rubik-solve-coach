@@ -21,6 +21,17 @@ import {
 
 export type FaceletMap = Record<Face, Array<CubeColor | null>>;
 export type CompleteFaceletMap = Record<Face, CubeColor[]>;
+export type CellConfidenceMap = Record<Face, number[]>;
+
+// Soglia "alta confidenza" per la nuova metrica di calibrazione (vedi
+// ConfidenceMetric sotto). Non e' un numero scelto a caso: e' la STESSA soglia
+// che la pipeline usa gia' internamente (web/lib/inspection-state.ts, ricerca
+// delle celle piu' deboli da rimuovere in una variante: `confidence < 66`) per
+// decidere se una casella e' abbastanza incerta da valer la pena scartarla
+// nella beam search. Riusarla qui allinea "alta confidenza per il bench" ad
+// "alta confidenza per l'algoritmo stesso", invece di introdurne una seconda
+// slegata dalla prima.
+export const HIGH_CONFIDENCE_THRESHOLD = 66;
 
 // 24 orientamenti del cubo (6 scelte di faccia in alto x 4 rotazioni attorno
 // all'asse verticale). Servono solo alla diagnosi dell'offset sistematico.
@@ -149,6 +160,88 @@ export type OrientationDiagnostic = {
   systematicOffsetSuspected: boolean;
 };
 
+export type ConfidenceMetric = {
+  threshold: number;
+  // celle impegnate (colore non nullo), non centrali, con confidenza >= soglia
+  highConfidenceTotal: number;
+  highConfidenceCorrect: number;
+  // il caso peggiore: sbagliata ma data per certa dall'app
+  highConfidenceWrong: number;
+  highConfidencePrecision: number; // highConfidenceCorrect / highConfidenceTotal
+  // celle impegnate, non centrali, con confidenza < soglia (incluse quelle a
+  // confidenza 0: dedotte dai vincoli dei pezzi o da un consenso fra piu'
+  // stati candidati, mai una lettura fotometrica diretta)
+  lowConfidenceTotal: number;
+  lowConfidenceCorrect: number;
+  // errori che l'utente vedrebbe segnalati come incerti: il costo previsto
+  lowConfidenceWrong: number;
+  // distribuzione grezza delle confidenze sulle celle impegnate non centrali,
+  // per giudicare se la soglia scelta separa davvero due popolazioni o taglia
+  // a caso in mezzo a una sola
+  histogram: Array<{ from: number; to: number; count: number }>;
+};
+
+function emptyConfidenceMetric(threshold: number): ConfidenceMetric {
+  return {
+    threshold,
+    highConfidenceTotal: 0,
+    highConfidenceCorrect: 0,
+    highConfidenceWrong: 0,
+    highConfidencePrecision: 0,
+    lowConfidenceTotal: 0,
+    lowConfidenceCorrect: 0,
+    lowConfidenceWrong: 0,
+    histogram: [],
+  };
+}
+
+function scoreConfidenceCalibration(
+  facelets: FaceletMap,
+  cellConfidence: CellConfidenceMap | undefined,
+  reference: CompleteFaceletMap,
+  threshold: number,
+): ConfidenceMetric {
+  if (!cellConfidence) return emptyConfidenceMetric(threshold);
+  let highTotal = 0;
+  let highCorrect = 0;
+  let lowTotal = 0;
+  let lowCorrect = 0;
+  const bucketSize = 10;
+  const bucketCounts = new Map<number, number>();
+  for (const face of CUBE_FACES) {
+    for (let index = 0; index < 9; index += 1) {
+      if (index === CENTER_INDEX) continue;
+      const got = facelets[face][index] ?? null;
+      if (got === null) continue; // non impegnata: fuori dalla metrica di calibrazione
+      const confidence = cellConfidence[face]?.[index] ?? 0;
+      const correct = got === reference[face][index];
+      if (confidence >= threshold) {
+        highTotal += 1;
+        if (correct) highCorrect += 1;
+      } else {
+        lowTotal += 1;
+        if (correct) lowCorrect += 1;
+      }
+      const bucket = Math.min(90, Math.floor(confidence / bucketSize) * bucketSize);
+      bucketCounts.set(bucket, (bucketCounts.get(bucket) ?? 0) + 1);
+    }
+  }
+  const histogram = [...bucketCounts.entries()]
+    .sort((left, right) => left[0] - right[0])
+    .map(([from, count]) => ({ from, to: from + bucketSize, count }));
+  return {
+    threshold,
+    highConfidenceTotal: highTotal,
+    highConfidenceCorrect: highCorrect,
+    highConfidenceWrong: highTotal - highCorrect,
+    highConfidencePrecision: highTotal ? highCorrect / highTotal : 0,
+    lowConfidenceTotal: lowTotal,
+    lowConfidenceCorrect: lowCorrect,
+    lowConfidenceWrong: lowTotal - lowCorrect,
+    histogram,
+  };
+}
+
 export type ReconstructionScore = {
   // --- punteggio ufficiale (allineamento identita') ---
   correct: number;              // caselle giuste su 54, centri inclusi
@@ -164,6 +257,10 @@ export type ReconstructionScore = {
   histogramDelta: Record<string, number>;
   // --- diagnosi, NON e' il punteggio ---
   orientation: OrientationDiagnostic;
+  // --- calibrazione della confidenza (obiettivo: massimizzare le caselle
+  // corrette ad alta confidenza, segnalare onestamente le altre — vedi
+  // ConfidenceMetric) ---
+  confidence: ConfidenceMetric;
 };
 
 export function scoreReconstruction(input: {
@@ -171,6 +268,8 @@ export function scoreReconstruction(input: {
   completeFacelets: CompleteFaceletMap | null;
   status?: string;
   scramble: string;
+  cellConfidence?: CellConfidenceMap;
+  confidenceThreshold?: number;
 }): ReconstructionScore {
   const reference = referenceFromScramble(input.scramble);
   const identityAll = countEqual(input.facelets, reference, { includeCenters: true });
@@ -199,6 +298,12 @@ export function scoreReconstruction(input: {
   }
 
   const orientation = diagnoseOrientation(input.facelets, reference);
+  const confidence = scoreConfidenceCalibration(
+    input.facelets,
+    input.cellConfidence,
+    reference,
+    input.confidenceThreshold ?? HIGH_CONFIDENCE_THRESHOLD,
+  );
 
   return {
     correct: identityAll.correct,
@@ -215,6 +320,7 @@ export function scoreReconstruction(input: {
     histogramGot,
     histogramDelta,
     orientation,
+    confidence,
   };
 }
 
@@ -285,6 +391,22 @@ export function formatScoreReport(caseId: string, score: ReconstructionScore): s
     const delta = score.histogramDelta[color] ?? 0;
     if (got === 0 && color === 'unknown') continue;
     lines.push(`    ${String(color).padEnd(8)} ${got}${delta ? `   (${delta > 0 ? '+' : ''}${delta})` : ''}`);
+  }
+  lines.push('');
+  lines.push(`  CALIBRAZIONE CONFIDENZA (soglia alta-confidenza: >=${score.confidence.threshold})`);
+  const c = score.confidence;
+  if (!c.highConfidenceTotal && !c.lowConfidenceTotal) {
+    lines.push('    non disponibile: nessuna cellConfidence nel risultato');
+  } else {
+    lines.push(`    alta confidenza:  ${c.highConfidenceCorrect}/${c.highConfidenceTotal} giuste   (precisione ${pct(c.highConfidenceCorrect, c.highConfidenceTotal)})`);
+    lines.push(`      -> sbagliate ma date per certe (PEGGIORE): ${c.highConfidenceWrong}`);
+    lines.push(`    bassa confidenza: ${c.lowConfidenceCorrect}/${c.lowConfidenceTotal} giuste`);
+    lines.push(`      -> sbagliate e segnalate come incerte (costo: un tap): ${c.lowConfidenceWrong}`);
+    lines.push('    distribuzione confidenza sulle celle impegnate (non centrali):');
+    for (const bucket of c.histogram) {
+      const bar = '#'.repeat(Math.min(40, bucket.count));
+      lines.push(`      ${String(bucket.from).padStart(3)}-${String(bucket.to).padEnd(3)} ${bar} ${bucket.count}`);
+    }
   }
   lines.push('');
   lines.push('  DIAGNOSI ORIENTAMENTO (non e\' il punteggio)');
