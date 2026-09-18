@@ -18,20 +18,18 @@ import {
   type CubeColor,
   type Face,
 } from '../../lib/cube.ts';
+import { HIGH_CONFIDENCE_THRESHOLD } from '../../lib/inspection-state.ts';
 
 export type FaceletMap = Record<Face, Array<CubeColor | null>>;
 export type CompleteFaceletMap = Record<Face, CubeColor[]>;
 export type CellConfidenceMap = Record<Face, number[]>;
 
-// Soglia "alta confidenza" per la nuova metrica di calibrazione (vedi
-// ConfidenceMetric sotto). Non e' un numero scelto a caso: e' la STESSA soglia
-// che la pipeline usa gia' internamente (web/lib/inspection-state.ts, ricerca
-// delle celle piu' deboli da rimuovere in una variante: `confidence < 66`) per
-// decidere se una casella e' abbastanza incerta da valer la pena scartarla
-// nella beam search. Riusarla qui allinea "alta confidenza per il bench" ad
-// "alta confidenza per l'algoritmo stesso", invece di introdurne una seconda
-// slegata dalla prima.
-export const HIGH_CONFIDENCE_THRESHOLD = 66;
+// Soglia "alta confidenza" per la metrica di calibrazione (vedi
+// ConfidenceMetric sotto): riesportata per compatibilita', ma definita una
+// sola volta in web/lib/inspection-state.ts, la stessa che usa anche
+// l'interfaccia di correzione manuale — cosi' "alta confidenza" significa la
+// stessa cosa nel bench e nel prodotto.
+export { HIGH_CONFIDENCE_THRESHOLD };
 
 // 24 orientamenti del cubo (6 scelte di faccia in alto x 4 rotazioni attorno
 // all'asse verticale). Servono solo alla diagnosi dell'offset sistematico.

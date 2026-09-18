@@ -1,5 +1,5 @@
 import { CubeState, invertMoves, movesToString, parseAlgorithm } from './cube.ts';
-import { faceletsToSolverString } from './inspection-state.ts';
+import { diagnoseImpossiblePiece, faceletsToSolverString } from './inspection-state.ts';
 import { validateCubeColorDistribution } from './color-calibration.ts';
 import type { CubeColor, Face } from './cube.ts';
 import type CubeSolver from 'cubejs';
@@ -102,7 +102,9 @@ export async function createScrambleFromInspection(
   const ranked = [...candidates.entries()].sort((left, right) => (
     left[1].length - right[1].length || left[0].localeCompare(right[0])
   ));
-  if (!ranked.length) throw new Error('Nessuna soluzione verificabile trovata per lo stato osservato.');
+  if (!ranked.length) {
+    throw new Error(diagnoseImpossiblePiece(facelets) ?? 'Nessuna soluzione verificabile trovata per lo stato osservato.');
+  }
   const [solution, solutionMoves] = ranked[0];
   const scramble = movesToString(invertMoves(solutionMoves));
   const replayed = CubeState.solved().applyMoves(parseAlgorithm(scramble));
