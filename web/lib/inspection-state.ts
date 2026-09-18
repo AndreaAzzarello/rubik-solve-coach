@@ -1,6 +1,7 @@
 import {
   CANONICAL_COLOR_FACE,
   CANONICAL_FACE_COLOR,
+  COLOR_LABELS,
   CUBE_FACES,
   type CubeColor,
   type Face,
@@ -53,6 +54,14 @@ export type CubeOrientation = {
 };
 
 export type PartialFacelets = Record<Face, Array<CubeColor | null>>;
+
+// Soglia "alta confidenza" per la casella (0-100): sotto e' la STESSA soglia
+// che la beam search usa gia' internamente per decidere quali celle sono
+// abbastanza deboli da valer la pena scartare in una variante (vedi
+// `cell.confidence < 66` piu' sotto). Unico posto dove e' definita: sia il
+// bench (bench/lib/score.ts) sia l'interfaccia di correzione la importano da
+// qui, cosi' "alta confidenza" significa la stessa cosa ovunque.
+export const HIGH_CONFIDENCE_THRESHOLD = 66;
 
 export type InspectionReconstruction = {
   status: 'insufficient' | 'partial' | 'complete' | 'invalid';
@@ -771,7 +780,7 @@ function countKnownFacelets(facelets: PartialFacelets) {
   return FACES.reduce((total, face) => total + facelets[face].filter(Boolean).length, 0);
 }
 
-function pieceEvidenceValid(partial: PartialFacelets) {
+export function pieceEvidenceValid(partial: PartialFacelets) {
   return CORNERS.every((position) => pieceOptionsFor(position, CORNERS, partial).length > 0)
     && EDGES.every((position) => pieceOptionsFor(position, EDGES, partial).length > 0);
 }
@@ -936,7 +945,7 @@ function colorCounts(facelets: PartialFacelets): Record<CubeColor, number> {
   return counts;
 }
 
-function colorCountValid(facelets: PartialFacelets) {
+export function colorCountValid(facelets: PartialFacelets) {
   const counts = colorCounts(facelets);
   return Object.values(counts).every((count) => count <= 9);
 }
@@ -951,7 +960,7 @@ const FACE_COLOR_ADJECTIVE: Record<Face, string> = {
   U: 'bianca', R: 'rossa', F: 'verde', D: 'gialla', L: 'arancione', B: 'blu',
 };
 
-function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string | null {
+export function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string | null {
   const missing: string[] = [];
   FACES.forEach((face) => {
     facelets[face].forEach((color, index) => {
@@ -964,6 +973,60 @@ function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string |
   const shown = missing.slice(0, limit);
   const suffix = missing.length > limit ? `, e altre ${missing.length - limit}` : '';
   return `Caselle ancora mancanti: ${shown.join('; ')}${suffix}.`;
+}
+
+function pieceColorKey(colors: CubeColor[]) {
+  return [...colors].sort().join('+');
+}
+
+function describePieceCells(position: PieceDefinition, facelets: PartialFacelets) {
+  return position.faces.map((face, slot) => {
+    const index = position.indices[slot];
+    const color = facelets[face][index];
+    return `faccia ${FACE_COLOR_ADJECTIVE[face]} · casella ${CELL_POSITION_LABEL[index]} (${color ? COLOR_LABELS[color] : 'non determinata'})`;
+  }).join(', ');
+}
+
+// Individua le posizioni (angolo/spigolo) i cui adesivi non formano nessuno
+// degli 8/12 pezzi reali del cubo, oppure che duplicano un pezzo già usato
+// altrove: in entrambi i casi è un errore di lettura/correzione localizzato,
+// non un problema di parità globale (quello resta indistinguibile da qui).
+function findInconsistentPieces(positions: PieceDefinition[], facelets: PartialFacelets): PieceDefinition[] {
+  const seen = new Map<string, PieceDefinition[]>();
+  const unmatched: PieceDefinition[] = [];
+  positions.forEach((position) => {
+    if (!pieceOptionsFor(position, positions, facelets).length) {
+      unmatched.push(position);
+      return;
+    }
+    const colors = position.indices.map((index, slot) => facelets[position.faces[slot]][index] as CubeColor);
+    const key = pieceColorKey(colors);
+    seen.set(key, [...(seen.get(key) ?? []), position]);
+  });
+  const duplicated = [...seen.values()].filter((group) => group.length > 1).flat();
+  return [...unmatched, ...duplicated];
+}
+
+/**
+ * Quando uno stato completo (54/54, conteggio colori corretto) non produce
+ * nessuno scramble verificabile, la causa è quasi sempre o (a) un pezzo con
+ * una combinazione di colori inesistente sul cubo reale / duplicata, oppure
+ * (b) un problema di parità globale (un singolo spigolo capovolto, un angolo
+ * ruotato, o uno scambio dispari) che non è imputabile a una singola casella.
+ * Qui copriamo solo il caso (a), cercabile a costo trascurabile; per il caso
+ * (b) non c'è una casella "colpevole" da indicare, quindi si torna null e il
+ * chiamante usa il messaggio generico.
+ */
+export function diagnoseImpossiblePiece(facelets: Record<Face, CubeColor[]>): string | null {
+  const partial = facelets as PartialFacelets;
+  const badPositions = [
+    ...findInconsistentPieces(CORNERS, partial),
+    ...findInconsistentPieces(EDGES, partial),
+  ];
+  if (!badPositions.length) return null;
+  const single = badPositions.length === 1;
+  const details = badPositions.map((position) => describePieceCells(position, partial)).join(' — ');
+  return `Lo stato non è fisicamente valido: ${single ? 'un pezzo' : 'alcuni pezzi'} non corrisponde${single ? '' : 'no'} a nessun angolo o spigolo reale del cubo (o è un duplicato). Controlla: ${details}.`;
 }
 
 function geometryQuality(observation: FaceGridObservation): number {
@@ -1258,7 +1321,7 @@ export function reconstructInspectionState(
           index,
           color,
           confidence: confidences[index] || observation.confidence,
-        })).filter((cell) => cell.color && cell.index !== 4 && cell.confidence < 66)
+        })).filter((cell) => cell.color && cell.index !== 4 && cell.confidence < HIGH_CONFIDENCE_THRESHOLD)
           .sort((left, right) => left.confidence - right.confidence)
           .slice(0, 4);
         const removalSets: Array<typeof weakest> = [[]];

@@ -9,8 +9,15 @@ import {
 } from '../lib/video-decoder';
 import { reconstructInspectionFromVideo } from '../lib/inspection-pipeline';
 import { createScrambleFromInspection, type InspectionScramble } from '../lib/inspection-solver';
-import { faceletsToSolverString, type InspectionReconstruction, type PartialFacelets } from '../lib/inspection-state';
-import { createBlankFacelets, copyFacelets, FACE_LABELS } from '../lib/facelets-ui';
+import {
+  colorCountValid,
+  describeMissingFacelets,
+  faceletsToSolverString,
+  pieceEvidenceValid,
+  type InspectionReconstruction,
+  type PartialFacelets,
+} from '../lib/inspection-state';
+import { createBlankFacelets, createBlankEditedCells, copyFacelets, copyEditedCells, FACE_LABELS } from '../lib/facelets-ui';
 import { formatDuration, formatPreciseTime, formatFileSize } from '../lib/format';
 import { CubeNet } from '../components/CubeNet';
 
@@ -34,6 +41,7 @@ export default function Home() {
   const [samples, setSamples] = useState<MotionSample[]>([]);
   const [summary, setSummary] = useState<CubeObservationSummary | null>(null);
   const [cubeDraft, setCubeDraft] = useState<PartialFacelets>(() => createBlankFacelets());
+  const [editedCells, setEditedCells] = useState<Record<Face, boolean[]>>(() => createBlankEditedCells());
   const [scramble, setScramble] = useState<InspectionScramble | null>(null);
   const [activeInterval, setActiveInterval] = useState<{ start: number; end: number } | null>(null);
   const [error, setError] = useState('');
@@ -71,6 +79,7 @@ export default function Home() {
     setSamples([]);
     setSummary(null);
     setCubeDraft(createBlankFacelets());
+    setEditedCells(createBlankEditedCells());
     setScramble(null);
     setActiveInterval(null);
     setCopied(false);
@@ -96,6 +105,7 @@ export default function Home() {
       if (!result.verified) throw new Error('Lo scramble non riproduce tutte le caselle osservate.');
       setScramble(result);
       setSolverStatus('ready');
+      setError('');
     } catch (caught) {
       if (generation !== analysisGeneration.current) return;
       setScramble(null);
@@ -138,6 +148,7 @@ export default function Home() {
       const finalSummary = { ...result.summary, keyframes: [] };
       setSummary(finalSummary);
       setCubeDraft(copyFacelets(finalSummary.reconstruction.facelets));
+      setEditedCells(createBlankEditedCells());
       setSamples(result.samples);
       setRunCount(result.runCount);
       setProgress(1);
@@ -150,6 +161,32 @@ export default function Home() {
       setAnalysisPhase('idle');
       setSolverStatus('idle');
       setError(caught instanceof Error ? caught.message : 'Impossibile analizzare il video.');
+    }
+  }
+
+  // Corregge una singola casella a mano: aggiorna lo schema e marca la
+  // casella come "corretta manualmente" (vince sempre sulla confidenza
+  // dell'algoritmo in CubeNet). Rivalida subito dopo ogni tap: se lo schema è
+  // pieno (54/54) e ancora coerente, ricalcola lo scramble; altrimenti azzera
+  // uno scramble ormai non più rappresentativo dello schema mostrato.
+  function handleEditCell(face: Face, index: number, color: CubeColor) {
+    const nextDraft = copyFacelets(cubeDraft);
+    nextDraft[face][index] = color;
+    setCubeDraft(nextDraft);
+    setEditedCells((previous) => {
+      const next = copyEditedCells(previous);
+      next[face][index] = true;
+      return next;
+    });
+
+    const knownFacelets = FACES.reduce((total, current) => total + nextDraft[current].filter(Boolean).length, 0) - 6;
+    const generation = ++analysisGeneration.current;
+    if (knownFacelets === 48 && colorCountValid(nextDraft) && pieceEvidenceValid(nextDraft)) {
+      void calculateScrambleFromFacelets(nextDraft as Record<Face, CubeColor[]>, generation);
+    } else {
+      setSolverStatus('idle');
+      setScramble(null);
+      setError('');
     }
   }
 
@@ -285,9 +322,32 @@ export default function Home() {
     [reconstruction],
   );
   const draftKnownFacelets = Math.max(0, FACES.reduce((total, face) => total + cubeDraft[face].filter(Boolean).length, 0) - 6);
+  const hasManualEdits = FACES.some((face) => editedCells[face].some(Boolean));
+  // Rivalidazione live: ricalcolata a ogni tap perché deriva da `cubeDraft`.
+  // Utile solo dopo una correzione manuale: la ricostruzione automatica è
+  // già sempre coerente con questi due vincoli per costruzione.
+  const manualValidationIssue = useMemo(() => {
+    if (!hasManualEdits) return null;
+    if (!colorCountValid(cubeDraft)) return 'Un colore compare più di 9 volte tra le caselle corrette a mano: rivedi le ultime celle segnate come "corretta manualmente".';
+    if (!pieceEvidenceValid(cubeDraft)) return 'Le caselle corrette finora non possono corrispondere a nessuna combinazione di pezzi reali del cubo: controlla le ultime celle modificate.';
+    return null;
+  }, [cubeDraft, hasManualEdits]);
   const resultAvailable = Boolean(reconstruction);
-  const resultComplete = reconstruction?.status === 'complete';
-  const resultMessage = reconstruction?.message ?? '';
+  // `reconstruction` è l'istantanea dell'ultima analisi video: dopo una
+  // correzione manuale, `cubeDraft` (mostrato in CubeNet) può diventare più
+  // (o diversamente) completo di lei. `piecesFullyKnown` è la verità attuale
+  // ("tutte le 54 caselle mostrate sono note e formano uno stato verificato"),
+  // quindi ha sempre la precedenza sulle cifre congelate della ricostruzione:
+  // altrimenti l'utente può leggere "48/48 caselle" nel riquadro (live, da
+  // cubeDraft) e "41/48, mancano 7" nel messaggio (stale, da reconstruction).
+  const piecesFullyKnown = draftKnownFacelets === 48 && Boolean(scramble?.verified);
+  const draftMissingDescription = useMemo(() => describeMissingFacelets(cubeDraft), [cubeDraft]);
+  const resultComplete = piecesFullyKnown || reconstruction?.status === 'complete';
+  const resultMessage = piecesFullyKnown
+    ? 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.'
+    : hasManualEdits
+      ? `Schema corretto a mano (${draftKnownFacelets}/48 caselle).${draftMissingDescription ? ` ${draftMissingDescription}` : ''}`
+      : reconstruction?.message ?? '';
   const resultConfidence = summary?.confidence ?? null;
   const statusLabel = resultComplete
     ? 'Stato completo'
@@ -374,7 +434,7 @@ export default function Home() {
                   <p className="mt-2 text-[11px] leading-4 text-blue-800">I fotogrammi vengono elaborati senza essere mostrati né conservati. Alla fine resta soltanto lo schema colore ricostruito.</p>
                 </div>
               ) : null}
-              {error ? <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
+              {error && solverStatus !== 'failed' ? <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
             </div>
 
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white/80 p-4">
@@ -389,7 +449,7 @@ export default function Home() {
               {!resultAvailable ? (
                 <div className="grid min-h-48 place-items-center text-center"><div className="max-w-sm"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-2xl text-blue-300">◫</div><p className="mt-5 text-sm leading-6 text-slate-400">Qui compariranno soltanto i colori ricostruiti e lo scramble. Il riconoscimento delle mosse e delle fasi è sospeso.</p></div></div>
               ) : (
-                <><p className="mt-3 text-sm leading-6 text-slate-400">{resultMessage}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Fotogrammi analizzati: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · arresto prima della prima mossa · immagini eliminate</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length ?? 0}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{draftKnownFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{reconstruction ? `${reconstruction.resolvedCorners}/8` : scramble?.verified ? '8/8' : '—'}</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{reconstruction ? `${reconstruction.resolvedEdges}/12` : scramble?.verified ? '12/12' : '—'}</p></div></div></>
+                <><p className="mt-3 text-sm leading-6 text-slate-400">{resultMessage}</p>{activeInterval ? <p className="mt-2 font-mono text-[11px] text-slate-500">Fotogrammi analizzati: {formatPreciseTime(activeInterval.start)}–{formatPreciseTime(activeInterval.end)} · arresto prima della prima mossa · immagini eliminate</p> : null}<div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4"><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Facce</p><p className="mt-1 text-xl font-black">{reconstruction?.observedFaces.length ?? 0}/6</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Caselle</p><p className="mt-1 text-xl font-black">{draftKnownFacelets}/48</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Angoli</p><p className="mt-1 text-xl font-black">{piecesFullyKnown ? '8/8' : reconstruction ? `${reconstruction.resolvedCorners}/8` : '—'}</p></div><div className="rounded-xl bg-white/5 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Spigoli</p><p className="mt-1 text-xl font-black">{piecesFullyKnown ? '12/12' : reconstruction ? `${reconstruction.resolvedEdges}/12` : '—'}</p></div></div></>
               )}
             </div>
             <div className="bg-slate-100 p-4 text-slate-950 sm:p-6">
@@ -398,7 +458,25 @@ export default function Home() {
                   <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3><p className="mt-1 max-w-md text-[10px] leading-4 text-slate-500">Risultato della fusione automatica dei fotogrammi precedenti alla prima vera mossa del cubo.</p></div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{draftKnownFacelets}/48 caselle</span>
                 </div>
-                <div className="mt-4"><CubeNet facelets={cubeDraft} theme="light" /></div>
+                <div className="mt-4">
+                  <CubeNet
+                    facelets={cubeDraft}
+                    cellConfidence={reconstruction?.cellConfidence}
+                    editedCells={editedCells}
+                    onEdit={handleEditCell}
+                    theme="light"
+                  />
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-500">
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-black/20 bg-slate-200" /> alta confidenza</span>
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-dashed border-amber-400 bg-slate-200" /> bassa confidenza</span>
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-dotted border-slate-400/70 bg-slate-200" /> dedotta, nessuna lettura diretta</span>
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-solid border-blue-500 bg-slate-200" /> corretta manualmente</span>
+                  <span className="text-slate-400">· tocca una casella per correggerla</span>
+                </div>
+                {manualValidationIssue ? (
+                  <p role="alert" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">{manualValidationIssue}</p>
+                ) : null}
               </div>
 
               {reconstruction && Object.keys(reconstruction.faceReference).length > 0 ? (
@@ -452,6 +530,8 @@ export default function Home() {
                   <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-slate-400"><span className="rounded-full bg-white/5 px-2.5 py-1.5">{scramble.moveCount} mosse HTM</span><span className="rounded-full bg-white/5 px-2.5 py-1.5">{scramble.candidatesTested} soluzioni verificate</span><span className="rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-emerald-300">54/54 caselle confrontate</span></div>
                   <p className="mt-4 text-[11px] leading-5 text-slate-500">Lo scramble è stato rieseguito virtualmente e riproduce esattamente lo stato letto. È il più breve trovato dalla ricerca multipla; la minimalità matematica assoluta richiederebbe una ricerca ottimale molto più pesante.</p>
                 </div>
+              ) : solverStatus === 'failed' && error ? (
+                <div className="rounded-2xl border border-red-300/20 bg-red-300/5 p-5"><p className="text-xs font-black uppercase tracking-[0.14em] text-red-300">Stato non valido</p><p className="mt-2 text-sm leading-6 text-slate-300">{error}</p></div>
               ) : resultAvailable ? (
                 <div className={`rounded-2xl border p-5 ${reconstruction?.status === 'invalid' ? 'border-red-300/20 bg-red-300/5' : 'border-amber-300/20 bg-amber-300/5'}`}><p className={`text-xs font-black uppercase tracking-[0.14em] ${reconstruction?.status === 'invalid' ? 'text-red-300' : 'text-amber-300'}`}>Nessuno scramble ancora</p><p className="mt-2 text-sm leading-6 text-slate-300">Non mostro una sequenza stimata: prima deve esistere un unico stato fisicamente valido. Cerca di mostrare le facce “Manca” e completare quelle “Parziale”, poi usa “Rianalizza e confronta”.</p></div>
               ) : <p className="text-center text-sm leading-6 text-slate-500">Lo scramble apparirà qui soltanto dopo una ricostruzione completa.</p>}
