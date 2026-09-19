@@ -8,12 +8,15 @@ Colab (niente GPU locale).
 
 1. Apri `train_colab.ipynb` in Google Colab (upload diretto, o via Drive/GitHub).
 2. `Runtime > Cambia tipo di runtime > GPU`.
-3. Dataset: **opzione A** (consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
+3. Dataset: nella cella dei parametri, `DATASET_SOURCE = 'drive_zip'` (default,
+   consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
    (generato in locale con `node --experimental-strip-types vision/dataset/generate-dataset.ts`)
-   su Google Drive in `MyDrive/rubik-vision/`, poi esegui la cella che lo monta
-   e scompatta. **Opzione B**: rigenera il dataset direttamente in Colab
-   (richiede il branch pushato su GitHub) — piu' lento, utile solo per
-   variare/ampliare i dati senza ricaricare uno zip.
+   da `MyDrive/rubik-vision/` su Google Drive. `DATASET_SOURCE =
+   'regenerate_in_colab'` rigenera il dataset direttamente in Colab (richiede
+   il branch pushato su GitHub) — piu' lento, utile solo per variare/ampliare
+   i dati senza ricaricare uno zip. La cella successiva esegue SOLO il ramo
+   scelto (l'altro si auto-salta) e si ferma con un errore chiaro se un
+   passaggio fallisce, quindi "Esegui tutte le celle" e' sicuro.
 4. Esegui le celle di training + validazione + export ONNX in ordine.
 5. Copia il `.onnx` risultato in `vision/models/cube-face-keypoints.onnx` nel
    repo (cartella creata al bisogno, non ancora presente).
