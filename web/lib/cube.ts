@@ -1,7 +1,7 @@
 export type CubeColor = 'white' | 'red' | 'green' | 'yellow' | 'orange' | 'blue';
 export type Face = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
 export type Phase = 'cross' | 'f2l' | 'oll' | 'pll' | 'complete';
-type Vector = readonly [number, number, number];
+export type Vector = readonly [number, number, number];
 
 export const CUBE_FACES: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
 export const CUBE_COLORS: CubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
@@ -90,7 +90,12 @@ export const COLOR_LABELS: Record<CubeColor, string> = {
   blue: 'Blu',
 };
 
-const FACE_NORMALS: Record<Face, Vector> = {
+// Esportata per `web/vision/dataset` (generatore sintetico): il rendering 3D
+// deve derivare gli assi faccia dalla STESSA fonte usata per l'indicizzazione
+// dei facelet, non da una reimplementazione a parte — altrimenti si rischia
+// esattamente il tipo di bug (trasposizione/specchio per faccia) descritto in
+// bench/README.md.
+export const FACE_NORMALS: Record<Face, Vector> = {
   U: [0, 1, 0],
   R: [1, 0, 0],
   F: [0, 0, 1],
@@ -149,7 +154,12 @@ function rotateVector(vector: Vector, axis: 0 | 1 | 2, quarterTurns: number): Ve
   return result;
 }
 
-function faceletPosition(face: Face, row: number, column: number): Vector {
+// Esportata per lo stesso motivo di FACE_NORMALS sopra: e' la definizione
+// canonica di dove sta ogni sticker sul cubo astratto (usata per indicizzare
+// i facelet). E' una funzione lineare in row/column: il generatore sintetico
+// la valuta anche con row/column non interi (es. -0.5, 2.5) per ottenere i 4
+// angoli esterni della faccia, non solo i 9 centri sticker.
+export function faceletPosition(face: Face, row: number, column: number): Vector {
   if (face === 'U') return [column - 1, 1, row - 1];
   if (face === 'D') return [column - 1, -1, 1 - row];
   if (face === 'F') return [column - 1, 1 - row, 1];
