@@ -13,12 +13,12 @@
 // Il numero di riferimento e' "caselle giuste su 54" con allineamento identita'
 // (non ottimistico). Vedi bench/lib/score.ts.
 
-import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
 import { startStaticServer } from './lib/static-server.ts';
+import { startDevServer } from './lib/dev-server.ts';
 import {
   scoreReconstruction,
   formatScoreReport,
@@ -81,76 +81,9 @@ function loadConfig(): BenchConfig {
   };
 }
 
-// Server statico per i video (Range + CORS): vedi bench/lib/static-server.ts
-// (estratto da qui perche' ora lo riusa anche vision/eval).
-
-async function waitForHttp(url: string, timeoutMs: number): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError = '';
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url, { method: 'GET' });
-      if (response.ok || response.status === 404) return;
-      lastError = `HTTP ${response.status}`;
-    } catch (caught) {
-      lastError = caught instanceof Error ? caught.message : String(caught);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error(`server non raggiungibile a ${url} entro ${timeoutMs}ms (${lastError})`);
-}
-
-function startDevServer(): Promise<{ close: () => Promise<void>; baseUrl: string }> {
-  const command = process.env.BENCH_SERVER_CMD || 'pnpm exec vinext dev';
-  log(`avvio dev server: ${command}`);
-  const child: ChildProcess = spawn(command, {
-    cwd: WEB_ROOT,
-    shell: true,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, BROWSER: 'none' },
-  });
-
-  let resolved = false;
-  const portPromise = new Promise<string>((resolve, reject) => {
-    const onData = (buffer: Buffer) => {
-      const text = buffer.toString();
-      process.stdout.write(text.replace(/^/gm, '  | '));
-      // vinext colora l'output: la porta arriva avvolta da sequenze ANSI
-      // (es. "localhost:\x1b[1m3000\x1b[22m/"), quindi vanno rimosse prima.
-      const plain = text.replace(/\[[0-9;]*m/g, '');
-      const match = /https?:\/\/(?:localhost|127\.0\.0\.1):(\d+)/.exec(plain);
-      if (match && !resolved) {
-        resolved = true;
-        resolve(`http://localhost:${match[1]}`);
-      }
-    };
-    child.stdout?.on('data', onData);
-    child.stderr?.on('data', onData);
-    child.on('exit', (code) => {
-      if (!resolved) reject(new Error(`il dev server e' uscito prima di essere pronto (codice ${code})`));
-    });
-    setTimeout(() => {
-      if (!resolved) reject(new Error('nessun URL localhost dal dev server entro 180s'));
-    }, 180000);
-  });
-
-  return portPromise.then(async (baseUrl) => {
-    await waitForHttp(`${baseUrl}/bench`, 120000);
-    return {
-      baseUrl,
-      close: () => new Promise<void>((resolve) => {
-        child.on('exit', () => resolve());
-        // su Windows serve killare l'albero dei processi
-        if (process.platform === 'win32' && child.pid) {
-          spawn('taskkill', ['/pid', String(child.pid), '/f', '/t'], { stdio: 'ignore' });
-        } else {
-          child.kill('SIGTERM');
-        }
-        setTimeout(resolve, 5000);
-      }),
-    };
-  });
-}
+// Server statico per i video (Range + CORS): vedi bench/lib/static-server.ts.
+// Bootstrap del dev server: vedi bench/lib/dev-server.ts (entrambi estratti
+// da qui perche' ora li riusa anche vision/eval e vision/annotate.
 
 const median = (values: number[]): number => {
   if (!values.length) return 0;
@@ -177,7 +110,7 @@ async function main() {
   const videoServer = await startStaticServer(config.videoDir);
   log(`server video su http://127.0.0.1:${videoServer.port}`);
 
-  const dev = await startDevServer();
+  const dev = await startDevServer(WEB_ROOT, '[bench]', '/bench');
   log(`dev server pronto: ${dev.baseUrl}`);
 
   // Il Chromium di Playwright non ha i codec proprietari (H.264/AAC): per
