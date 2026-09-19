@@ -18,6 +18,13 @@
 /vision/dataset/debug/
 /vision/dataset/*.zip
 
+# fotogrammi estratti dai video reali dell'utente (bench/cases.json): mai
+# committarli, sono foto di casa, la repo e' pubblica
+/vision/eval/real-preview/
+
+# modelli allenati: pesano decine di MB e sono rigenerabili dal notebook Colab
+/vision/models/
+
 # next.js
 /.next/
 /.vinext/
