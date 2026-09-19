@@ -13,6 +13,10 @@
 /bench/results/
 /bench/.cache/
 
+# dataset sintetico generato (rigenerabile da vision/dataset/generate-dataset.ts)
+/vision/dataset/output/
+/vision/dataset/debug/
+
 # next.js
 /.next/
 /.vinext/
