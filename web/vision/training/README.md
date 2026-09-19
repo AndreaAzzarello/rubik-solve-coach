@@ -21,6 +21,30 @@ Colab (niente GPU locale).
 5. Copia il `.onnx` risultato in `vision/models/cube-face-keypoints.onnx` nel
    repo (cartella creata al bisogno, non ancora presente).
 
+## Ricreare lo zip (se rigeneri il dataset in locale)
+
+**Non usare `Compress-Archive` di PowerShell**: scrive i percorsi nello zip
+con backslash (`images\train\...`), che gli strumenti Linux (compreso il
+modulo `zipfile` di Python usato dal notebook) trattano come un nome di file
+letterale invece che come sottocartella — l'estrazione in Colab produce file
+piatti con backslash nel nome invece di `images/train/...`, e il training
+fallisce con "images not found" anche se lo zip sembra valido. Usa invece:
+
+```
+python -c "
+import os, zipfile
+src, dest = 'output', 'cube-face-keypoints-dataset.zip'
+with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED) as zf:
+    for root, dirs, files in os.walk(src):
+        for name in files:
+            full = os.path.join(root, name)
+            zf.write(full, os.path.relpath(full, src).replace(os.sep, '/'))
+"
+```
+
+(da dentro `vision/dataset/`, con `output/` gia' generato) — scrive sempre
+`/` indipendentemente dal sistema operativo.
+
 ## Perche' Ultralytics YOLOv8n-pose
 
 Discusso nel piano: gestisce nativamente un numero variabile di istanze per
