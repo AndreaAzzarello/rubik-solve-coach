@@ -28,7 +28,8 @@ const OUT_DIR = path.join(HERE, 'output');
 
 const WIDTH = 512;
 const HEIGHT = 512;
-const JPEG_QUALITY = 0.92;
+// Non un const condiviso: `paintInBrowser` gira dentro page.evaluate, un
+// contesto serializzato che non vede le chiusure di questo modulo.
 
 const MOVE_BASES = ['U', 'D', 'L', 'R', 'F', 'B'];
 const MOVE_SUFFIXES = ['', "'", '2'];
@@ -260,6 +261,14 @@ function writeDataYaml() {
       'names:',
       '  0: cube_face',
       'kpt_shape: [4, 3]',
+      // L'ordine dei keypoint (annotation.ts, geometricOrder) parte sempre dal
+      // corner piu' in alto (invariante per flip orizzontale, la coordinata Y
+      // non cambia) e prosegue in un verso angolare che il flip ORIZZONTALE
+      // inverte. Sotto flip: indice 0 resta fisso, 1<->3 si scambiano, 2 resta
+      // (e' l'opposto del top). Senza questa riga l'augmentation flip di
+      // Ultralytics per il training pose corromperebbe silenziosamente le
+      // etichette invece di limitarsi a specchiare l'immagine.
+      'flip_idx: [0, 3, 2, 1]',
       '',
     ].join('\n'),
   );

@@ -16,6 +16,7 @@
 # dataset sintetico generato (rigenerabile da vision/dataset/generate-dataset.ts)
 /vision/dataset/output/
 /vision/dataset/debug/
+/vision/dataset/*.zip
 
 # next.js
 /.next/

@@ -1,0 +1,44 @@
+# Training · rilevatore vertici faccia cubo
+
+Step 3 del piano: alleniamo YOLOv8n-pose (una classe `cube_face`, 4 keypoint)
+sul dataset sintetico generato da `vision/dataset/generate-dataset.ts`, su
+Colab (niente GPU locale).
+
+## Come usarlo
+
+1. Apri `train_colab.ipynb` in Google Colab (upload diretto, o via Drive/GitHub).
+2. `Runtime > Cambia tipo di runtime > GPU`.
+3. Dataset: **opzione A** (consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
+   (generato in locale con `node --experimental-strip-types vision/dataset/generate-dataset.ts`)
+   su Google Drive in `MyDrive/rubik-vision/`, poi esegui la cella che lo monta
+   e scompatta. **Opzione B**: rigenera il dataset direttamente in Colab
+   (richiede il branch pushato su GitHub) — piu' lento, utile solo per
+   variare/ampliare i dati senza ricaricare uno zip.
+4. Esegui le celle di training + validazione + export ONNX in ordine.
+5. Copia il `.onnx` risultato in `vision/models/cube-face-keypoints.onnx` nel
+   repo (cartella creata al bisogno, non ancora presente).
+
+## Perche' Ultralytics YOLOv8n-pose
+
+Discusso nel piano: gestisce nativamente un numero variabile di istanze per
+immagine (1-3 facce visibili), esport ONNX diretto, "nano" abbastanza piccolo
+per l'inferenza CPU/WASM nel browser. Licenza AGPL-3.0 accettata per una repo
+pubblica; solo pesi + codice di inferenza nostro finiscono nel prodotto, non
+il codice di training Ultralytics.
+
+## flip_idx e ordine dei keypoint
+
+`data.yaml` (generato insieme al dataset) include `flip_idx: [0, 3, 2, 1]`:
+i 4 keypoint sono ordinati geometricamente (dal piu' in alto, in senso
+angolare) non semanticamente (nessuna nozione di "quale faccia/lato" — quella
+disambiguazione resta a valle, vedi `vision/dataset/annotation.ts`). Sotto
+flip orizzontale l'indice 0 resta fisso (la coordinata Y non cambia) e gli
+altri tre si invertono. Senza questa riga l'augmentation flip di Ultralytics
+corromperebbe silenziosamente le etichette.
+
+## Non ancora fatto
+
+- Metrica del piano (PCK, grid-cell hit-rate sul val set sintetico) — il
+  notebook riporta solo le metriche pose native di Ultralytics (mAP/OKS).
+- Verifica di trasferimento su foto reali.
+- Integrazione nel browser (`onnxruntime-web`, backend wasm).
