@@ -25,6 +25,15 @@
 # modelli allenati: pesano decine di MB e sono rigenerabili dal notebook Colab
 /vision/models/
 
+# pesi MobileSAM (pre-annotazione), scaricati da vision/annotate/setup-sam.sh
+/vision/annotate/.cache/
+
+# fotogrammi reali estratti per l'annotazione: foto personali dell'utente
+/vision/annotate/frames/
+/vision/annotate/labels/
+/vision/annotate/*.png
+/vision/annotate/*.json
+
 # next.js
 /.next/
 /.vinext/

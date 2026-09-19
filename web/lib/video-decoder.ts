@@ -377,11 +377,13 @@ function applyLocalCenterCalibration(
   }
 }
 
-type Point = { x: number; y: number };
+export type Point = { x: number; y: number };
 
 // Guscio convesso (monotone chain). Serve a ottenere la silhouette esterna del
-// cubo a partire dagli sticker riconosciuti.
-function convexHull(points: Point[]): Point[] {
+// cubo a partire dagli sticker riconosciuti. Esportata: vision/annotate la
+// riusa per ridurre una maschera SAM a un poligono pulito prima di
+// semplificarla a 4 vertici con simplifyPolygon.
+export function convexHull(points: Point[]): Point[] {
   if (points.length < 3) return points;
   const sorted = [...points].sort((a, b) => (a.x - b.x) || (a.y - b.y));
   const cross = (o: Point, a: Point, b: Point) => (
@@ -414,7 +416,8 @@ function polygonArea(polygon: Point[]): number {
 // Riduce il guscio a `target` vertici togliendo ogni volta quello la cui
 // rimozione fa perdere meno area: il risultato approssima la silhouette con un
 // poligono semplice (per un cubo di tre quarti, un esagono).
-function simplifyPolygon(polygon: Point[], target: number): Point[] {
+// Esportata per lo stesso motivo di convexHull sopra.
+export function simplifyPolygon(polygon: Point[], target: number): Point[] {
   const vertices = [...polygon];
   while (vertices.length > target) {
     let bestIndex = 0;
