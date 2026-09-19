@@ -34,7 +34,10 @@ const SINGULARITY_EPSILON = 1e-9;
 const MIN_DENOMINATOR = 1e-3;
 const CORNER_MARGIN = 1.5;
 
-const NOMINAL_CORNERS: Point[] = [
+// Esportata per vision/eval: la metrica "grid-cell hit-rate" deve accoppiare
+// i keypoint predetti e quelli reali agli STESSI 4 angoli nominali usati qui,
+// altrimenti confronterebbe due omografie non comparabili.
+export const NOMINAL_CORNERS: Point[] = [
   { x: -CORNER_MARGIN, y: -CORNER_MARGIN },
   { x: CORNER_MARGIN, y: -CORNER_MARGIN },
   { x: CORNER_MARGIN, y: CORNER_MARGIN },
