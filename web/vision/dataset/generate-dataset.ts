@@ -255,7 +255,17 @@ function writeDataYaml() {
   fs.writeFileSync(
     path.join(OUT_DIR, 'data.yaml'),
     [
-      'path: .',
+      // Assoluto, non '.': Ultralytics risolve un `path` relativo rispetto
+      // alla working directory del processo di training, NON rispetto alla
+      // cartella dove sta questo data.yaml - con '.' il training fallisce con
+      // "images not found" appena lanciato da una cwd diversa da OUT_DIR
+      // (successo dal vivo: notebook Colab, cwd /content, path.'.' -> cercava
+      // /content/images/val invece di OUT_DIR/images/val). Resta corretto solo
+      // per chi allena nello stesso posto/macchina dove il dataset e' stato
+      // generato (es. l'opzione "rigenera in Colab"): chi sposta il dataset
+      // altrove (zip -> Drive -> Colab) deve ripatchare questa riga dopo
+      // l'estrazione, vedi vision/training/train_colab.ipynb.
+      `path: ${OUT_DIR}`,
       'train: images/train',
       'val: images/val',
       'names:',
