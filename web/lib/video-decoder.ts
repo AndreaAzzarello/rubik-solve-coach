@@ -6,6 +6,7 @@ import {
 import {
   type FaceGridObservation,
   type InspectionReconstruction,
+  fuseFaceObservations,
   reconstructInspectionState,
 } from './inspection-state.ts';
 import {
@@ -1847,18 +1848,25 @@ export async function scanInspectionFrames(
   return samples;
 }
 
+// Criterio di selezione: NON la confidenza grezza della singola osservazione
+// (provato dal vivo, sceglie male su IMG_6108 - una lettura sbagliata puo'
+// avere confidenza piu' alta di una buona). fuseFaceObservations gia' fa
+// quello che serve: raggruppa per pattern colore invariante a rotazione,
+// premia i pattern visti in piu' fotogrammi indipendenti, fonde per-cella
+// entro il gruppo vincente - stessa logica gia' usata per bestByFace/
+// faceReference nel percorso geometrico.
 function selectSingleBestModelObservationPerFace(observations: FaceGridObservation[]): FaceGridObservation[] {
-  const bestModelByColor = new Map<CubeColor, FaceGridObservation>();
+  const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
+  const nonModel: FaceGridObservation[] = [];
   observations.forEach((observation) => {
-    if (observation.gridSource !== 'model') return;
-    const current = bestModelByColor.get(observation.centerColor);
-    if (!current || observation.confidence > current.confidence) {
-      bestModelByColor.set(observation.centerColor, observation);
+    if (observation.gridSource !== 'model') {
+      nonModel.push(observation);
+      return;
     }
+    modelByColor.set(observation.centerColor, [...(modelByColor.get(observation.centerColor) ?? []), observation]);
   });
-  return observations.filter((observation) => (
-    observation.gridSource !== 'model' || observation === bestModelByColor.get(observation.centerColor)
-  ));
+  const fused = [...modelByColor.values()].map((group) => fuseFaceObservations(group));
+  return [...nonModel, ...fused];
 }
 
 export function summarizeCubeObservation(
