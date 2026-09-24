@@ -24,6 +24,12 @@ import {
   type CubeColor,
   type Face,
 } from './cube.ts';
+import {
+  detectFaceCorners,
+  faceGridsFromDetections,
+  filterPlausibleDetections,
+  type FaceCornerDetection,
+} from './face-keypoint-model.ts';
 
 export type MotionSample = {
   time: number;
@@ -295,7 +301,11 @@ export function stickerComponents(labels: Int8Array, width: number, height: numb
 // scartato dai controlli di forma. Il colore vero, però, è ancora presente
 // nei pixel nel punto esatto dove la geometria prevede quella casella: lo
 // leggiamo direttamente lì invece di rinunciare alla casella.
-function sampleVirtualCell(
+// Esportata: lib/face-keypoint-model.ts la riusa per campionare le 9 celle
+// dai punti griglia proiettati via omografia, stesso identico criterio
+// "intorno quasi tutto di un colore" usato qui per il fallback delle coppie
+// di sticker.
+export function sampleVirtualCell(
   labels: Int8Array,
   width: number,
   height: number,
@@ -342,7 +352,9 @@ function sampleVirtualCell(
 // questo fotogramma con il valore di riferimento, stimiamo un guadagno per
 // canale che corregge riflessi o luce forte specifici di questa ripresa,
 // prima di riclassificare le altre 8 caselle con la stessa correzione.
-function applyLocalCenterCalibration(
+// Esportata: lib/face-keypoint-model.ts la riusa per ricalibrare i colori
+// campionati sui 4 vertici del modello, stesso criterio usato qui.
+export function applyLocalCenterCalibration(
   centerColor: ObservedCubeColor,
   rawColors: Array<RgbSample | null>,
   colors: Array<ObservedCubeColor | null>,
@@ -825,11 +837,58 @@ function waitForSeek(video: HTMLVideoElement, time: number) {
   });
 }
 
+let modelInferenceFailureLogged = false;
+let modelGridFailureLogged = false;
+
+// Se il modello fallisce a caricarsi/girare (WASM bloccato, rete assente) o
+// la geometria/campionamento colore va in errore su una detection specifica,
+// si prosegue silenziosamente col solo percorso geometrico invece di far
+// fallire l'intera pipeline: un fallback e' meno grave di un crash.
+async function detectFaceCornersWithFallback(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): Promise<FaceCornerDetection[]> {
+  try {
+    return await detectFaceCorners(context, width, height);
+  } catch (error) {
+    if (!modelInferenceFailureLogged) {
+      modelInferenceFailureLogged = true;
+      console.error('rilevamento vertici faccia via modello ONNX non disponibile, si prosegue solo con la geometria a coppie di sticker', error);
+    }
+    return [];
+  }
+}
+
+function faceGridsFromDetectionsWithFallback(
+  detections: FaceCornerDetection[],
+  labels: Int8Array,
+  width: number,
+  height: number,
+  pixels: Uint8ClampedArray,
+): Array<Omit<FaceGridObservation, 'time'>> {
+  try {
+    return faceGridsFromDetections(detections, labels, width, height, pixels);
+  } catch (error) {
+    if (!modelGridFailureLogged) {
+      modelGridFailureLogged = true;
+      console.error('geometria/colore dal modello non disponibile, si prosegue solo con la geometria a coppie di sticker', error);
+    }
+    return [];
+  }
+}
+
+// STEP 4 del piano: modelDetections arriva gia' calcolato dal chiamante
+// (readHighResolutionInspectionFrame), nello spazio pixel di QUESTO canvas
+// (width x height). L'inferenza ONNX gira una volta sola per fotogramma sul
+// video intero a risoluzione da training, non qui: vedi la nota li' sul bug
+// del canvas di analisi 320-480px trovato dal vivo (bench/debug-grids).
 function frameSignature(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
   includeFaceGrids = true,
+  modelDetections: FaceCornerDetection[] = [],
 ): FrameSignature {
   const { data } = context.getImageData(0, 0, width, height);
   const size = width * height;
@@ -910,7 +969,18 @@ function frameSignature(
     0,
     laplacianSquaredTotal / Math.max(1, laplacianPixels) - laplacianMean * laplacianMean,
   ));
-  const faceGrids = includeFaceGrids ? detectFaceGrids(pixelLabels, width, height, data) : [];
+  // STEP 3 del piano: interruttore per il confronto pulito solo-geometria vs
+  // solo-modello (bench/run-bench.ts lo imposta via page.addInitScript prima
+  // che l'app carichi). Assente/'both' = comportamento normale (Step 2,
+  // additivo). Non e' una configurazione prodotto, solo per il bench.
+  const faceDetectionSource = (globalThis as { __faceDetectionSource?: 'geometric' | 'model' }).__faceDetectionSource;
+  const geometricGrids = includeFaceGrids && faceDetectionSource !== 'model'
+    ? detectFaceGrids(pixelLabels, width, height, data)
+    : [];
+  const modelGrids = includeFaceGrids && faceDetectionSource !== 'geometric'
+    ? faceGridsFromDetectionsWithFallback(modelDetections, pixelLabels, width, height, data)
+    : [];
+  const faceGrids = [...geometricGrids, ...modelGrids];
   return {
     luma,
     chromaBlue,
@@ -1630,9 +1700,60 @@ export function mapGridGeometryToVideoSpace(
   };
 }
 
-function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): MotionSample[] {
+// Stessa scala usata in training/annotazione (vision/annotate/extract-frames.ts,
+// maxDimension) e nell'eval offline (vision/inference/detector.ts, che
+// letterboxa il fotogramma intero a risoluzione nativa): il modello va
+// nutrito con un'immagine vicina a quella su cui e' stato addestrato/
+// valutato, non col canvas di analisi 320-480px ritagliato usato per il
+// campionamento colore - quest'ultimo produceva quadrilateri minuscoli/mal
+// posizionati (bug trovato dal vivo via bench/debug-grids: PCK offline 66%
+// sugli stessi fotogrammi, ma vertici inservibili dentro la pipeline).
+const MODEL_FRAME_MAX_DIMENSION = 960;
+
+// Rimappa un punto dallo spazio del canvas "modello" (fotogramma intero,
+// scala modelScale) allo spazio di un canvas di analisi (ritagliato secondo
+// `crop`, poi scalato a analysisWidth x analysisHeight) - il posto dove vive
+// gia' il campionamento colore (pixelLabels). Inverso di
+// mapGridGeometryToVideoSpace, con un passaggio in piu' per la scala del
+// canvas modello.
+export function mapModelPointToAnalysisSpace(
+  point: Point,
+  modelScale: number,
+  video: { videoWidth: number; videoHeight: number },
+  crop: { x: number; y: number; width: number; height: number },
+  analysisWidth: number,
+  analysisHeight: number,
+): Point {
+  const videoX = point.x / modelScale;
+  const videoY = point.y / modelScale;
+  return {
+    x: (videoX - crop.x * video.videoWidth) * (analysisWidth / (crop.width * video.videoWidth)),
+    y: (videoY - crop.y * video.videoHeight) * (analysisHeight / (crop.height * video.videoHeight)),
+  };
+}
+
+async function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number): Promise<MotionSample[]> {
   const portrait = video.videoHeight >= video.videoWidth;
   const cropVariants = inspectionCropVariants(portrait);
+
+  // Un solo giro di inferenza per timestamp, condiviso fra i 3 ritagli:
+  // il modello vede sempre il fotogramma INTERO, i ritagli si applicano solo
+  // dopo, rimappando i vertici.
+  const faceDetectionSource = (globalThis as { __faceDetectionSource?: 'geometric' | 'model' }).__faceDetectionSource;
+  const modelScale = Math.min(1, MODEL_FRAME_MAX_DIMENSION / Math.max(video.videoWidth, video.videoHeight));
+  let modelDetections: FaceCornerDetection[] = [];
+  if (faceDetectionSource !== 'geometric') {
+    const modelCanvas = document.createElement('canvas');
+    modelCanvas.width = Math.round(video.videoWidth * modelScale);
+    modelCanvas.height = Math.round(video.videoHeight * modelScale);
+    const modelContext = modelCanvas.getContext('2d');
+    if (modelContext) {
+      modelContext.drawImage(video, 0, 0, modelCanvas.width, modelCanvas.height);
+      modelDetections = filterPlausibleDetections(
+        await detectFaceCornersWithFallback(modelContext, modelCanvas.width, modelCanvas.height),
+      );
+    }
+  }
 
   const captureId = time.toFixed(4);
   const readings = cropVariants.map((crop, cropIndex) => {
@@ -1654,7 +1775,13 @@ function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: number
       analysis.width,
       analysis.height,
     );
-    const signature = frameSignature(context, analysis.width, analysis.height);
+    const cropDetections = modelDetections.map((detection) => ({
+      score: detection.score,
+      keypoints: detection.keypoints.map((point) => mapModelPointToAnalysisSpace(
+        point, modelScale, video, crop, analysis.width, analysis.height,
+      )),
+    }));
+    const signature = frameSignature(context, analysis.width, analysis.height, true, cropDetections);
     const gridScore = signature.faceGrids.reduce((total, grid) => (
       total + grid.visibleCells * 8 + grid.confidence
     ), 0);
@@ -1704,7 +1831,7 @@ export async function scanInspectionFrames(
     for (let index = 0; index < times.length; index += 1) {
       const time = times[index];
       await waitForSeek(video, time);
-      const frameSamples = readHighResolutionInspectionFrame(video, time);
+      const frameSamples = await readHighResolutionInspectionFrame(video, time);
       frameSamples.forEach((sample) => {
         sample.hasTemporalReference = index > 0;
         samples.push(sample);
@@ -1718,6 +1845,20 @@ export async function scanInspectionFrames(
   // I canvas e i fotogrammi non escono da questa funzione: rimangono solo le
   // griglie colore 3×3 necessarie alla ricostruzione dello stato.
   return samples;
+}
+
+function selectSingleBestModelObservationPerFace(observations: FaceGridObservation[]): FaceGridObservation[] {
+  const bestModelByColor = new Map<CubeColor, FaceGridObservation>();
+  observations.forEach((observation) => {
+    if (observation.gridSource !== 'model') return;
+    const current = bestModelByColor.get(observation.centerColor);
+    if (!current || observation.confidence > current.confidence) {
+      bestModelByColor.set(observation.centerColor, observation);
+    }
+  });
+  return observations.filter((observation) => (
+    observation.gridSource !== 'model' || observation === bestModelByColor.get(observation.centerColor)
+  ));
 }
 
 export function summarizeCubeObservation(
@@ -1742,7 +1883,16 @@ export function summarizeCubeObservation(
   // essere l'unico momento in cui compare una faccia. La nitidezza resta una
   // misura diagnostica, mentre consenso temporale e geometria pesano le celle.
   const useful = gridFrames.length ? gridFrames : selected;
-  const originalObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
+  // Per le osservazioni da modello, tiene solo la migliore per faccia
+  // (stessa confidenza gia' calcolata in faceGridFromCorners = score modello
+  // + qualita' geometrica) invece di lasciarle tutte al voto per-cella
+  // multi-frame: misurato dal vivo che il voto puo' affogare una lettura
+  // buona con letture sbagliate (bench, IMG_6258/6260: nessun video
+  // peggiora, due migliorano nettamente). Le osservazioni non-modello
+  // (pairs/silhouette) non sono toccate.
+  const originalObservations = selectSingleBestModelObservationPerFace(
+    useful.flatMap((sample) => sample.faceGrids ?? []),
+  );
   // Prima fase: raccogliamo e salviamo le medie robuste dei centri. Solo dopo
   // questa calibrazione iniziale riclassifichiamo le 48 caselle non centrali.
   const calibrationProfile = buildInitialColorCalibration(originalObservations.flatMap((observation) => {

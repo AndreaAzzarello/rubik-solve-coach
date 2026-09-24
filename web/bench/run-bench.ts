@@ -163,6 +163,16 @@ async function main() {
 
   try {
     const page = await browser.newPage();
+    // STEP 3 del piano di integrazione modello: confronto pulito solo-vecchio
+    // vs solo-nuovo. BENCH_FACE_SOURCE=geometric|model; assente = normale
+    // (additivo, Step 2).
+    const faceSource = process.env.BENCH_FACE_SOURCE;
+    if (faceSource === 'geometric' || faceSource === 'model') {
+      await page.addInitScript((source) => {
+        (window as unknown as { __faceDetectionSource?: string }).__faceDetectionSource = source;
+      }, faceSource);
+      log(`fonte rilevamento faccia forzata: ${faceSource}`);
+    }
     page.on('console', (message) => {
       const text = message.text();
       if (/XNNPACK delegate for CPU/i.test(text)) sawCpuDelegate = true;

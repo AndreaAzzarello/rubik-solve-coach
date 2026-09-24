@@ -1,8 +1,9 @@
 # Training · rilevatore vertici faccia cubo
 
 Step 3 del piano: alleniamo YOLOv8n-pose (una classe `cube_face`, 4 keypoint)
-sul dataset sintetico generato da `vision/dataset/generate-dataset.ts`, su
-Colab (niente GPU locale).
+sul dataset sintetico generato da `vision/dataset/generate-dataset.ts`, fuso
+con i fotogrammi reali annotati a mano (`vision/annotate/`), su Colab (niente
+GPU locale).
 
 ## Come usarlo
 
@@ -10,18 +11,37 @@ Colab (niente GPU locale).
 2. `Runtime > Cambia tipo di runtime > GPU`.
 3. Dataset: nella cella dei parametri, `DATASET_SOURCE = 'drive_zip'` (default,
    consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
-   (generato in locale con `node --experimental-strip-types vision/dataset/generate-dataset.ts`)
+   (generato in locale: sintetico via `generate-dataset.ts` +
+   fotogrammi reali annotati fusi via `merge-real-annotations.ts`, vedi sotto)
    da `MyDrive/rubik-vision/` su Google Drive. `DATASET_SOURCE =
-   'regenerate_in_colab'` rigenera il dataset direttamente in Colab (richiede
-   il branch pushato su GitHub) — piu' lento, utile solo per variare/ampliare
-   i dati senza ricaricare uno zip. La cella successiva esegue SOLO il ramo
-   scelto (l'altro si auto-salta) e si ferma con un errore chiaro se un
-   passaggio fallisce, quindi "Esegui tutte le celle" e' sicuro.
+   'regenerate_in_colab'` rigenera SOLO la parte sintetica direttamente in
+   Colab (richiede il branch pushato su GitHub) — piu' veloce da iterare, ma
+   **non include i fotogrammi reali annotati**, dato che quello script lancia
+   solo `generate-dataset.ts` e non la fusione: usalo solo per esperimenti
+   sulla parte sintetica, non per il training "buono". La cella successiva
+   esegue SOLO il ramo scelto (l'altro si auto-salta) e si ferma con un
+   errore chiaro se un passaggio fallisce, quindi "Esegui tutte le celle" e'
+   sicuro.
 4. Esegui le celle di training + validazione + export ONNX in ordine.
 5. Copia il `.onnx` risultato in `vision/models/cube-face-keypoints.onnx` nel
    repo (cartella creata al bisogno, non ancora presente).
 
-## Ricreare lo zip (se rigeneri il dataset in locale)
+## Fondere i fotogrammi reali annotati
+
+Dopo aver annotato dei fotogrammi con `vision/annotate/server.ts` (vedi
+`vision/annotate/`), fondili nel dataset sintetico gia' generato in
+`vision/dataset/output/`:
+
+```
+node --experimental-strip-types vision/dataset/merge-real-annotations.ts
+```
+
+Copia ogni fotogramma annotato con almeno una faccia (non scartato) nello
+split train/val deciso in fase di estrazione (`annotate/frames/manifest.json`),
+con prefisso `real-` per non collidere con i nomi sintetici. Va rilanciato
+ogni volta che annoti nuovi fotogrammi, PRIMA di ricreare lo zip sotto.
+
+## Ricreare lo zip (dopo aver generato/fuso i dati in locale)
 
 **Non usare `Compress-Archive` di PowerShell**: scrive i percorsi nello zip
 con backslash (`images\train\...`), che gli strumenti Linux (compreso il

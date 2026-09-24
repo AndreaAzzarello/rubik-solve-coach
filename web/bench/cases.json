@@ -14,6 +14,18 @@
       "video": "IMG_6108.mp4",
       "scramble": "B' R2 B2 F2 U F2 D B2 U2 B2 F2 R2 B' R B L' D2 B D' F'",
       "orientation": "white-U/green-F"
+    },
+    {
+      "id": "IMG_6258",
+      "video": "IMG_6258.mp4",
+      "scramble": "U2 R U' D' F' R2 F L F' R' L2 D2 R B2 U2 D2 R U2 B2 L2 U2",
+      "orientation": "white-U/green-F"
+    },
+    {
+      "id": "IMG_6260",
+      "video": "IMG_6260.mp4",
+      "scramble": "R D' L B2 U' R' D B F2 D L2 D L2 F2 L2 D2 F2 D' R' U",
+      "orientation": "white-U/green-F"
     }
   ]
 }

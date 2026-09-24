@@ -44,7 +44,12 @@ export function startDevServer(
       process.stdout.write(text.replace(/^/gm, '  | '));
       // vinext colora l'output: la porta arriva avvolta da sequenze ANSI
       // (es. "localhost:\x1b[1m3000\x1b[22m/"), quindi vanno rimosse prima.
-      const plain = text.replace(/\[[0-9;]*m/g, '');
+      // Il carattere ESC (\x1b) va incluso nel match: rimuovere solo "[...m"
+      // lascia l'ESC "nudo" incastrato fra ":" e la porta, che spezza la
+      // regex dell'URL sotto - intermittente, dipende da come i chunk di
+      // stdout si spezzano (visto dal vivo: bench bloccato 180s nonostante
+      // il dev server fosse gia' pronto).
+      const plain = text.replace(/\x1b\[[0-9;]*m/g, '');
       const match = /https?:\/\/(?:localhost|127\.0\.0\.1):(\d+)/.exec(plain);
       if (match && !resolved) {
         resolved = true;

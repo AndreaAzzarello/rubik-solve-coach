@@ -39,7 +39,7 @@ export type FaceGridObservation = {
   /** Campioni RGB grezzi usati per ricalibrare i colori sui sei centri del video. */
   rawColors?: Array<RgbSample | null>;
   /** Come è stata ricavata la griglia: dalla silhouette del cubo o da coppie di sticker vicini. */
-  gridSource?: 'silhouette' | 'pairs';
+  gridSource?: 'silhouette' | 'pairs' | 'model';
   /** Vertici della silhouette esagonale, quando la griglia viene da lì. */
   silhouette?: Array<{ x: number; y: number }>;
 };
@@ -105,7 +105,7 @@ export type InspectionReconstruction = {
     rightY?: number;
     downX?: number;
     downY?: number;
-    gridSource?: 'silhouette' | 'pairs';
+    gridSource?: 'silhouette' | 'pairs' | 'model';
     silhouette?: Array<{ x: number; y: number }>;
   }>>;
 };

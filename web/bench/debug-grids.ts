@@ -239,6 +239,13 @@ async function main() {
   let result: DebugGridsResult;
   try {
     const page = await browser.newPage();
+    const faceSource = process.env.BENCH_FACE_SOURCE;
+    if (faceSource === 'geometric' || faceSource === 'model') {
+      await page.addInitScript((source) => {
+        (window as unknown as { __faceDetectionSource?: string }).__faceDetectionSource = source;
+      }, faceSource);
+      log(`fonte rilevamento faccia forzata: ${faceSource}`);
+    }
     page.on('console', (message) => {
       if (message.type() === 'error') log(`console.error: ${message.text()}`);
     });
