@@ -16,13 +16,12 @@ import { FaceKeypointDetector, type FaceDetection } from '../inference/detector.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..', '..');
-const MODEL_PATH = path.join(WEB_ROOT, 'vision', 'models', 'best.onnx');
+const MODEL_PATH = path.join(WEB_ROOT, 'vision', 'models', process.env.PREVIEW_MODEL || 'best.onnx');
 const VIDEO_DIR = process.env.BENCH_VIDEO_DIR || 'C:/Users/Andrea/Desktop/App/lenti';
 const OUT_DIR = path.join(HERE, 'real-preview');
 
 const CASES = [
-  { id: 'IMG_6107', video: 'IMG_6107.mp4', times: [0.5, 1, 1.5, 2, 2.5, 3] },
-  { id: 'IMG_6108', video: 'IMG_6108.mp4', times: [0.5, 1, 1.5, 2, 2.5, 3] },
+  { id: 'IMG_6108', video: 'IMG_6108.mp4', times: [21.12, 21.35, 21.63, 21.72, 21.98, 22.18] },
 ];
 
 // In-browser, autocontenuta (page.evaluate): cattura un fotogramma a piena

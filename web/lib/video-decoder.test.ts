@@ -7,6 +7,7 @@ import {
   detectFaceGrids,
   inferInspectionEnd,
   lastInspectionFrameTime,
+  mapModelPointToAnalysisSpace,
   selectInspectionKeyframes,
   summarizeCubeObservation,
   type MotionSample,
@@ -219,4 +220,26 @@ test('trova una griglia grande anche quando molti frammenti piccoli falsano la m
   }
   const grids = detectFaceGrids(labels, width, height);
   assert.ok(grids.some((candidate) => candidate.centerColor === 'white' && candidate.visibleCells === 9));
+});
+
+test('mapModelPointToAnalysisSpace riporta un punto dal canvas modello (video intero, scalato) allo spazio del ritaglio di analisi', () => {
+  const video = { videoWidth: 1920, videoHeight: 1080 };
+  const modelScale = 0.5; // canvas modello 960x540
+  // Nessun ritaglio: il centro del canvas modello deve mappare al centro
+  // di un canvas di analisi delle stesse proporzioni.
+  const fullFrame = mapModelPointToAnalysisSpace(
+    { x: 480, y: 270 }, modelScale, video, { x: 0, y: 0, width: 1, height: 1 }, 480, 270,
+  );
+  assert.ok(Math.abs(fullFrame.x - 240) < 1e-6);
+  assert.ok(Math.abs(fullFrame.y - 135) < 1e-6);
+
+  // Con un ritaglio, l'angolo in alto a sinistra del ritaglio (in spazio
+  // video) deve mappare a (0,0) nel canvas di analisi.
+  const crop = { x: 0.1, y: 0.2, width: 0.5, height: 0.5 };
+  const cropOrigin = mapModelPointToAnalysisSpace(
+    { x: (crop.x * video.videoWidth) * modelScale, y: (crop.y * video.videoHeight) * modelScale },
+    modelScale, video, crop, 480, 300,
+  );
+  assert.ok(Math.abs(cropOrigin.x) < 1e-6);
+  assert.ok(Math.abs(cropOrigin.y) < 1e-6);
 });
