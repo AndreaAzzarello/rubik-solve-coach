@@ -22,8 +22,11 @@
 # committarli, sono foto di casa, la repo e' pubblica
 /vision/eval/real-preview/
 
-# modelli allenati: pesano decine di MB e sono rigenerabili dal notebook Colab
-/vision/models/
+# modelli allenati: pesano decine di MB e sono rigenerabili dal notebook Colab.
+# Eccezione: cube-face-keypoints.onnx e' il modello di produzione, committato
+# (vedi .gitignore di root) - non best.onnx ne' altri artefatti di run.
+/vision/models/*
+!/vision/models/cube-face-keypoints.onnx
 
 # pesi MobileSAM (pre-annotazione), scaricati da vision/annotate/setup-sam.sh
 /vision/annotate/.cache/
