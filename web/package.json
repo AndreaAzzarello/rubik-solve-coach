@@ -10,7 +10,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "test:inspection": "node --experimental-strip-types --experimental-specifier-resolution=node --test lib/color-calibration.test.ts lib/inspection-state.test.ts lib/video-decoder.test.ts lib/solve-transcription.test.ts lib/virtual-replay.test.ts bench/score.test.ts",
+    "test:inspection": "node --experimental-strip-types --experimental-specifier-resolution=node --test lib/color-calibration.test.ts lib/homography.test.ts lib/inspection-state.test.ts lib/video-decoder.test.ts lib/face-keypoint-model.test.ts lib/solve-transcription.test.ts lib/virtual-replay.test.ts bench/score.test.ts",
     "bench": "node --experimental-strip-types bench/run-bench.ts",
     "bench:setup": "node bench/setup-chrome.mjs"
   },
@@ -19,6 +19,7 @@
     "color-diff": "^1.4.0",
     "cubejs": "1.3.2",
     "next": "16.2.6",
+    "onnxruntime-web": "^1.30.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -35,6 +36,7 @@
     "@vitejs/plugin-rsc": "0.5.26",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
+    "onnxruntime-node": "^1.30.0",
     "playwright": "^1.62.1",
     "react-server-dom-webpack": "19.2.6",
     "tailwindcss": "4.2.1",

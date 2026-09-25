@@ -13,6 +13,30 @@
 /bench/results/
 /bench/.cache/
 
+# dataset sintetico generato (rigenerabile da vision/dataset/generate-dataset.ts)
+/vision/dataset/output/
+/vision/dataset/debug/
+/vision/dataset/*.zip
+
+# fotogrammi estratti dai video reali dell'utente (bench/cases.json): mai
+# committarli, sono foto di casa, la repo e' pubblica
+/vision/eval/real-preview/
+
+# modelli allenati: pesano decine di MB e sono rigenerabili dal notebook Colab.
+# Eccezione: cube-face-keypoints.onnx e' il modello di produzione, committato
+# (vedi .gitignore di root) - non best.onnx ne' altri artefatti di run.
+/vision/models/*
+!/vision/models/cube-face-keypoints.onnx
+
+# pesi MobileSAM (pre-annotazione), scaricati da vision/annotate/setup-sam.sh
+/vision/annotate/.cache/
+
+# fotogrammi reali estratti per l'annotazione: foto personali dell'utente
+/vision/annotate/frames/
+/vision/annotate/labels/
+/vision/annotate/*.png
+/vision/annotate/*.json
+
 # next.js
 /.next/
 /.vinext/
