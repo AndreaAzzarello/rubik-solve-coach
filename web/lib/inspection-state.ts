@@ -1,6 +1,7 @@
 import {
   CANONICAL_COLOR_FACE,
   CANONICAL_FACE_COLOR,
+  COLOR_LABELS,
   CUBE_FACES,
   type CubeColor,
   type Face,
@@ -38,7 +39,7 @@ export type FaceGridObservation = {
   /** Campioni RGB grezzi usati per ricalibrare i colori sui sei centri del video. */
   rawColors?: Array<RgbSample | null>;
   /** Come è stata ricavata la griglia: dalla silhouette del cubo o da coppie di sticker vicini. */
-  gridSource?: 'silhouette' | 'pairs';
+  gridSource?: 'silhouette' | 'pairs' | 'model';
   /** Vertici della silhouette esagonale, quando la griglia viene da lì. */
   silhouette?: Array<{ x: number; y: number }>;
 };
@@ -53,6 +54,14 @@ export type CubeOrientation = {
 };
 
 export type PartialFacelets = Record<Face, Array<CubeColor | null>>;
+
+// Soglia "alta confidenza" per la casella (0-100): sotto e' la STESSA soglia
+// che la beam search usa gia' internamente per decidere quali celle sono
+// abbastanza deboli da valer la pena scartare in una variante (vedi
+// `cell.confidence < 66` piu' sotto). Unico posto dove e' definita: sia il
+// bench (bench/lib/score.ts) sia l'interfaccia di correzione la importano da
+// qui, cosi' "alta confidenza" significa la stessa cosa ovunque.
+export const HIGH_CONFIDENCE_THRESHOLD = 66;
 
 export type InspectionReconstruction = {
   status: 'insufficient' | 'partial' | 'complete' | 'invalid';
@@ -73,6 +82,18 @@ export type InspectionReconstruction = {
     status: 'missing' | 'partial' | 'complete';
   }>;
   completeFacelets: Record<Face, CubeColor[]> | null;
+  /**
+   * Confidenza per casella (0-100) della lettura fotometrica usata per la
+   * casella mostrata in `facelets`/`completeFacelets`: e' lo stesso valore
+   * gia' usato internamente dalla beam search per scegliere fra le rotazioni
+   * e decidere quali letture rilassare. 0 = casella non letta direttamente
+   * (dedotta dai vincoli dei pezzi, o da un consenso fra piu' stati
+   * candidati): quel tipo di certezza e' logica, non fotometrica, e non va
+   * confusa con la confidenza di lettura colore. I centri (indice 4, sempre
+   * corretti per costruzione) hanno comunque un valore reale se osservati.
+   * Solo lettura diagnostica: non influenza nessuna decisione della pipeline.
+   */
+  cellConfidence: Record<Face, number[]>;
   message: string;
   faceReference: Partial<Record<Face, {
     time: number;
@@ -84,7 +105,7 @@ export type InspectionReconstruction = {
     rightY?: number;
     downX?: number;
     downY?: number;
-    gridSource?: 'silhouette' | 'pairs';
+    gridSource?: 'silhouette' | 'pairs' | 'model';
     silhouette?: Array<{ x: number; y: number }>;
   }>>;
 };
@@ -217,6 +238,26 @@ export const CUBIE_COLOR_SCHEMA = {
   corners: CORNERS.map(({ name, colors }) => ({ name, colors })),
   edges: EDGES.map(({ name, colors }) => ({ name, colors })),
 };
+
+function emptyCellConfidence(): Record<Face, number[]> {
+  return Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(0)])) as Record<Face, number[]>;
+}
+
+// Confidenza fotometrica associata a un candidato completo: solo le caselle
+// gia' non nulle in `knownPartial` (cioe' lette direttamente, non dedotte dai
+// vincoli dei pezzi) ereditano il valore da `sourceReliability`; le altre
+// restano a 0. `candidate` e `knownPartial` hanno sempre gli stessi indici
+// validi per costruzione (l'inferenza pezzi/completamento aggiunge caselle,
+// non le sovrascrive).
+function reliabilityForCandidate(
+  candidate: PartialFacelets,
+  knownPartial: PartialFacelets,
+  sourceReliability: Record<Face, number[]>,
+): Record<Face, number[]> {
+  return Object.fromEntries(FACES.map((face) => [face, candidate[face].map((_, index) => (
+    knownPartial[face][index] ? (sourceReliability[face][index] || 0) : 0
+  ))])) as Record<Face, number[]>;
+}
 
 function emptyFacelets(): PartialFacelets {
   return {
@@ -739,7 +780,7 @@ function countKnownFacelets(facelets: PartialFacelets) {
   return FACES.reduce((total, face) => total + facelets[face].filter(Boolean).length, 0);
 }
 
-function pieceEvidenceValid(partial: PartialFacelets) {
+export function pieceEvidenceValid(partial: PartialFacelets) {
   return CORNERS.every((position) => pieceOptionsFor(position, CORNERS, partial).length > 0)
     && EDGES.every((position) => pieceOptionsFor(position, EDGES, partial).length > 0);
 }
@@ -904,7 +945,7 @@ function colorCounts(facelets: PartialFacelets): Record<CubeColor, number> {
   return counts;
 }
 
-function colorCountValid(facelets: PartialFacelets) {
+export function colorCountValid(facelets: PartialFacelets) {
   const counts = colorCounts(facelets);
   return Object.values(counts).every((count) => count <= 9);
 }
@@ -919,7 +960,7 @@ const FACE_COLOR_ADJECTIVE: Record<Face, string> = {
   U: 'bianca', R: 'rossa', F: 'verde', D: 'gialla', L: 'arancione', B: 'blu',
 };
 
-function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string | null {
+export function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string | null {
   const missing: string[] = [];
   FACES.forEach((face) => {
     facelets[face].forEach((color, index) => {
@@ -932,6 +973,60 @@ function describeMissingFacelets(facelets: PartialFacelets, limit = 6): string |
   const shown = missing.slice(0, limit);
   const suffix = missing.length > limit ? `, e altre ${missing.length - limit}` : '';
   return `Caselle ancora mancanti: ${shown.join('; ')}${suffix}.`;
+}
+
+function pieceColorKey(colors: CubeColor[]) {
+  return [...colors].sort().join('+');
+}
+
+function describePieceCells(position: PieceDefinition, facelets: PartialFacelets) {
+  return position.faces.map((face, slot) => {
+    const index = position.indices[slot];
+    const color = facelets[face][index];
+    return `faccia ${FACE_COLOR_ADJECTIVE[face]} · casella ${CELL_POSITION_LABEL[index]} (${color ? COLOR_LABELS[color] : 'non determinata'})`;
+  }).join(', ');
+}
+
+// Individua le posizioni (angolo/spigolo) i cui adesivi non formano nessuno
+// degli 8/12 pezzi reali del cubo, oppure che duplicano un pezzo già usato
+// altrove: in entrambi i casi è un errore di lettura/correzione localizzato,
+// non un problema di parità globale (quello resta indistinguibile da qui).
+function findInconsistentPieces(positions: PieceDefinition[], facelets: PartialFacelets): PieceDefinition[] {
+  const seen = new Map<string, PieceDefinition[]>();
+  const unmatched: PieceDefinition[] = [];
+  positions.forEach((position) => {
+    if (!pieceOptionsFor(position, positions, facelets).length) {
+      unmatched.push(position);
+      return;
+    }
+    const colors = position.indices.map((index, slot) => facelets[position.faces[slot]][index] as CubeColor);
+    const key = pieceColorKey(colors);
+    seen.set(key, [...(seen.get(key) ?? []), position]);
+  });
+  const duplicated = [...seen.values()].filter((group) => group.length > 1).flat();
+  return [...unmatched, ...duplicated];
+}
+
+/**
+ * Quando uno stato completo (54/54, conteggio colori corretto) non produce
+ * nessuno scramble verificabile, la causa è quasi sempre o (a) un pezzo con
+ * una combinazione di colori inesistente sul cubo reale / duplicata, oppure
+ * (b) un problema di parità globale (un singolo spigolo capovolto, un angolo
+ * ruotato, o uno scambio dispari) che non è imputabile a una singola casella.
+ * Qui copriamo solo il caso (a), cercabile a costo trascurabile; per il caso
+ * (b) non c'è una casella "colpevole" da indicare, quindi si torna null e il
+ * chiamante usa il messaggio generico.
+ */
+export function diagnoseImpossiblePiece(facelets: Record<Face, CubeColor[]>): string | null {
+  const partial = facelets as PartialFacelets;
+  const badPositions = [
+    ...findInconsistentPieces(CORNERS, partial),
+    ...findInconsistentPieces(EDGES, partial),
+  ];
+  if (!badPositions.length) return null;
+  const single = badPositions.length === 1;
+  const details = badPositions.map((position) => describePieceCells(position, partial)).join(' — ');
+  return `Lo stato non è fisicamente valido: ${single ? 'un pezzo' : 'alcuni pezzi'} non corrisponde${single ? '' : 'no'} a nessun angolo o spigolo reale del cubo (o è un duplicato). Controlla: ${details}.`;
 }
 
 function geometryQuality(observation: FaceGridObservation): number {
@@ -1201,6 +1296,7 @@ export function reconstructInspectionState(
       status: 'insufficient', observedFaces: [], observedFacelets: 0, inferredFacelets: 0,
       resolvedCorners: 0, resolvedEdges: 0, candidateCount: 0, truncated: false,
       confidence: 0, facelets, faceCoverage: buildFaceCoverage(bestByFace, facelets), completeFacelets: null,
+      cellConfidence: emptyCellConfidence(),
       message: 'Nessuna griglia 3×3 abbastanza stabile è stata letta durante l’ispezione.',
       faceReference: {},
     };
@@ -1225,7 +1321,7 @@ export function reconstructInspectionState(
           index,
           color,
           confidence: confidences[index] || observation.confidence,
-        })).filter((cell) => cell.color && cell.index !== 4 && cell.confidence < 66)
+        })).filter((cell) => cell.color && cell.index !== 4 && cell.confidence < HIGH_CONFIDENCE_THRESHOLD)
           .sort((left, right) => left.confidence - right.confidence)
           .slice(0, 4);
         const removalSets: Array<typeof weakest> = [[]];
@@ -1280,7 +1376,12 @@ export function reconstructInspectionState(
       rotations: [...rotationsByPattern.values()].sort((left, right) => right.score - left.score),
     };
   });
-  type RankedCompleteState = { facelets: PartialFacelets; sourceScore: number; relaxed: number };
+  type RankedCompleteState = {
+    facelets: PartialFacelets;
+    sourceScore: number;
+    relaxed: number;
+    reliability: Record<Face, number[]>;
+  };
   const validStates = new Map<string, RankedCompleteState>();
   let sawTruncation = false;
   function markTruncation() {
@@ -1296,11 +1397,16 @@ export function reconstructInspectionState(
   const maximumRotationCombinations = beamWidth;
   let rotationCombinations = 0;
 
-  function storeCompleteState(facelets: PartialFacelets, sourceScore: number, relaxed = 0) {
+  function storeCompleteState(
+    facelets: PartialFacelets,
+    sourceScore: number,
+    relaxed = 0,
+    reliability: Record<Face, number[]> = emptyCellConfidence(),
+  ) {
     const key = faceletKey(facelets);
     const existing = validStates.get(key);
     if (!existing || sourceScore > existing.sourceScore) {
-      validStates.set(key, { facelets, sourceScore, relaxed });
+      validStates.set(key, { facelets, sourceScore, relaxed, reliability });
     }
   }
 
@@ -1388,7 +1494,10 @@ export function reconstructInspectionState(
       relaxedFacelets = relaxedFacelets ? Math.min(relaxedFacelets, state.relaxed) : state.relaxed;
       markTruncation();
     }
-    completion.complete.forEach((candidate) => storeCompleteState(candidate, state.score, state.relaxed));
+    completion.complete.forEach((candidate) => storeCompleteState(
+      candidate, state.score, state.relaxed,
+      reliabilityForCandidate(candidate, state.facelets, state.reliability),
+    ));
   }
 
   // Se ogni faccia contiene anche una sola casella classificata male, nessuna
@@ -1474,6 +1583,7 @@ export function reconstructInspectionState(
           candidate,
           source.score - relaxationPenalty,
           source.relaxed + sourceRelaxedFacelets,
+          reliabilityForCandidate(candidate, partial, source.reliability),
         ));
         sourceSuccesses += 1;
         successfulRelaxations += 1;
@@ -1516,6 +1626,21 @@ export function reconstructInspectionState(
     ?? (candidates.length > 1 ? candidateConsensus : candidates[0])
     ?? bestPartial;
   const displayFacelets = cloneFacelets(provisionalDisplay);
+  // Rispecchia esattamente i rami di `provisionalDisplay` sopra, ma per la
+  // confidenza invece che per il colore: stesso candidato singolo -> stessa
+  // affidabilita' gia' calcolata per lui; consenso fra piu' candidati o
+  // fallback su bestPartial -> nessuna singola lettura fotometrica a cui
+  // attribuire la casella, quindi 0 (vedi reliabilityForCandidate).
+  const displayConfidenceSource: Record<Face, number[]> = completeFacelets
+    ? (rankedCandidates[0]?.reliability ?? emptyCellConfidence())
+    : candidates.length > 1
+      ? emptyCellConfidence()
+      : candidates.length === 1
+        ? (rankedCandidates[0]?.reliability ?? emptyCellConfidence())
+        : reliabilityForCandidate(bestPartial, bestObservedPartial, bestObservedReliability);
+  const displayConfidence: Record<Face, number[]> = Object.fromEntries(
+    FACES.map((face) => [face, [...displayConfidenceSource[face]]]),
+  ) as Record<Face, number[]>;
   if (!completeFacelets) {
     FACES.forEach((face) => {
       const stableRaw = (hypothesesByFace.get(face) ?? [])
@@ -1555,6 +1680,7 @@ export function reconstructInspectionState(
         if (existing) counts[existing] -= 1;
         if (counts[color] >= 9) return;
         displayFacelets[face][index] = color;
+        displayConfidence[face][index] = alignment.confidences[index] || stableRaw.confidence;
       });
     });
   }
@@ -1584,6 +1710,7 @@ export function reconstructInspectionState(
       resolvedCorners: 0, resolvedEdges: 0, candidateCount: 0, truncated: false,
       confidence: Math.min(55, baseConfidence), facelets: bestPartial,
       faceCoverage: buildFaceCoverage(bestByFace, bestPartial), completeFacelets: null,
+      cellConfidence: reliabilityForCandidate(bestPartial, bestObservedPartial, bestObservedReliability),
       message: 'Le caselle osservate non formano uno stato fisicamente possibile: serve una nuova lettura dei fotogrammi sfocati o coperti.',
       faceReference: computeFaceReferences(hypothesesByFace, bestPartial),
     };
@@ -1594,6 +1721,7 @@ export function reconstructInspectionState(
       resolvedCorners, resolvedEdges, candidateCount: 1, truncated: false,
       confidence: baseConfidence, facelets: candidates[0],
       faceCoverage: buildFaceCoverage(bestByFace, candidates[0]), completeFacelets,
+      cellConfidence: rankedCandidates[0]?.reliability ?? emptyCellConfidence(),
       message: 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.',
       faceReference: computeFaceReferences(hypothesesByFace, candidates[0]),
     };
@@ -1611,6 +1739,7 @@ export function reconstructInspectionState(
     resolvedCorners, resolvedEdges, candidateCount: candidates.length, truncated: sawTruncation,
     confidence: baseConfidence, facelets: displayFacelets,
     faceCoverage: buildFaceCoverage(bestByFace, displayFacelets), completeFacelets: null,
+    cellConfidence: displayConfidence,
     message: `${sawTruncation && candidates.length === 0
       ? 'La lettura è compatibile con molti stati: servono altre facce o caselle più nitide.'
       : partialMessage}${missingDescription ? ` ${missingDescription}` : ''}`,

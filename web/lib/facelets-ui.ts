@@ -25,3 +25,12 @@ export function createBlankFacelets(): PartialFacelets {
 export function copyFacelets(facelets: PartialFacelets): PartialFacelets {
   return Object.fromEntries(CUBE_FACES.map((face) => [face, [...facelets[face]]])) as PartialFacelets;
 }
+
+/** Nessuna casella corretta a mano: stato iniziale del bollino "edited" di CubeNet. */
+export function createBlankEditedCells(): Record<Face, boolean[]> {
+  return Object.fromEntries(CUBE_FACES.map((face) => [face, Array<boolean>(9).fill(false)])) as Record<Face, boolean[]>;
+}
+
+export function copyEditedCells(editedCells: Record<Face, boolean[]>): Record<Face, boolean[]> {
+  return Object.fromEntries(CUBE_FACES.map((face) => [face, [...editedCells[face]]])) as Record<Face, boolean[]>;
+}

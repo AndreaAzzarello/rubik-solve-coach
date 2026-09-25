@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<title>Annotazione keypoint faccia cubo</title>
+<style>
+  body { font-family: ui-monospace, monospace; background: #0f172a; color: #e2e8f0; margin: 0; display: flex; height: 100vh; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; background: #020617; }
+  canvas { max-width: 92vw; max-height: 94vh; cursor: crosshair; background: #1e293b; }
+  #sidebar { width: 300px; padding: 16px; border-left: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+  h1 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin: 0 0 4px; }
+  #progress { font-size: 13px; color: #cbd5e1; }
+  button { font-family: inherit; font-size: 12px; padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #e2e8f0; cursor: pointer; text-align: left; }
+  button:hover { background: #334155; }
+  button.primary { background: #2563eb; border-color: #2563eb; font-weight: bold; }
+  button.danger { background: #7f1d1d; border-color: #7f1d1d; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .legend { font-size: 11px; color: #94a3b8; line-height: 1.6; border-top: 1px solid #334155; padding-top: 10px; margin-top: 4px; }
+  .legend b { color: #e2e8f0; }
+  #status { font-size: 11px; color: #fbbf24; min-height: 32px; }
+  #hint { font-size: 11px; color: #64748b; }
+  kbd { background: #334155; border-radius: 4px; padding: 1px 5px; font-size: 10px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="sidebar">
+    <h1>Annotazione keypoint</h1>
+    <div id="progress">caricamento...</div>
+    <button id="btnAddFace">+ nuova faccia (clic sul cubo)</button>
+    <button id="btnDiscard" class="danger">scarta fotogramma</button>
+    <button id="btnSave" class="primary">salva e avanti  ⏎</button>
+    <div id="status"></div>
+    <div class="legend">
+      <div><b>Trascina</b> un pallino per correggerne la posizione.</div>
+      <div><b>Clic</b> (senza trascinare) su un pallino: cicla visibile ↔ occluso.</div>
+      <div><b>× rosso</b> vicino a una faccia: elimina quella faccia.</div>
+      <div style="margin-top:6px">
+        <kbd>⏎</kbd> salva e avanti &nbsp; <kbd>←</kbd><kbd>→</kbd> naviga senza salvare
+      </div>
+    </div>
+    <div id="hint"></div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
