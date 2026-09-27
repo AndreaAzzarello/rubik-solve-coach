@@ -496,8 +496,8 @@ export default function Home() {
                           </div>
                           <p className="mt-1 text-[9px] text-slate-500">{formatPreciseTime(reference.time)} · {reference.sourceFrames > 1 ? `fuso da ${reference.sourceFrames} fotogrammi` : '1 fotogramma'}</p>
                           {reference.gridSource ? (
-                            <p className={`text-[9px] font-black ${reference.gridSource === 'silhouette' ? 'text-orange-600' : 'text-slate-400'}`}>
-                              {reference.gridSource === 'silhouette' ? 'da silhouette del cubo' : 'da coppie di sticker'}
+                            <p className={`text-[9px] font-black ${reference.gridSource === 'silhouette' ? 'text-orange-600' : reference.gridSource === 'model' ? 'text-sky-600' : 'text-slate-400'}`}>
+                              {reference.gridSource === 'silhouette' ? 'da silhouette del cubo' : reference.gridSource === 'model' ? 'da modello' : 'da coppie di sticker'}
                             </p>
                           ) : null}
                           {snapshot ? (

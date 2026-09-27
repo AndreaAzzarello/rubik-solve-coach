@@ -970,15 +970,21 @@ function frameSignature(
     0,
     laplacianSquaredTotal / Math.max(1, laplacianPixels) - laplacianMean * laplacianMean,
   ));
-  // STEP 3 del piano: interruttore per il confronto pulito solo-geometria vs
-  // solo-modello (bench/run-bench.ts lo imposta via page.addInitScript prima
-  // che l'app carichi). Assente/'both' = comportamento normale (Step 2,
-  // additivo). Non e' una configurazione prodotto, solo per il bench.
-  const faceDetectionSource = (globalThis as { __faceDetectionSource?: 'geometric' | 'model' }).__faceDetectionSource;
-  const geometricGrids = includeFaceGrids && faceDetectionSource !== 'model'
+  // Predefinito: solo modello (misurato meglio o alla pari della geometria a
+  // coppie di sticker su tutti i video di bench, mai peggio in modo
+  // rilevante — 54/7/54/37 vs 25/20/17/16 geometria pura). Il percorso
+  // "additivo" (entrambe le fonti insieme) NON e' mai stato validato come
+  // configurazione a se': prima di questo fix era pero' il default reale
+  // dell'app (bug trovato dal vivo su IMG_6281 - pannello mostrava sempre
+  // "da coppie di sticker"), perche' bench/run-bench.ts forzava __faceDetectionSource
+  // solo nei propri run e l'app non lo impostava mai. 'geometric' resta
+  // selezionabile solo dal bench (BENCH_FACE_SOURCE=geometric) per il
+  // confronto pulito - non e' una configurazione prodotto.
+  const faceDetectionSource = (globalThis as { __faceDetectionSource?: 'geometric' | 'model' }).__faceDetectionSource ?? 'model';
+  const geometricGrids = includeFaceGrids && faceDetectionSource === 'geometric'
     ? detectFaceGrids(pixelLabels, width, height, data)
     : [];
-  const modelGrids = includeFaceGrids && faceDetectionSource !== 'geometric'
+  const modelGrids = includeFaceGrids && faceDetectionSource === 'model'
     ? faceGridsFromDetectionsWithFallback(modelDetections, pixelLabels, width, height, data)
     : [];
   const faceGrids = [...geometricGrids, ...modelGrids];
