@@ -1,5 +1,5 @@
 // Step 1 del flusso di annotazione reale: estrae fotogrammi candidati dai
-// video bench (IMG_6107/IMG_6108), poi ne tiene un sottoinsieme diversificato
+// video di training (CASES sotto), poi ne tiene un sottoinsieme diversificato
 // (troppi fotogrammi quasi identici, cubo fermo, sprecherebbero lavoro di
 // annotazione senza aggiungere variazione vera di angolo/luce/occlusione).
 //
@@ -26,10 +26,12 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(HERE, 'frames');
 const VIDEO_DIR = process.env.BENCH_VIDEO_DIR || 'C:/Users/Andrea/Desktop/App/lenti';
 
-const CASES = ['IMG_6107', 'IMG_6108'];
+// IMG_6297-6300: nuovi video SOLO training (IMG_6258/6260/6281 restano
+// esclusi, sono i casi di test - vedi bench/cases.json).
+const CASES = ['IMG_6297', 'IMG_6298', 'IMG_6299', 'IMG_6300'];
 const CANDIDATE_STEP_SEC = 0.2;
-const SELECTED_PER_VIDEO = 110;
-const HELD_OUT_PER_VIDEO = 15;
+const SELECTED_PER_VIDEO = 25; // 4 video x 25 = ~100 fotogrammi totali
+const HELD_OUT_PER_VIDEO = 3;
 const MAX_DIMENSION = 960;
 const START_MARGIN_SEC = 1;
 const END_MARGIN_SEC = 1;
@@ -189,7 +191,12 @@ async function main() {
     allEntries.push(...entries);
   }
 
-  fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(allEntries, null, 2));
+  // Additivo, non sovrascrive: manifest.json puo' gia' contenere fotogrammi
+  // di video estratti in run precedenti (es. IMG_6107/6108), con annotazioni
+  // gia' fatte che riferiscono quegli id.
+  const manifestPath = path.join(OUT_DIR, 'manifest.json');
+  const existing: FrameEntry[] = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : [];
+  fs.writeFileSync(manifestPath, JSON.stringify([...existing, ...allEntries], null, 2));
 
   await browser.close();
   videoServer.close();
