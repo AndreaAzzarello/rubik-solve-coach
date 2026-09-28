@@ -11,20 +11,25 @@ GPU locale).
 2. `Runtime > Cambia tipo di runtime > GPU`.
 3. Dataset: nella cella dei parametri, `DATASET_SOURCE = 'drive_zip'` (default,
    consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
-   (generato in locale: sintetico via `generate-dataset.ts` +
-   fotogrammi reali annotati fusi via `merge-real-annotations.ts`, vedi sotto)
-   da `MyDrive/rubik-vision/` su Google Drive. `DATASET_SOURCE =
+   (6170 train + 831 val: 6000+800 sintetici fusi con 201 fotogrammi reali
+   annotati a mano via `merge-real-annotations.ts`, vedi sotto) da
+   `MyDrive/rubik-vision/` su Google Drive. `DATASET_SOURCE =
    'regenerate_in_colab'` rigenera SOLO la parte sintetica direttamente in
-   Colab (richiede il branch pushato su GitHub) — piu' veloce da iterare, ma
-   **non include i fotogrammi reali annotati**, dato che quello script lancia
-   solo `generate-dataset.ts` e non la fusione: usalo solo per esperimenti
-   sulla parte sintetica, non per il training "buono". La cella successiva
-   esegue SOLO il ramo scelto (l'altro si auto-salta) e si ferma con un
-   errore chiaro se un passaggio fallisce, quindi "Esegui tutte le celle" e'
-   sicuro.
-4. Esegui le celle di training + validazione + export ONNX in ordine.
-5. Copia il `.onnx` risultato in `vision/models/cube-face-keypoints.onnx` nel
-   repo (cartella creata al bisogno, non ancora presente).
+   Colab (richiede il branch/main pushato su GitHub) — piu' veloce da
+   iterare, ma **non include i fotogrammi reali annotati**: usalo solo per
+   esperimenti sulla parte sintetica, non per il training "buono". La cella
+   successiva esegue SOLO il ramo scelto (l'altro si auto-salta) e si ferma
+   con un errore chiaro se un passaggio fallisce, quindi "Esegui tutte le
+   celle" e' sicuro.
+4. Training: `MODEL_VARIANT = 'previous_best'` (default) riparte dai pesi
+   dell'ultimo run invece che da yolov8n-pose grezzo — richiede `best.pt`
+   salvato su Drive l'ultima volta (Opzione 1, sezione 4 del notebook). Se
+   manca, il notebook si ferma con un errore chiaro invece di ripartire
+   silenziosamente da zero: in quel caso scegli `yolov8n-pose.pt`.
+5. Esegui le celle di training + validazione + export ONNX in ordine.
+6. Copia il `.onnx` risultato in `vision/models/cube-face-keypoints.onnx` e
+   `web/public/models/cube-face-keypoints.onnx` nel repo (entrambe le copie
+   sono committate, vedi `.gitignore` root).
 
 ## Fondere i fotogrammi reali annotati
 
