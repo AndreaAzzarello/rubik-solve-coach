@@ -19,7 +19,7 @@ const FRAMES_DIR = path.join(ANNOTATE_DIR, 'frames');
 const LABELS_DIR = path.join(ANNOTATE_DIR, 'labels');
 const OUT_DIR = path.join(HERE, 'output');
 
-type ManifestEntry = { id: string; video: string; time: number; split: 'train' | 'val' };
+type ManifestEntry = { id: string; video: string; time: number; split: 'train' | 'val' | 'test' };
 
 function main() {
   const manifest: ManifestEntry[] = JSON.parse(fs.readFileSync(path.join(FRAMES_DIR, 'manifest.json'), 'utf8'));
@@ -28,6 +28,7 @@ function main() {
   const labelFiles = fs.readdirSync(LABELS_DIR).filter((f) => f.endsWith('.txt'));
 
   let copied = 0;
+  let skippedTest = 0;
   const perSplit = { train: 0, val: 0 };
 
   for (const labelFile of labelFiles) {
@@ -35,6 +36,12 @@ function main() {
     const split = splitById.get(id);
     if (!split) {
       console.warn(`salto ${id}: non presente in manifest.json`);
+      continue;
+    }
+    // 'test': fotogrammi di valutazione PCK (mai training), MAI copiati nel
+    // dataset - vedi vision/annotate/extract-frames.ts EXTRACT_MODE=test.
+    if (split === 'test') {
+      skippedTest += 1;
       continue;
     }
 
@@ -60,7 +67,7 @@ function main() {
     perSplit[split] += 1;
   }
 
-  console.log(`copiati ${copied} fotogrammi reali in ${OUT_DIR} (train: ${perSplit.train}, val: ${perSplit.val})`);
+  console.log(`copiati ${copied} fotogrammi reali in ${OUT_DIR} (train: ${perSplit.train}, val: ${perSplit.val}, test scartati: ${skippedTest})`);
 }
 
 main();

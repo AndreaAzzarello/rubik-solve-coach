@@ -26,12 +26,19 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(HERE, 'frames');
 const VIDEO_DIR = process.env.BENCH_VIDEO_DIR || 'C:/Users/Andrea/Desktop/App/lenti';
 
-// IMG_6297-6300: nuovi video SOLO training (IMG_6258/6260/6281 restano
-// esclusi, sono i casi di test - vedi bench/cases.json).
-const CASES = ['IMG_6297', 'IMG_6298', 'IMG_6299', 'IMG_6300'];
+// EXTRACT_MODE=test estrae per la VALUTAZIONE PCK, non per il training:
+// split forzato a 'test', mai letto da merge-real-annotations.ts (che scarta
+// esplicitamente questo split) quindi non puo' finire nel dataset. Video di
+// default: IMG_6258/6260/6281, i casi di test del bench - MAI training.
+const EXTRACT_MODE = process.env.EXTRACT_MODE === 'test' ? 'test' : 'train';
+const CASES = process.env.EXTRACT_CASES
+  ? process.env.EXTRACT_CASES.split(',')
+  : EXTRACT_MODE === 'test'
+    ? ['IMG_6258', 'IMG_6260', 'IMG_6281']
+    : ['IMG_6297', 'IMG_6298', 'IMG_6299', 'IMG_6300'];
 const CANDIDATE_STEP_SEC = 0.2;
-const SELECTED_PER_VIDEO = 25; // 4 video x 25 = ~100 fotogrammi totali
-const HELD_OUT_PER_VIDEO = 3;
+const SELECTED_PER_VIDEO = EXTRACT_MODE === 'test' ? 15 : 25;
+const HELD_OUT_PER_VIDEO = EXTRACT_MODE === 'test' ? 0 : 3;
 const MAX_DIMENSION = 960;
 const START_MARGIN_SEC = 1;
 const END_MARGIN_SEC = 1;
@@ -140,7 +147,7 @@ function selectDiverse(signatures: number[][], count: number): number[] {
   return selected.sort((a, b) => a - b);
 }
 
-type FrameEntry = { id: string; video: string; time: number; split: 'train' | 'val' };
+type FrameEntry = { id: string; video: string; time: number; split: 'train' | 'val' | 'test' };
 
 async function extractForVideo(page: Page, videoUrl: string, caseId: string): Promise<FrameEntry[]> {
   const { duration } = await page.evaluate(ensureVideoLoaded, { url: videoUrl });
@@ -164,13 +171,19 @@ async function extractForVideo(page: Page, videoUrl: string, caseId: string): Pr
     const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
     const id = `${caseId}-${String(i).padStart(3, '0')}`;
     fs.writeFileSync(path.join(OUT_DIR, `${id}.jpg`), Buffer.from(base64, 'base64'));
-    // Held-out spaziato uniformemente sugli indici selezionati (non sugli
-    // ultimi in ordine temporale): copre l'intera finestra, non solo la coda.
-    const isHeldOut = i % Math.round(SELECTED_PER_VIDEO / HELD_OUT_PER_VIDEO) === 0
-      && entries.filter((e) => e.split === 'val').length < HELD_OUT_PER_VIDEO;
-    entries.push({ id, video: caseId, time, split: isHeldOut ? 'val' : 'train' });
+    let split: FrameEntry['split'] = 'train';
+    if (EXTRACT_MODE === 'test') {
+      split = 'test';
+    } else {
+      // Held-out spaziato uniformemente sugli indici selezionati (non sugli
+      // ultimi in ordine temporale): copre l'intera finestra, non solo la coda.
+      const isHeldOut = i % Math.round(SELECTED_PER_VIDEO / HELD_OUT_PER_VIDEO) === 0
+        && entries.filter((e) => e.split === 'val').length < HELD_OUT_PER_VIDEO;
+      split = isHeldOut ? 'val' : 'train';
+    }
+    entries.push({ id, video: caseId, time, split });
   }
-  console.log(`[${caseId}] estratti ${entries.length} fotogrammi (${entries.filter((e) => e.split === 'val').length} val)`);
+  console.log(`[${caseId}] estratti ${entries.length} fotogrammi (${entries.filter((e) => e.split === 'val').length} val, ${entries.filter((e) => e.split === 'test').length} test)`);
   return entries;
 }
 
