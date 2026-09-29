@@ -9,6 +9,7 @@ const hintEl = document.getElementById('hint');
 const btnAddFace = document.getElementById('btnAddFace');
 const btnDiscard = document.getElementById('btnDiscard');
 const btnSave = document.getElementById('btnSave');
+const btnNextUnannotated = document.getElementById('btnNextUnannotated');
 
 const PALETTE = ['#f472b6', '#22d3ee', '#facc15', '#a3e635', '#38bdf8', '#fb923c'];
 const HANDLE_RADIUS = 8;
@@ -208,6 +209,7 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') { btnSave.click(); }
   else if (event.key === 'ArrowRight') { goTo(currentIndex + 1); }
   else if (event.key === 'ArrowLeft') { goTo(currentIndex - 1); }
+  else if (event.key === 'n' || event.key === 'N') { goToNextUnannotated(); }
 });
 
 async function saveCurrent(discarded) {
@@ -265,10 +267,34 @@ function goTo(index) {
   loadFrame(clamped);
 }
 
+// Primo indice >= from non ancora annotato, o -1 se non ce ne sono.
+function firstUnannotatedFrom(from) {
+  for (let i = from; i < manifest.length; i += 1) {
+    if (!manifest[i].annotated) return i;
+  }
+  return -1;
+}
+
+function goToNextUnannotated() {
+  const next = firstUnannotatedFrom(currentIndex + 1);
+  if (next === -1) {
+    setStatus('nessun fotogramma non annotato dopo questo.');
+    return;
+  }
+  goTo(next);
+}
+
+btnNextUnannotated.addEventListener('click', goToNextUnannotated);
+
 async function init() {
   manifest = await fetch('/api/manifest').then((r) => r.json());
   hintEl.textContent = `${manifest.length} fotogrammi in coda.`;
-  await loadFrame(0);
+  // Parte dal primo non annotato invece che sempre dall'indice 0: altrimenti
+  // ad ogni apertura/ricarica si riparte dall'inizio, superando in silenzio
+  // fotogrammi nuovi in coda (successo dal vivo: 45 fotogrammi di test mai
+  // raggiunti perche' in fondo alla lista, nessun'annotazione salvata).
+  const start = firstUnannotatedFrom(0);
+  await loadFrame(start === -1 ? 0 : start);
 }
 
 init();
