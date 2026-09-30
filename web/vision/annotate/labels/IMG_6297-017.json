@@ -1,0 +1,31 @@
+{
+  "faces": [
+    {
+      "corners": [
+        {
+          "x": 0,
+          "y": 239,
+          "visibility": 2
+        },
+        {
+          "x": 518,
+          "y": 146,
+          "visibility": 2
+        },
+        {
+          "x": 482,
+          "y": 497,
+          "visibility": 2
+        },
+        {
+          "x": 0,
+          "y": 554,
+          "visibility": 2
+        }
+      ]
+    }
+  ],
+  "discarded": true,
+  "width": 540,
+  "height": 960
+}

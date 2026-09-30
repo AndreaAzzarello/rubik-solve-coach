@@ -26,6 +26,7 @@ import { FaceKeypointDetector } from '../inference/detector.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(HERE, 'frames');
+const LABELS_DIR = path.join(HERE, 'labels');
 const VIDEO_DIR = process.env.BENCH_VIDEO_DIR || 'C:/Users/Andrea/Desktop/App/lenti';
 
 // EXTRACT_MODE=test estrae per la VALUTAZIONE PCK, non per il training:
@@ -209,11 +210,42 @@ function selectUncertain(times: number[], uncertainty: number[], count: number):
   return picked.sort((a, b) => a - b);
 }
 
+// Prossimo indice libero per questo video, in base agli id gia' nel
+// manifest: una ri-estrazione dello stesso video continua da dove aveva
+// lasciato invece di ripartire da -000 (che sovrascriverebbe fotogrammi ed
+// etichette esistenti, ore di annotazione manuale).
+export function nextSafeIndex(existingIds: string[], caseId: string): number {
+  const prefix = `${caseId}-`;
+  let max = -1;
+  for (const id of existingIds) {
+    if (!id.startsWith(prefix)) continue;
+    const suffix = id.slice(prefix.length);
+    if (!/^\d+$/.test(suffix)) continue;
+    max = Math.max(max, parseInt(suffix, 10));
+  }
+  return max + 1;
+}
+
+// Ultima rete di sicurezza, indipendente dal manifest (che potrebbe essere
+// disallineato dal disco): controlla i file veri prima di scrivere. Non
+// sovrascrive mai, fallisce rumorosamente invece.
+export function assertFrameIdAvailable(id: string, framesDir: string, labelsDir: string): void {
+  const conflicts = [
+    path.join(framesDir, `${id}.jpg`),
+    path.join(labelsDir, `${id}.json`),
+    path.join(labelsDir, `${id}.txt`),
+  ].filter((candidate) => fs.existsSync(candidate));
+  if (conflicts.length) {
+    throw new Error(`collisione id ${id}: esiste gia' ${conflicts.join(', ')} - l'estrazione non sovrascrive mai file esistenti`);
+  }
+}
+
 async function extractForVideo(
   page: Page,
   videoUrl: string,
   caseId: string,
   detector: FaceKeypointDetector | null,
+  existingIds: string[],
 ): Promise<FrameEntry[]> {
   const { duration } = await page.evaluate(ensureVideoLoaded, { url: videoUrl });
   const start = START_MARGIN_SEC;
@@ -251,13 +283,17 @@ async function extractForVideo(
     selectedIndices = selectDiverse(signatures, SELECTED_PER_VIDEO);
   }
 
+  const startIndex = nextSafeIndex(existingIds, caseId);
+  if (startIndex > 0) console.log(`[${caseId}] ${startIndex} fotogrammi gia' presenti, continuo da -${String(startIndex).padStart(3, '0')}`);
+
   const entries: FrameEntry[] = [];
   for (let i = 0; i < selectedIndices.length; i += 1) {
     const time = candidateTimes[selectedIndices[i]];
     const dataUrl = capturedDataUrls[selectedIndices[i]]
       ?? await page.evaluate(captureFullFrame, { time, maxDimension: MAX_DIMENSION });
     const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
-    const id = `${caseId}-${String(i).padStart(3, '0')}`;
+    const id = `${caseId}-${String(startIndex + i).padStart(3, '0')}`;
+    assertFrameIdAvailable(id, OUT_DIR, LABELS_DIR);
     fs.writeFileSync(path.join(OUT_DIR, `${id}.jpg`), Buffer.from(base64, 'base64'));
     let split: FrameEntry['split'] = 'train';
     if (EXTRACT_MODE === 'test') {
@@ -278,6 +314,13 @@ async function extractForVideo(
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
+  // Caricato PRIMA di estrarre: serve a nextSafeIndex per non riassegnare id
+  // gia' usati (vedi anche assertFrameIdAvailable, che controlla i file
+  // veri indipendentemente da questo elenco).
+  const manifestPath = path.join(OUT_DIR, 'manifest.json');
+  const existing: FrameEntry[] = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : [];
+  const existingIds = existing.map((entry) => entry.id);
+
   const videoServer = await startStaticServer(VIDEO_DIR);
 
   const browser = await chromium.launch({ executablePath: pinnedChromeExecutable(), headless: true });
@@ -293,7 +336,7 @@ async function main() {
   for (const caseId of CASES) {
     const videoUrl = `http://127.0.0.1:${videoServer.port}/${caseId}.mp4`;
 
-    const entries = await extractForVideo(capturePage, videoUrl, caseId, detector);
+    const entries = await extractForVideo(capturePage, videoUrl, caseId, detector, existingIds);
     allEntries.push(...entries);
   }
 
@@ -302,8 +345,6 @@ async function main() {
   // Additivo, non sovrascrive: manifest.json puo' gia' contenere fotogrammi
   // di video estratti in run precedenti (es. IMG_6107/6108), con annotazioni
   // gia' fatte che riferiscono quegli id.
-  const manifestPath = path.join(OUT_DIR, 'manifest.json');
-  const existing: FrameEntry[] = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : [];
   fs.writeFileSync(manifestPath, JSON.stringify([...existing, ...allEntries], null, 2));
 
   await browser.close();
@@ -314,7 +355,13 @@ async function main() {
   console.log(`\ntotale ${allEntries.length} fotogrammi (${trainCount} train, ${valCount} val) in ${OUT_DIR}`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+// Guardia: gira solo se eseguito direttamente (node extract-frames.ts), non
+// quando il file viene importato (es. dal test, per le funzioni pure sopra) -
+// altrimenti un semplice `import` lancerebbe l'intera estrazione.
+const isMainModule = path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1] ?? '');
+if (isMainModule) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
