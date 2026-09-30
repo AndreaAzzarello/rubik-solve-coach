@@ -11,7 +11,7 @@ GPU locale).
 2. `Runtime > Cambia tipo di runtime > GPU`.
 3. Dataset: nella cella dei parametri, `DATASET_SOURCE = 'drive_zip'` (default,
    consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
-   (6170 train + 831 val: 6000+800 sintetici fusi con 201 fotogrammi reali
+   (6227 train + 840 val: 6000+800 sintetici fusi con 267 fotogrammi reali
    annotati a mano via `merge-real-annotations.ts`, vedi sotto) da
    `MyDrive/rubik-vision/` su Google Drive. `DATASET_SOURCE =
    'regenerate_in_colab'` rigenera SOLO la parte sintetica direttamente in
