@@ -1,0 +1,30 @@
+{
+  "_comment": "Video SOLO training (C:\\Users\\Andrea\\Desktop\\App\\training2). Scramble letti dalla foto csTimer accoppiata per ordine sequenziale (foto poi video successivo). Non usati per il bench. Convenzione: bianco sopra, verde davanti.",
+  "cases": [
+    {
+      "id": "IMG_6334",
+      "scrambleSource": "IMG_6333.PNG",
+      "scramble": "U' B2 U D' R' F2 B U2 B' U F2 L2 D2 F2 R2 U' L2 D R2",
+      "orientation": "white-U/green-F"
+    },
+    {
+      "id": "IMG_6336",
+      "scrambleSource": "IMG_6335.PNG",
+      "scramble": "U L' B D' B' U2 F' U' D L2 F2 L2 B2 U' D2 L2 B2 L' B",
+      "orientation": "white-U/green-F"
+    },
+    {
+      "id": "IMG_6338",
+      "scrambleSource": "IMG_6337.PNG",
+      "scramble": "U' F' D2 R D2 L2 D2 B2 D2 F2 L' D2 L' F2 D' L U' F' R' B U",
+      "orientation": "white-U/green-F"
+    },
+    {
+      "id": "IMG_6341",
+      "scrambleSource": "IMG_6339.PNG",
+      "scramble": "R2 B2 F' L2 D2 U2 F' U2 B D2 L2 D2 U' B L' D' R' U R2 F",
+      "orientation": "white-U/green-F",
+      "note": "numerazione non consecutiva (6339 -> 6341, 6340 assente): accoppiamento per ordine sequenziale dei file, non per N+1 - unica coppia possibile (4 foto, 4 video)"
+    }
+  ]
+}
