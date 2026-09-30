@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 import { chromium, type Page } from 'playwright';
 import { pinnedChromeExecutable } from '../../bench/chrome-path.ts';
 import { startStaticServer } from '../../bench/lib/static-server.ts';
+import { filterPlausibleDetections } from '../../lib/face-keypoint-model.ts';
+import { FaceKeypointDetector } from '../inference/detector.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(HERE, 'frames');
@@ -42,6 +44,22 @@ const HELD_OUT_PER_VIDEO = EXTRACT_MODE === 'test' ? 0 : 3;
 const MAX_DIMENSION = 960;
 const START_MARGIN_SEC = 1;
 const END_MARGIN_SEC = 1;
+// train: selezione attiva invece di uniforme (vedi extractForVideo). Distanza
+// minima fra fotogrammi scelti, per non concentrarli tutti nello stesso
+// istante di incertezza (es. un unico gesto rapido).
+const MIN_SELECTED_GAP_SEC = 0.4;
+const MODEL_PATH = path.join(HERE, '..', 'models', 'cube-face-keypoints.onnx');
+
+// Guardia strutturale, non solo convenzione: questi 3 sono i casi di test del
+// bench (bench/cases.json) - non devono MAI entrare nel training, qualunque
+// sia la fonte di CASES (default o EXTRACT_CASES).
+const NEVER_IN_TRAINING = ['IMG_6258', 'IMG_6260', 'IMG_6281'];
+if (EXTRACT_MODE === 'train') {
+  const forbidden = CASES.filter((id) => NEVER_IN_TRAINING.includes(id));
+  if (forbidden.length) {
+    throw new Error(`${forbidden.join(', ')}: video di test, mai in training. Rimuovili da EXTRACT_CASES o usa EXTRACT_MODE=test.`);
+  }
+}
 
 // --- funzioni eseguite in-browser (page.evaluate): autocontenute, nessuna
 // chiusura esterna. Il <video> resta in window tra una chiamata e l'altra
@@ -148,8 +166,55 @@ function selectDiverse(signatures: number[][], count: number): number[] {
 }
 
 type FrameEntry = { id: string; video: string; time: number; split: 'train' | 'val' | 'test' };
+type PlausibleDetection = { score: number; keypoints: Array<{ x: number; y: number }> };
 
-async function extractForVideo(page: Page, videoUrl: string, caseId: string): Promise<FrameEntry[]> {
+function bestScoring(list: PlausibleDetection[]): PlausibleDetection | null {
+  return list.length ? list.reduce((a, b) => (b.score > a.score ? b : a)) : null;
+}
+
+// Incertezza per candidato: alta se il modello non trova nulla o e' poco
+// sicuro, alta anche se i vertici "saltano" molto rispetto al fotogramma
+// immediatamente prima/dopo (instabilita' temporale) - questi due segnali
+// insieme individuano i casi davvero difficili (sfocato, occluso, angolo
+// scomodo), non solo genericamente diversi come faceva selectDiverse.
+function estimateUncertainty(detectionsByCandidate: PlausibleDetection[][], maxDimension: number): number[] {
+  return detectionsByCandidate.map((detections, i) => {
+    const best = bestScoring(detections);
+    if (!best) return 1;
+    const avgScore = detections.reduce((sum, d) => sum + d.score, 0) / detections.length;
+    const neighborIndices = [i - 1, i + 1].filter((j) => j >= 0 && j < detectionsByCandidate.length);
+    const jitters = neighborIndices.map((j) => {
+      const neighbor = bestScoring(detectionsByCandidate[j]);
+      if (!neighbor) return 0;
+      let sum = 0;
+      for (let k = 0; k < 4; k += 1) sum += Math.hypot(best.keypoints[k].x - neighbor.keypoints[k].x, best.keypoints[k].y - neighbor.keypoints[k].y);
+      return (sum / 4) / maxDimension;
+    });
+    const jitter = jitters.length ? Math.max(...jitters) : 0;
+    return 0.5 * (1 - avgScore) + 0.5 * Math.min(1, jitter * 4);
+  });
+}
+
+// Greedy per incertezza decrescente, scartando candidati troppo vicini nel
+// tempo a uno gia' scelto (altrimenti un singolo tratto instabile del video
+// monopolizzerebbe l'intera selezione).
+function selectUncertain(times: number[], uncertainty: number[], count: number): number[] {
+  const order = times.map((_, i) => i).sort((a, b) => uncertainty[b] - uncertainty[a]);
+  const picked: number[] = [];
+  for (const index of order) {
+    if (picked.length >= count) break;
+    if (picked.some((j) => Math.abs(times[j] - times[index]) < MIN_SELECTED_GAP_SEC)) continue;
+    picked.push(index);
+  }
+  return picked.sort((a, b) => a - b);
+}
+
+async function extractForVideo(
+  page: Page,
+  videoUrl: string,
+  caseId: string,
+  detector: FaceKeypointDetector | null,
+): Promise<FrameEntry[]> {
   const { duration } = await page.evaluate(ensureVideoLoaded, { url: videoUrl });
   const start = START_MARGIN_SEC;
   const end = Math.max(start + 1, duration - END_MARGIN_SEC);
@@ -157,17 +222,40 @@ async function extractForVideo(page: Page, videoUrl: string, caseId: string): Pr
   const candidateTimes: number[] = [];
   for (let t = start; t <= end; t += CANDIDATE_STEP_SEC) candidateTimes.push(t);
 
-  const signatures: number[][] = [];
-  for (let i = 0; i < candidateTimes.length; i += 1) {
-    signatures.push(await page.evaluate(captureThumbnail, { time: candidateTimes[i] }));
-  }
-  console.log(`[${caseId}] ${candidateTimes.length} candidati, seleziono i ${SELECTED_PER_VIDEO} piu' diversi...`);
+  let selectedIndices: number[];
+  // Riusate per i candidati gia' catturati a piena risoluzione in modalita'
+  // incertezza, per non ricatturarli una seconda volta piu' sotto.
+  const capturedDataUrls: Array<string | undefined> = [];
 
-  const selectedIndices = selectDiverse(signatures, SELECTED_PER_VIDEO);
+  if (detector) {
+    console.log(`[${caseId}] ${candidateTimes.length} candidati, valuto l'incertezza del modello su ciascuno...`);
+    const detectionsByCandidate: PlausibleDetection[][] = [];
+    for (let i = 0; i < candidateTimes.length; i += 1) {
+      const dataUrl = await page.evaluate(captureFullFrame, { time: candidateTimes[i], maxDimension: MAX_DIMENSION });
+      capturedDataUrls[i] = dataUrl;
+      const raw = await detector.detectFromImageUrl(dataUrl);
+      detectionsByCandidate.push(filterPlausibleDetections(
+        raw.map((d) => ({ score: d.score, keypoints: d.keypoints.map(({ x, y }) => ({ x, y })) })),
+      ));
+    }
+    const uncertainty = estimateUncertainty(detectionsByCandidate, MAX_DIMENSION);
+    selectedIndices = selectUncertain(candidateTimes, uncertainty, SELECTED_PER_VIDEO);
+    const avgPicked = selectedIndices.reduce((sum, i) => sum + uncertainty[i], 0) / Math.max(1, selectedIndices.length);
+    console.log(`[${caseId}] selezionati ${selectedIndices.length} per incertezza (media ${avgPicked.toFixed(2)} su scala 0-1, piu' alto = piu' incerto)`);
+  } else {
+    const signatures: number[][] = [];
+    for (let i = 0; i < candidateTimes.length; i += 1) {
+      signatures.push(await page.evaluate(captureThumbnail, { time: candidateTimes[i] }));
+    }
+    console.log(`[${caseId}] ${candidateTimes.length} candidati, seleziono i ${SELECTED_PER_VIDEO} piu' diversi...`);
+    selectedIndices = selectDiverse(signatures, SELECTED_PER_VIDEO);
+  }
+
   const entries: FrameEntry[] = [];
   for (let i = 0; i < selectedIndices.length; i += 1) {
     const time = candidateTimes[selectedIndices[i]];
-    const dataUrl = await page.evaluate(captureFullFrame, { time, maxDimension: MAX_DIMENSION });
+    const dataUrl = capturedDataUrls[selectedIndices[i]]
+      ?? await page.evaluate(captureFullFrame, { time, maxDimension: MAX_DIMENSION });
     const base64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
     const id = `${caseId}-${String(i).padStart(3, '0')}`;
     fs.writeFileSync(path.join(OUT_DIR, `${id}.jpg`), Buffer.from(base64, 'base64'));
@@ -196,13 +284,20 @@ async function main() {
   const capturePage = await browser.newPage();
   await capturePage.setContent('<!doctype html><html><body></body></html>');
 
+  // Selezione attiva (train) vs diversita' uniforme (test): il detector
+  // serve solo alla prima, non ha senso caricarlo per l'altra.
+  const detector = EXTRACT_MODE === 'train' ? await FaceKeypointDetector.create(MODEL_PATH) : null;
+  if (detector) console.log('modello di rilevamento facce caricato (selezione per incertezza)');
+
   const allEntries: FrameEntry[] = [];
   for (const caseId of CASES) {
     const videoUrl = `http://127.0.0.1:${videoServer.port}/${caseId}.mp4`;
-     
-    const entries = await extractForVideo(capturePage, videoUrl, caseId);
+
+    const entries = await extractForVideo(capturePage, videoUrl, caseId, detector);
     allEntries.push(...entries);
   }
+
+  if (detector) await detector.close();
 
   // Additivo, non sovrascrive: manifest.json puo' gia' contenere fotogrammi
   // di video estratti in run precedenti (es. IMG_6107/6108), con annotazioni

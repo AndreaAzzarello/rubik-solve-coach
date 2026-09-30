@@ -252,12 +252,12 @@ async function loadFrame(index) {
     faces = saved.faces;
     setStatus(saved.discarded ? 'fotogramma gia\' scartato in precedenza' : 'annotazione precedente ricaricata');
   } else {
-    setStatus('pre-annotazione automatica (SAM, punto centrale)...');
+    setStatus('pre-annotazione automatica (modello)...');
     const auto = await fetch(`/api/auto/${frame.id}`, { method: 'POST' }).then((r) => r.json());
-    faces = auto.result
-      ? [{ corners: auto.result.corners.map((c) => ({ x: c.x, y: c.y, visibility: 2 })) }]
-      : [];
-    setStatus(auto.result ? '' : 'SAM non ha trovato nulla al centro: aggiungi le facce a mano con "+ nuova faccia"');
+    faces = (auto.faces || []).map((f) => ({ corners: f.corners.map((c) => ({ x: c.x, y: c.y, visibility: 2 })) }));
+    setStatus(faces.length
+      ? `${faces.length} facce proposte dal modello (score ${auto.faces.map((f) => f.score.toFixed(2)).join(', ')}) - correggi trascinando`
+      : 'il modello non ha trovato nulla: aggiungi le facce a mano con "+ nuova faccia"');
   }
   draw();
 }

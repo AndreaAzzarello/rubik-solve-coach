@@ -1,5 +1,5 @@
 // Server dello strumento di annotazione: file statici (pagina + fotogrammi)
-// + API JSON per la pre-annotazione SAM e il salvataggio. Va aperto in un
+// + API JSON per la pre-annotazione e il salvataggio. Va aperto in un
 // browser VERO (non Playwright): qui l'utente disegna/trascina con il mouse.
 //
 //   node --experimental-strip-types vision/annotate/server.ts
@@ -9,9 +9,11 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, type Browser, type Page } from 'playwright';
+import { chromium, type Browser } from 'playwright';
 import { pinnedChromeExecutable } from '../../bench/chrome-path.ts';
+import { filterPlausibleDetections } from '../../lib/face-keypoint-model.ts';
 import { toYoloLines, type AnnotatedFace } from '../dataset/annotation.ts';
+import { FaceKeypointDetector } from '../inference/detector.ts';
 import { SamAnnotator } from './sam.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -20,6 +22,7 @@ const LABELS_DIR = path.join(HERE, 'labels');
 const PUBLIC_DIR = path.join(HERE, 'public');
 const ENCODER_PATH = path.join(HERE, '.cache', 'mobilesam', 'encoder.onnx');
 const DECODER_PATH = path.join(HERE, '.cache', 'mobilesam', 'decoder.onnx');
+const MODEL_PATH = path.join(HERE, '..', 'models', 'cube-face-keypoints.onnx');
 const PORT = Number(process.env.ANNOTATE_PORT || 5175);
 
 type ManifestEntry = { id: string; video: string; time: number; split: 'train' | 'val' };
@@ -69,32 +72,6 @@ function serveStatic(res: http.ServerResponse, filePath: string) {
   res.end(body);
 }
 
-// Punto di richiesta automatico: centro del fotogramma. Nei video di
-// ispezione il cubo e' quasi sempre inquadrato li'.
-//
-// Una griglia 3x3 con "tieni lo score piu' alto" e' stata provata e
-// scartata: un punto fuori centro puo' segmentare con sicurezza un singolo
-// sticker (score locale piu' alto della faccia intera, che e' un oggetto
-// piu' grande e quindi "meno ovvio" per il decoder), quindi massimizzare lo
-// score su piu' punti sceglieva sistematicamente il sotto-sticker sbagliato
-// invece della faccia giusta. Un solo punto, quando sbaglia, sbaglia in modo
-// visibile (nessun risultato) invece di sbagliare con sicurezza.
-function centerPrompt(width: number, height: number) {
-  return { x: width / 2, y: height / 2 };
-}
-
-async function imageSize(page: Page, url: string): Promise<{ width: number; height: number }> {
-  return page.evaluate(async (imageUrl) => {
-    const img = document.createElement('img');
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('errore caricamento'));
-      img.src = imageUrl;
-    });
-    return { width: img.naturalWidth, height: img.naturalHeight };
-  }, url);
-}
-
 async function main() {
   const manifest: ManifestEntry[] = JSON.parse(fs.readFileSync(path.join(FRAMES_DIR, 'manifest.json'), 'utf8'));
 
@@ -105,6 +82,8 @@ async function main() {
 
   console.log('carico i modelli MobileSAM...');
   const sam = await SamAnnotator.create(page, ENCODER_PATH, DECODER_PATH);
+  console.log('carico il modello di rilevamento facce (pre-annotazione)...');
+  const modelDetector = await FaceKeypointDetector.create(MODEL_PATH);
   console.log('pronto.');
 
   const server = http.createServer(async (req, res) => {
@@ -144,11 +123,17 @@ async function main() {
       if (autoMatch && req.method === 'POST') {
         const frameId = autoMatch[1];
         const frameUrl = `http://127.0.0.1:${PORT}/frames/${frameId}.jpg`;
-        const size = await imageSize(page, frameUrl);
-        const MIN_AUTO_SCORE = 0.7;
-        const { x, y } = centerPrompt(size.width, size.height);
-        const result = await sam.promptPoint(frameUrl, x, y);
-        sendJson(res, 200, { ...size, result: result && result.score >= MIN_AUTO_SCORE ? result : null });
+        // Pre-annotazione col nostro modello invece di SAM: propone
+        // direttamente i quadrilateri (anche piu' di uno per fotogramma),
+        // l'utente corregge trascinando invece di disegnare da zero. SAM
+        // resta disponibile come fallback via "+ nuova faccia" (click) per
+        // le facce che il modello non trova.
+        const raw = await modelDetector.detectFromImageUrl(frameUrl);
+        const plausible = filterPlausibleDetections(
+          raw.map((detection) => ({ score: detection.score, keypoints: detection.keypoints.map(({ x, y }) => ({ x, y })) })),
+        );
+        const faces = plausible.map((detection) => ({ corners: detection.keypoints, score: detection.score }));
+        sendJson(res, 200, { faces });
         return;
       }
 
