@@ -63,8 +63,10 @@ function addStats(target: ModelStats, source: ModelStats): void {
   target.pck.total += source.pck.total;
 }
 
-async function accumulate(stats: ModelStats, groundTruth: LabeledFace[], detector: FaceKeypointDetector, imageUrl: string): Promise<void> {
-  const detections = await detector.detectFromImageUrl(imageUrl);
+async function accumulate(stats: ModelStats, groundTruth: LabeledFace[], detector: FaceKeypointDetector, imageUrl: string, twoPassMargin?: number): Promise<void> {
+  const detections = typeof twoPassMargin === 'number'
+    ? await detector.detectTwoPassRefineFromImageUrl(imageUrl, twoPassMargin)
+    : await detector.detectFromImageUrl(imageUrl);
   const predicted = detections.map((d) => ({ box: d.box, keypoints: d.keypoints.map(({ x, y }) => ({ x, y })) }));
   const result = matchInstances(groundTruth, predicted);
   stats.totalGtFaces += groundTruth.length;
@@ -118,7 +120,8 @@ async function main() {
   const byVideo = new Map<string, Sample[]>();
   samples.forEach((sample) => byVideo.set(sample.video, [...(byVideo.get(sample.video) ?? []), sample]));
   console.log(`fotogrammi di test con etichetta: ${samples.length} (${[...byVideo.entries()].map(([v, s]) => `${v}: ${s.length}`).join(', ')})`);
-  console.log(`A = ${labelA}\nB = ${labelB}`);
+  const twoPassMargin = process.env.TWO_PASS_MARGIN ? Number(process.env.TWO_PASS_MARGIN) : undefined;
+  console.log(`A = ${labelA}\nB = ${labelB}${typeof twoPassMargin === 'number' ? ` (entrambi a 2 passaggi, margine ${twoPassMargin})` : ''}`);
 
   const server = await startStaticServer(FRAMES_DIR);
   const detectorA = await FaceKeypointDetector.create(pathA);
@@ -132,8 +135,8 @@ async function main() {
     const videoB = emptyStats();
     for (const sample of videoSamples) {
       const imageUrl = `http://127.0.0.1:${server.port}/${sample.id}.jpg`;
-      await accumulate(videoA, sample.groundTruth, detectorA, imageUrl);
-      await accumulate(videoB, sample.groundTruth, detectorB, imageUrl);
+      await accumulate(videoA, sample.groundTruth, detectorA, imageUrl, twoPassMargin);
+      await accumulate(videoB, sample.groundTruth, detectorB, imageUrl, twoPassMargin);
     }
     console.log(`\n# ${video} (${videoSamples.length} fotogrammi)`);
     printStats(`A · ${labelA}`, videoA);
