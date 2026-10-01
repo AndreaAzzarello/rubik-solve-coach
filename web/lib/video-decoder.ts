@@ -26,7 +26,7 @@ import {
   type Face,
 } from './cube.ts';
 import {
-  detectFaceCorners,
+  detectFaceCornersTwoPassRefine,
   faceGridsFromDetections,
   filterPlausibleDetections,
   type FaceCornerDetection,
@@ -841,6 +841,12 @@ function waitForSeek(video: HTMLVideoElement, time: number) {
 let modelInferenceFailureLogged = false;
 let modelGridFailureLogged = false;
 
+// Margine del secondo passaggio (crop+zoom sul cubo): scelto per PCK senza
+// bias sui 20 fotogrammi di test (33.0% a 1 passaggio -> 23.2%/41.1%/43.8%
+// per margine 0.8/1.5/2.5), confermato dal bench end-to-end sui 3 video di
+// test (104/162 -> 130/162 caselle giuste, vedi vision/eval/compare-two-pass-pck.ts).
+const TWO_PASS_MARGIN_DEFAULT = 2.5;
+
 // Se il modello fallisce a caricarsi/girare (WASM bloccato, rete assente) o
 // la geometria/campionamento colore va in errore su una detection specifica,
 // si prosegue silenziosamente col solo percorso geometrico invece di far
@@ -851,7 +857,12 @@ async function detectFaceCornersWithFallback(
   height: number,
 ): Promise<FaceCornerDetection[]> {
   try {
-    return await detectFaceCorners(context, width, height);
+    // __faceTwoPassMargin (bench-only, vedi vision/eval/compare-two-pass-pck.ts)
+    // permette di sovrascrivere il margine di default per confrontare altre
+    // configurazioni; assente -> margine di produzione validato.
+    const overrideMargin = (globalThis as { __faceTwoPassMargin?: number }).__faceTwoPassMargin;
+    const margin = typeof overrideMargin === 'number' ? overrideMargin : TWO_PASS_MARGIN_DEFAULT;
+    return await detectFaceCornersTwoPassRefine(context, width, height, margin);
   } catch (error) {
     if (!modelInferenceFailureLogged) {
       modelInferenceFailureLogged = true;
