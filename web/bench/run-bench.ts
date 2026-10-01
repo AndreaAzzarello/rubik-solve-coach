@@ -173,6 +173,15 @@ async function main() {
       }, faceSource);
       log(`fonte rilevamento faccia forzata: ${faceSource}`);
     }
+    // Sperimentale: BENCH_TWO_PASS_MARGIN forza il secondo passaggio
+    // zoomato (vedi lib/face-keypoint-model.ts, detectFaceCornersTwoPassRefine).
+    const twoPassMargin = process.env.BENCH_TWO_PASS_MARGIN ? Number(process.env.BENCH_TWO_PASS_MARGIN) : undefined;
+    if (typeof twoPassMargin === 'number' && Number.isFinite(twoPassMargin)) {
+      await page.addInitScript((margin) => {
+        (window as unknown as { __faceTwoPassMargin?: number }).__faceTwoPassMargin = margin;
+      }, twoPassMargin);
+      log(`due passaggi forzati, margine: ${twoPassMargin}`);
+    }
     page.on('console', (message) => {
       const text = message.text();
       if (/XNNPACK delegate for CPU/i.test(text)) sawCpuDelegate = true;

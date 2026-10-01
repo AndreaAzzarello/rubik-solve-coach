@@ -206,24 +206,35 @@ function getSession(): Promise<ort.InferenceSession> {
   return sessionPromise;
 }
 
-type PreparedInput = { tensor: Float32Array; scale: number; padX: number; padY: number };
+type PreparedInput = { tensor: Float32Array; scale: number; padX: number; padY: number; cropX: number; cropY: number };
 
 // Stessa identica matematica di letterbox usata in training/eval
 // (vision/inference/detector.ts): riquadro 512x512, riempimento
-// rgb(114,114,114), fattore di scala uniforme min(target/w, target/h).
-function letterbox(source: CanvasImageSource, srcWidth: number, srcHeight: number, target: number): PreparedInput {
+// rgb(114,114,114), fattore di scala uniforme min(target/w, target/h). Il
+// crop (default: l'immagine intera) permette un secondo passaggio zoomato
+// senza ridisegnare il fotogramma da capo - vedi detectFaceCornersTwoPassRefine.
+function letterbox(
+  source: CanvasImageSource,
+  srcWidth: number,
+  srcHeight: number,
+  target: number,
+  cropX = 0,
+  cropY = 0,
+  cropWidth = srcWidth,
+  cropHeight = srcHeight,
+): PreparedInput {
   const canvas = document.createElement('canvas');
   canvas.width = target;
   canvas.height = target;
   const ctx = canvas.getContext('2d')!;
-  const scale = Math.min(target / srcWidth, target / srcHeight);
-  const newWidth = Math.round(srcWidth * scale);
-  const newHeight = Math.round(srcHeight * scale);
+  const scale = Math.min(target / cropWidth, target / cropHeight);
+  const newWidth = Math.round(cropWidth * scale);
+  const newHeight = Math.round(cropHeight * scale);
   const padX = Math.floor((target - newWidth) / 2);
   const padY = Math.floor((target - newHeight) / 2);
   ctx.fillStyle = 'rgb(114,114,114)';
   ctx.fillRect(0, 0, target, target);
-  ctx.drawImage(source, padX, padY, newWidth, newHeight);
+  ctx.drawImage(source, cropX, cropY, cropWidth, cropHeight, padX, padY, newWidth, newHeight);
   const pixels = ctx.getImageData(0, 0, target, target).data;
   const size = target * target;
   const tensor = new Float32Array(3 * size);
@@ -232,17 +243,19 @@ function letterbox(source: CanvasImageSource, srcWidth: number, srcHeight: numbe
     tensor[size + i] = pixels[i * 4 + 1] / 255;
     tensor[2 * size + i] = pixels[i * 4 + 2] / 255;
   }
-  return { tensor, scale, padX, padY };
+  return { tensor, scale, padX, padY, cropX, cropY };
 }
 
-/** Orchestrazione browser: inferenza ONNX sul fotogramma gia' disegnato in `context`, coordinate rimappate allo spazio immagine originale. */
-export async function detectFaceCorners(
-  context: CanvasRenderingContext2D,
-  width: number,
-  height: number,
+async function runInference(
+  source: CanvasImageSource,
+  srcWidth: number,
+  srcHeight: number,
+  crop?: { x: number; y: number; width: number; height: number },
 ): Promise<FaceCornerDetection[]> {
   const session = await getSession();
-  const prepared = letterbox(context.canvas, width, height, MODEL_INPUT_SIZE);
+  const prepared = crop
+    ? letterbox(source, srcWidth, srcHeight, MODEL_INPUT_SIZE, crop.x, crop.y, crop.width, crop.height)
+    : letterbox(source, srcWidth, srcHeight, MODEL_INPUT_SIZE);
   const inputTensor = new ort.Tensor('float32', prepared.tensor, [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
   const results = await session.run({ [session.inputNames[0]]: inputTensor });
   const output = results[session.outputNames[0]];
@@ -253,10 +266,86 @@ export async function detectFaceCorners(
   return kept.map((detection) => ({
     score: detection.score,
     keypoints: detection.keypoints.map((kp) => ({
-      x: (kp.x - prepared.padX) / prepared.scale,
-      y: (kp.y - prepared.padY) / prepared.scale,
+      x: (kp.x - prepared.padX) / prepared.scale + prepared.cropX,
+      y: (kp.y - prepared.padY) / prepared.scale + prepared.cropY,
     })),
   }));
+}
+
+/** Orchestrazione browser: inferenza ONNX sul fotogramma gia' disegnato in `context`, coordinate rimappate allo spazio immagine originale. */
+export async function detectFaceCorners(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): Promise<FaceCornerDetection[]> {
+  return runInference(context.canvas, width, height);
+}
+
+function quadBounds(keypoints: Point[]): { minX: number; minY: number; maxX: number; maxY: number } {
+  return {
+    minX: Math.min(...keypoints.map((p) => p.x)),
+    minY: Math.min(...keypoints.map((p) => p.y)),
+    maxX: Math.max(...keypoints.map((p) => p.x)),
+    maxY: Math.max(...keypoints.map((p) => p.y)),
+  };
+}
+
+function boundsIou(a: ReturnType<typeof quadBounds>, b: ReturnType<typeof quadBounds>): number {
+  const ix = Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX));
+  const iy = Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
+  const intersection = ix * iy;
+  const areaA = (a.maxX - a.minX) * (a.maxY - a.minY);
+  const areaB = (b.maxX - b.minX) * (b.maxY - b.minY);
+  const union = areaA + areaB - intersection;
+  return union > 0 ? intersection / union : 0;
+}
+
+// Sperimentale (bench-only, vedi __faceTwoPassMargin in video-decoder.ts):
+// secondo passaggio zoomato su un ritaglio quadrato attorno al cubo rilevato
+// al primo passaggio (+ margine), per dare al modello piu' pixel quando il
+// cubo e' piccolo nel fotogramma. Puo' solo RAFFINARE: il risultato ha
+// sempre lo stesso numero di facce del primo passaggio (mai un recall
+// peggiore), con i keypoint sostituiti da quelli del secondo passaggio solo
+// dove c'e' una corrispondenza IoU sufficiente.
+export async function detectFaceCornersTwoPassRefine(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  marginFraction: number,
+  iouThreshold = 0.3,
+): Promise<FaceCornerDetection[]> {
+  const pass1 = await runInference(context.canvas, width, height);
+  if (pass1.length === 0) return pass1;
+
+  const allPoints = pass1.flatMap((d) => d.keypoints);
+  const minX = Math.min(...allPoints.map((p) => p.x));
+  const minY = Math.min(...allPoints.map((p) => p.y));
+  const maxX = Math.max(...allPoints.map((p) => p.x));
+  const maxY = Math.max(...allPoints.map((p) => p.y));
+  const unionW = maxX - minX;
+  const unionH = maxY - minY;
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  const squareSize = Math.min(Math.max(unionW, unionH) * (1 + marginFraction), Math.min(width, height));
+  const cropX = Math.min(Math.max(centerX - squareSize / 2, 0), width - squareSize);
+  const cropY = Math.min(Math.max(centerY - squareSize / 2, 0), height - squareSize);
+
+  const pass2 = await runInference(context.canvas, width, height, { x: cropX, y: cropY, width: squareSize, height: squareSize });
+
+  const usedPass2 = new Set<number>();
+  return pass1.map((det1) => {
+    const bounds1 = quadBounds(det1.keypoints);
+    let bestIndex = -1;
+    let bestIou = iouThreshold;
+    pass2.forEach((det2, index) => {
+      if (usedPass2.has(index)) return;
+      const iou = boundsIou(bounds1, quadBounds(det2.keypoints));
+      if (iou > bestIou) { bestIou = iou; bestIndex = index; }
+    });
+    if (bestIndex === -1) return det1;
+    usedPass2.add(bestIndex);
+    return pass2[bestIndex];
+  });
 }
 
 /**
