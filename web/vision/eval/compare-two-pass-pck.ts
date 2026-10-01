@@ -96,7 +96,9 @@ function printStats(label: string, stats: ModelStats): void {
   console.log(`    PCK@5% senza bias        ${pckPct}% (${stats.pck.correct}/${stats.pck.total})`);
 }
 
-const MARGINS = [0.8, 1.5, 2.5];
+const MARGINS = process.env.TWO_PASS_MARGINS
+  ? process.env.TWO_PASS_MARGINS.split(',').map(Number)
+  : [0.8, 1.5, 2.5];
 
 async function main() {
   const modelArg = process.argv[2] ?? 'cube-face-keypoints.onnx';
