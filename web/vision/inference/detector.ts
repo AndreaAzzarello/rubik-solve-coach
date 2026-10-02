@@ -300,6 +300,9 @@ export class FaceKeypointDetector {
       Math.max(unionW, unionH) * (1 + marginFraction),
       Math.min(prepared1.origWidth, prepared1.origHeight),
     );
+    // Unione degenere (vedi lib/face-keypoint-model.ts, stessa guardia): niente
+    // da raffinare, meglio il passaggio 1 che un drawImage con NaN.
+    if (!Number.isFinite(squareSize) || squareSize < 1) return pass1;
     const cropX = Math.min(Math.max(centerX - squareSize / 2, 0), prepared1.origWidth - squareSize);
     const cropY = Math.min(Math.max(centerY - squareSize / 2, 0), prepared1.origHeight - squareSize);
 

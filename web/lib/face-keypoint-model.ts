@@ -281,7 +281,7 @@ export async function detectFaceCorners(
   return runInference(context.canvas, width, height);
 }
 
-function quadBounds(keypoints: Point[]): { minX: number; minY: number; maxX: number; maxY: number } {
+export function quadBounds(keypoints: Point[]): { minX: number; minY: number; maxX: number; maxY: number } {
   return {
     minX: Math.min(...keypoints.map((p) => p.x)),
     minY: Math.min(...keypoints.map((p) => p.y)),
@@ -290,7 +290,7 @@ function quadBounds(keypoints: Point[]): { minX: number; minY: number; maxX: num
   };
 }
 
-function boundsIou(a: ReturnType<typeof quadBounds>, b: ReturnType<typeof quadBounds>): number {
+export function boundsIou(a: ReturnType<typeof quadBounds>, b: ReturnType<typeof quadBounds>): number {
   const ix = Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX));
   const iy = Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
   const intersection = ix * iy;
@@ -300,7 +300,8 @@ function boundsIou(a: ReturnType<typeof quadBounds>, b: ReturnType<typeof quadBo
   return union > 0 ? intersection / union : 0;
 }
 
-// Sperimentale (bench-only, vedi __faceTwoPassMargin in video-decoder.ts):
+// Default di produzione (TWO_PASS_MARGIN_DEFAULT in video-decoder.ts, margine
+// 2.5 validato su PCK senza bias + bench, vedi commit "due passaggi"):
 // secondo passaggio zoomato su un ritaglio quadrato attorno al cubo rilevato
 // al primo passaggio (+ margine), per dare al modello piu' pixel quando il
 // cubo e' piccolo nel fotogramma. Puo' solo RAFFINARE: il risultato ha
@@ -327,11 +328,31 @@ export async function detectFaceCornersTwoPassRefine(
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
   const squareSize = Math.min(Math.max(unionW, unionH) * (1 + marginFraction), Math.min(width, height));
+  // Unione degenere (es. tutti i keypoint del passaggio 1 coincidono):
+  // squareSize collasserebbe a 0, portando scale=Infinity/newWidth=NaN dentro
+  // letterbox() e facendo lanciare drawImage - il chiamante (video-decoder.ts,
+  // detectFaceCornersWithFallback) scarterebbe l'intero passaggio 1, comprese
+  // facce valide. Meglio rinunciare al raffinamento che perdere tutto.
+  if (!Number.isFinite(squareSize) || squareSize < 1) return pass1;
   const cropX = Math.min(Math.max(centerX - squareSize / 2, 0), width - squareSize);
   const cropY = Math.min(Math.max(centerY - squareSize / 2, 0), height - squareSize);
 
   const pass2 = await runInference(context.canvas, width, height, { x: cropX, y: cropY, width: squareSize, height: squareSize });
+  return mergeTwoPassDetections(pass1, pass2, iouThreshold);
+}
 
+/**
+ * Pura: per ogni faccia del passaggio 1, la sostituisce con quella del
+ * passaggio 2 solo se c'e' una corrispondenza IoU sufficiente, altrimenti la
+ * tiene com'e' - il risultato ha SEMPRE la stessa lunghezza di `pass1` (mai
+ * un recall peggiore del primo passaggio da solo). Estratta a parte per
+ * essere testabile senza canvas/ONNX (vedi face-keypoint-model.test.ts).
+ */
+export function mergeTwoPassDetections(
+  pass1: FaceCornerDetection[],
+  pass2: FaceCornerDetection[],
+  iouThreshold: number,
+): FaceCornerDetection[] {
   const usedPass2 = new Set<number>();
   return pass1.map((det1) => {
     const bounds1 = quadBounds(det1.keypoints);
