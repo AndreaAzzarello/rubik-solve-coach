@@ -22,9 +22,9 @@
 import * as ort from 'onnxruntime-web/wasm';
 import { CUBE_COLORS, type CubeColor } from './cube.ts';
 import { type RgbSample, sampleCentralRoiRgb } from './color-calibration.ts';
-import { applyHomography, fitHomography, NOMINAL_CORNERS, type Point } from './homography.ts';
+import { computeFaceSampleGrid, type Point } from './homography.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
-import { applyLocalCenterCalibration, sampleVirtualCell } from './video-decoder.ts';
+import { applyLocalCenterCalibration, profileAdd, profileEnabled, sampleVirtualCell } from './video-decoder.ts';
 import { decodePoseOutput, nonMaxSuppression } from '../vision/inference/pose-decode.ts';
 
 const MODEL_URL = '/models/cube-face-keypoints.onnx';
@@ -125,40 +125,28 @@ export function faceGridFromCorners(
   height: number,
   pixels?: Uint8ClampedArray,
 ): Omit<FaceGridObservation, 'time'> | null {
-  if (detection.keypoints.length !== NOMINAL_CORNERS.length) return null;
-  const correspondences = detection.keypoints.map((image, index) => ({ grid: NOMINAL_CORNERS[index], image }));
-  const homography = fitHomography(correspondences);
-  if (!homography) return null;
-
-  const center = applyHomography(homography, { x: 0, y: 0 });
-  const right = applyHomography(homography, { x: 1, y: 0 });
-  const down = applyHomography(homography, { x: 0, y: 1 });
-  const rightVector = { x: right.x - center.x, y: right.y - center.y };
-  const downVector = { x: down.x - center.x, y: down.y - center.y };
-  const sampleRadius = Math.max(2, Math.min(Math.hypot(rightVector.x, rightVector.y), Math.hypot(downVector.x, downVector.y)) * 0.3);
+  const grid = computeFaceSampleGrid(detection.keypoints);
+  if (!grid) return null;
+  const { center, rightVector, downVector, points, sampleRadius } = grid;
 
   const colors = Array<CubeColor | null>(9).fill(null);
   const rawColors = Array<RgbSample | null>(9).fill(null);
   const cellConfidences = Array<number>(9).fill(0);
   let visibleCells = 0;
 
-  for (let row = -1; row <= 1; row += 1) {
-    for (let column = -1; column <= 1; column += 1) {
-      const target = applyHomography(homography, { x: column, y: row });
-      const virtual = sampleVirtualCell(labels, width, height, target.x, target.y, sampleRadius);
-      if (!virtual) continue;
-      const cellIndex = (row + 1) * 3 + column + 1;
-      colors[cellIndex] = CUBE_COLORS[virtual.label];
-      rawColors[cellIndex] = pixels ? sampleCentralRoiRgb(pixels, width, height, {
-        x: Math.round(target.x - sampleRadius),
-        y: Math.round(target.y - sampleRadius),
-        width: Math.round(sampleRadius * 2),
-        height: Math.round(sampleRadius * 2),
-      }, 0.4) ?? null : null;
-      cellConfidences[cellIndex] = Math.round(Math.min(CELL_CONFIDENCE_CEILING, Math.max(CELL_CONFIDENCE_FLOOR, virtual.confidence * CELL_CONFIDENCE_CEILING)));
-      visibleCells += 1;
-    }
-  }
+  points.forEach((target, cellIndex) => {
+    const virtual = sampleVirtualCell(labels, width, height, target.x, target.y, sampleRadius);
+    if (!virtual) return;
+    colors[cellIndex] = CUBE_COLORS[virtual.label];
+    rawColors[cellIndex] = pixels ? sampleCentralRoiRgb(pixels, width, height, {
+      x: Math.round(target.x - sampleRadius),
+      y: Math.round(target.y - sampleRadius),
+      width: Math.round(sampleRadius * 2),
+      height: Math.round(sampleRadius * 2),
+    }, 0.4) ?? null : null;
+    cellConfidences[cellIndex] = Math.round(Math.min(CELL_CONFIDENCE_CEILING, Math.max(CELL_CONFIDENCE_FLOOR, virtual.confidence * CELL_CONFIDENCE_CEILING)));
+    visibleCells += 1;
+  });
 
   const centerColor = colors[4];
   if (visibleCells < 6 || !centerColor) return null;
@@ -315,7 +303,9 @@ export async function detectFaceCornersTwoPassRefine(
   marginFraction: number,
   iouThreshold = 0.3,
 ): Promise<FaceCornerDetection[]> {
+  const pass1Start = profileEnabled() ? performance.now() : 0;
   const pass1 = await runInference(context.canvas, width, height);
+  if (profileEnabled()) profileAdd('ONNX passaggio 1', performance.now() - pass1Start);
   if (pass1.length === 0) return pass1;
 
   const allPoints = pass1.flatMap((d) => d.keypoints);
@@ -337,7 +327,9 @@ export async function detectFaceCornersTwoPassRefine(
   const cropX = Math.min(Math.max(centerX - squareSize / 2, 0), width - squareSize);
   const cropY = Math.min(Math.max(centerY - squareSize / 2, 0), height - squareSize);
 
+  const pass2Start = profileEnabled() ? performance.now() : 0;
   const pass2 = await runInference(context.canvas, width, height, { x: cropX, y: cropY, width: squareSize, height: squareSize });
+  if (profileEnabled()) profileAdd('ONNX passaggio 2', performance.now() - pass2Start);
   return mergeTwoPassDetections(pass1, pass2, iouThreshold);
 }
 

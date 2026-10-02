@@ -3,6 +3,20 @@ import {
   type HandSide,
   createHandMotionTracker,
 } from './hand-motion.ts';
+
+// Strumentazione temporanea per il profilo tempo-per-fase (Fase C, punto 6):
+// no-op a meno che bench/profile-phases.ts non imposti esplicitamente
+// `__profilePhases`, quindi il percorso normale (produzione, pnpm bench) non
+// cambia di una riga quando il flag e' assente - punteggio invariato.
+export function profileEnabled(): boolean {
+  return (globalThis as { __profilePhases?: boolean }).__profilePhases === true;
+}
+export function profileAdd(bucket: string, ms: number): void {
+  if (!profileEnabled()) return;
+  const target = globalThis as { __profileTimings?: Record<string, number> };
+  target.__profileTimings = target.__profileTimings ?? {};
+  target.__profileTimings[bucket] = (target.__profileTimings[bucket] ?? 0) + ms;
+}
 import {
   type FaceGridObservation,
   type InspectionReconstruction,
@@ -18,6 +32,7 @@ import {
   FALLBACK_REFERENCE,
   type RgbSample,
 } from './color-calibration.ts';
+import { computeFaceSampleGrid } from './homography.ts';
 import {
   CANONICAL_FACE_COLOR,
   CUBE_COLORS,
@@ -890,6 +905,28 @@ function faceGridsFromDetectionsWithFallback(
   }
 }
 
+// Unica fonte di verita' per "che colore e' questo pixel" (confidenza >=0.16,
+// solo dentro il riquadro 12%-88% del fotogramma) - usata sia dal percorso
+// geometrico (classifica tutto) sia da quello modello (classifica solo gli
+// intorni dei punti griglia, vedi frameSignature): stessa soglia, stesso
+// output, zero rischio di deriva fra i due.
+function classifyPixelLabel(
+  red: number,
+  green: number,
+  blue: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  classifyFrameColor: ReturnType<typeof createAdaptiveColorClassifier>,
+): number {
+  if (!(x >= width * 0.12 && x <= width * 0.88 && y >= height * 0.12 && y <= height * 0.88)) return -1;
+  const classification = classifyFrameColor({ red, green, blue });
+  const color = classification?.color ?? null;
+  if (!color || (classification?.confidence ?? 0) < 0.16) return -1;
+  return OBSERVED_COLORS.indexOf(color);
+}
+
 // STEP 4 del piano: modelDetections arriva gia' calcolato dal chiamante
 // (readHighResolutionInspectionFrame), nello spazio pixel di QUESTO canvas
 // (width x height). L'inferenza ONNX gira una volta sola per fotogramma sul
@@ -907,12 +944,8 @@ function frameSignature(
   const luma = new Uint8Array(size);
   const chromaBlue = new Uint8Array(size);
   const chromaRed = new Uint8Array(size);
-  const colorCounts = emptyColorCoverage();
-  const topColorCounts = emptyColorCoverage();
   const pixelLabels = new Int8Array(size);
   pixelLabels.fill(-1);
-  let classifiedPixels = 0;
-  let classifiedTopPixels = 0;
   const adaptiveSamples: RgbSample[] = [];
   const sampleStep = Math.max(2, Math.floor(Math.min(width, height) / 110));
   for (let y = Math.floor(height * 0.1); y <= Math.ceil(height * 0.9); y += sampleStep) {
@@ -923,6 +956,9 @@ function frameSignature(
   }
   const classifyFrameColor = createAdaptiveColorClassifier(adaptiveSamples);
 
+  // luma/chroma: sempre (servono a `sharpness`, Laplaciano sotto, e a
+  // frameDifference nel percorso di moto) - costo trascurabile, nessuna
+  // classifyFrameColor qui dentro.
   for (let source = 0, target = 0; source < data.length; source += 4, target += 1) {
     const red = data[source];
     const green = data[source + 1];
@@ -931,29 +967,83 @@ function frameSignature(
     luma[target] = brightness;
     chromaBlue[target] = Math.round(Math.min(255, Math.max(0, 128 + (blue - brightness) * 0.565)));
     chromaRed[target] = Math.round(Math.min(255, Math.max(0, 128 + (red - brightness) * 0.713)));
-    const x = target % width;
-    const y = Math.floor(target / width);
-    if (x >= width * 0.12 && x <= width * 0.88 && y >= height * 0.12 && y <= height * 0.88) {
-      const classification = classifyFrameColor({ red, green, blue });
-      const color = classification?.color ?? null;
-      if (color && (classification?.confidence ?? 0) >= 0.16) {
-        pixelLabels[target] = OBSERVED_COLORS.indexOf(color);
-        colorCounts[color] += 1;
-        classifiedPixels += 1;
-        if (x >= width * 0.22 && x <= width * 0.78 && y >= height * 0.18 && y <= height * 0.52) {
-          topColorCounts[color] += 1;
-          classifiedTopPixels += 1;
-        }
-      }
-    }
   }
+
+  // Predefinito: solo modello (misurato meglio o alla pari della geometria a
+  // coppie di sticker su tutti i video di bench, mai peggio in modo
+  // rilevante — 54/7/54/37 vs 25/20/17/16 geometria pura). Il percorso
+  // "additivo" (entrambe le fonti insieme) NON e' mai stato validato come
+  // configurazione a se': prima di questo fix era pero' il default reale
+  // dell'app (bug trovato dal vivo su IMG_6281 - pannello mostrava sempre
+  // "da coppie di sticker"), perche' bench/run-bench.ts forzava __faceDetectionSource
+  // solo nei propri run e l'app non lo impostava mai. 'geometric' resta
+  // selezionabile solo dal bench (BENCH_FACE_SOURCE=geometric) per il
+  // confronto pulito - non e' una configurazione prodotto.
+  const faceDetectionSource = (globalThis as { __faceDetectionSource?: 'geometric' | 'model' }).__faceDetectionSource ?? 'model';
 
   const visibleColors = emptyColorCoverage();
   const topFaceColors = emptyColorCoverage();
-  OBSERVED_COLORS.forEach((color) => {
-    visibleColors[color] = colorCounts[color] / Math.max(1, classifiedPixels);
-    topFaceColors[color] = topColorCounts[color] / Math.max(1, classifiedTopPixels);
-  });
+  const colorLoopStart = profileEnabled() ? performance.now() : 0;
+  if (faceDetectionSource === 'model' && includeFaceGrids) {
+    // Percorso modello (produzione, l'unico dove modelGrids viene davvero
+    // usato): sampleVirtualCell interroga solo i 9 punti griglia di ogni
+    // faccia rilevata (via omografia), non l'intero fotogramma - classificare
+    // ogni pixel costava il 46% del tempo di analisi (profilato dal vivo) per
+    // uno scarto quasi mai letto. visibleColors/topFaceColors restano a zero:
+    // nessun consumatore le legge in tutto il repo (ne' lo score del bench,
+    // ne' l'app - verificato), servono solo a restare un oggetto "truthy" per
+    // il filtro in summarizeCubeObservation.
+    modelDetections.forEach((detection) => {
+      const grid = computeFaceSampleGrid(detection.keypoints);
+      if (!grid) return;
+      grid.points.forEach((point) => {
+        const minX = Math.max(0, Math.round(point.x - grid.sampleRadius));
+        const maxX = Math.min(width - 1, Math.round(point.x + grid.sampleRadius));
+        const minY = Math.max(0, Math.round(point.y - grid.sampleRadius));
+        const maxY = Math.min(height - 1, Math.round(point.y + grid.sampleRadius));
+        for (let py = minY; py <= maxY; py += 1) {
+          for (let px = minX; px <= maxX; px += 1) {
+            const target = py * width + px;
+            if (pixelLabels[target] !== -1) continue; // gia' classificato (facce/celle sovrapposte)
+            const offset = target * 4;
+            const label = classifyPixelLabel(data[offset], data[offset + 1], data[offset + 2], px, py, width, height, classifyFrameColor);
+            if (label >= 0) pixelLabels[target] = label;
+          }
+        }
+      });
+    });
+  } else {
+    // Percorso geometrico (bench, BENCH_FACE_SOURCE=geometric) e passata di
+    // moto a bassa risoluzione (includeFaceGrids=false): invariato, serve la
+    // classificazione dell'intero fotogramma (detectFaceGrids cerca i blob di
+    // sticker ovunque).
+    const colorCounts = emptyColorCoverage();
+    const topColorCounts = emptyColorCoverage();
+    let classifiedPixels = 0;
+    let classifiedTopPixels = 0;
+    for (let target = 0; target < size; target += 1) {
+      const offset = target * 4;
+      const x = target % width;
+      const y = Math.floor(target / width);
+      const label = classifyPixelLabel(data[offset], data[offset + 1], data[offset + 2], x, y, width, height, classifyFrameColor);
+      if (label < 0) continue;
+      pixelLabels[target] = label;
+      const color = OBSERVED_COLORS[label];
+      colorCounts[color] += 1;
+      classifiedPixels += 1;
+      if (x >= width * 0.22 && x <= width * 0.78 && y >= height * 0.18 && y <= height * 0.52) {
+        topColorCounts[color] += 1;
+        classifiedTopPixels += 1;
+      }
+    }
+    OBSERVED_COLORS.forEach((color) => {
+      visibleColors[color] = colorCounts[color] / Math.max(1, classifiedPixels);
+      topFaceColors[color] = topColorCounts[color] / Math.max(1, classifiedTopPixels);
+    });
+  }
+  if (profileEnabled()) profileAdd('colore per-pixel', performance.now() - colorLoopStart);
+
+  const sharpnessLoopStart = profileEnabled() ? performance.now() : 0;
   let laplacianTotal = 0;
   let laplacianSquaredTotal = 0;
   let laplacianPixels = 0;
@@ -981,17 +1071,7 @@ function frameSignature(
     0,
     laplacianSquaredTotal / Math.max(1, laplacianPixels) - laplacianMean * laplacianMean,
   ));
-  // Predefinito: solo modello (misurato meglio o alla pari della geometria a
-  // coppie di sticker su tutti i video di bench, mai peggio in modo
-  // rilevante — 54/7/54/37 vs 25/20/17/16 geometria pura). Il percorso
-  // "additivo" (entrambe le fonti insieme) NON e' mai stato validato come
-  // configurazione a se': prima di questo fix era pero' il default reale
-  // dell'app (bug trovato dal vivo su IMG_6281 - pannello mostrava sempre
-  // "da coppie di sticker"), perche' bench/run-bench.ts forzava __faceDetectionSource
-  // solo nei propri run e l'app non lo impostava mai. 'geometric' resta
-  // selezionabile solo dal bench (BENCH_FACE_SOURCE=geometric) per il
-  // confronto pulito - non e' una configurazione prodotto.
-  const faceDetectionSource = (globalThis as { __faceDetectionSource?: 'geometric' | 'model' }).__faceDetectionSource ?? 'model';
+  if (profileEnabled()) profileAdd('nitidezza (Laplaciano)', performance.now() - sharpnessLoopStart);
   const geometricGrids = includeFaceGrids && faceDetectionSource === 'geometric'
     ? detectFaceGrids(pixelLabels, width, height, data)
     : [];
@@ -1848,7 +1928,9 @@ export async function scanInspectionFrames(
   try {
     for (let index = 0; index < times.length; index += 1) {
       const time = times[index];
+      const seekStart = profileEnabled() ? performance.now() : 0;
       await waitForSeek(video, time);
+      if (profileEnabled()) profileAdd('seek/decodifica', performance.now() - seekStart);
       const frameSamples = await readHighResolutionInspectionFrame(video, time);
       frameSamples.forEach((sample) => {
         sample.hasTemporalReference = index > 0;
@@ -2283,7 +2365,9 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
   try {
     for (let index = 0; index < sampleCount; index += 1) {
       const time = Math.min(endTime, startTime + sampleOffset + index * sampleInterval);
+      const seekStart = profileEnabled() ? performance.now() : 0;
       await waitForSeek(video, time);
+      if (profileEnabled()) profileAdd('seek/decodifica', performance.now() - seekStart);
       context.drawImage(
         video,
         sourceX,
@@ -2311,8 +2395,10 @@ export async function decodeVideoMotion(video: HTMLVideoElement, options: Decode
       };
       if (handTracker && handContext) {
         try {
+          const handStart = profileEnabled() ? performance.now() : 0;
           handContext.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, handCanvas.width, handCanvas.height);
           handMeasurement = handTracker.sample(handCanvas, time * 1000);
+          if (profileEnabled()) profileAdd('tracciamento mani (MediaPipe)', performance.now() - handStart);
           if (handMeasurement.handCount > 0) framesWithHands += 1;
         } catch {
           handTracker.close();
