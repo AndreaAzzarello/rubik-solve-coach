@@ -2,10 +2,11 @@
 // convesso dei pixel di bordo, poi semplificato a 4 punti scartando ogni
 // volta il vertice la cui rimozione perde meno area. Riusa le stesse due
 // funzioni gia' scritte e testate per il fitting dell'esagono nella pipeline
-// classica (lib/video-decoder.ts) - stesso identico problema (poligono
-// rumoroso -> N vertici puliti), zero motivo di reimplementarlo.
+// classica (lib/geometric-sticker-detection.ts) - stesso identico problema
+// (poligono rumoroso -> N vertici puliti), zero motivo di reimplementarlo.
 
-import { convexHull, simplifyPolygon, type Point } from '../../lib/video-decoder.ts';
+import { convexHull, simplifyPolygon } from '../../lib/geometric-sticker-detection.ts';
+import type { Point } from '../../lib/homography.ts';
 
 const MIN_BOUNDARY_POINTS = 8;
 

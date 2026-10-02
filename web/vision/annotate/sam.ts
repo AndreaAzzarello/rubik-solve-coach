@@ -7,7 +7,7 @@
 import ort from 'onnxruntime-node';
 import type { Page } from 'playwright';
 import { maskToQuad } from './mask-to-quad.ts';
-import type { Point } from '../../lib/video-decoder.ts';
+import type { Point } from '../../lib/homography.ts';
 
 const SAM_SIZE = 1024;
 

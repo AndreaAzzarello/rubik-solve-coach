@@ -24,7 +24,8 @@ import { CUBE_COLORS, type CubeColor } from './cube.ts';
 import { type RgbSample, sampleCentralRoiRgb } from './color-calibration.ts';
 import { computeFaceSampleGrid, type Point } from './homography.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
-import { applyLocalCenterCalibration, profileAdd, profileEnabled, sampleVirtualCell } from './video-decoder.ts';
+import { applyLocalCenterCalibration, sampleVirtualCell } from './cell-sampling.ts';
+import { profileAdd, profileEnabled } from './video-decoder.ts';
 import { decodePoseOutput, nonMaxSuppression } from '../vision/inference/pose-decode.ts';
 
 const MODEL_URL = '/models/cube-face-keypoints.onnx';

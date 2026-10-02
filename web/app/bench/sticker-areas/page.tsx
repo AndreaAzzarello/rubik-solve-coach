@@ -15,7 +15,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { CUBE_COLORS, type CubeColor } from '../../../lib/cube';
-import { inspectionCropVariants, stickerComponents } from '../../../lib/video-decoder';
+import { inspectionCropVariants } from '../../../lib/video-decoder';
+import { stickerComponents } from '../../../lib/geometric-sticker-detection';
 import { createAdaptiveColorClassifier, type RgbSample } from '../../../lib/color-calibration';
 
 type ComponentSample = {

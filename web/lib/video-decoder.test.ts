@@ -4,7 +4,6 @@ import type { CubeColor } from './cube.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
 import {
   buildInspectionSampleTimes,
-  detectFaceGrids,
   inferInspectionEnd,
   lastInspectionFrameTime,
   mapModelPointToAnalysisSpace,
@@ -14,6 +13,7 @@ import {
   type MotionEvent,
   type ObservedColorCoverage,
 } from './video-decoder.ts';
+import { detectFaceGrids } from './geometric-sticker-detection.ts';
 
 const COLORS: CubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
 
