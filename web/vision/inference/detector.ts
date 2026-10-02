@@ -241,54 +241,10 @@ export class FaceKeypointDetector {
   // localizzare il cubo, poi un secondo passaggio su un ritaglio quadrato
   // attorno a quel bbox (+ margine) ridimensionato a MODEL_INPUT_SIZE - il
   // cubo occupa piu' pixel nel tensore quando e' piccolo nel fotogramma
-  // originale. Se il primo passaggio non trova nulla, ritorna il risultato
-  // (vuoto) del primo passaggio invece di inventare un ritaglio.
-  async detectTwoPassFromImageUrl(url: string, marginFraction = 0.3): Promise<FaceDetection[]> {
-    const prepared1 = await this.page.evaluate(prepareFromImageUrl, { url, targetSize: MODEL_INPUT_SIZE });
-    const pass1 = await this.runAndDecode(prepared1);
-    if (pass1.length === 0) return pass1;
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    pass1.forEach((det) => {
-      det.keypoints.forEach((kp) => {
-        minX = Math.min(minX, kp.x);
-        minY = Math.min(minY, kp.y);
-        maxX = Math.max(maxX, kp.x);
-        maxY = Math.max(maxY, kp.y);
-      });
-    });
-
-    const unionW = maxX - minX;
-    const unionH = maxY - minY;
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    const squareSize = Math.min(
-      Math.max(unionW, unionH) * (1 + marginFraction),
-      Math.min(prepared1.origWidth, prepared1.origHeight),
-    );
-    const cropX = Math.min(Math.max(centerX - squareSize / 2, 0), prepared1.origWidth - squareSize);
-    const cropY = Math.min(Math.max(centerY - squareSize / 2, 0), prepared1.origHeight - squareSize);
-
-    const prepared2 = await this.page.evaluate(prepareFromImageUrlCropped, {
-      url,
-      cropX,
-      cropY,
-      cropW: squareSize,
-      cropH: squareSize,
-      targetSize: MODEL_INPUT_SIZE,
-    });
-    return this.runAndDecode(prepared2);
-  }
-
-  // Come detectTwoPassFromImageUrl, ma il secondo passaggio puo' solo
-  // RAFFINARE: il risultato ha sempre la stessa lista di facce del primo
-  // passaggio (stesso recall), con i keypoint sostituiti da quelli del
-  // secondo passaggio solo per le facce che hanno una corrispondenza IoU
-  // sufficiente nel ritaglio - mai una faccia in meno di quante ne trova il
-  // primo passaggio da solo.
+  // originale. Il secondo passaggio puo' solo RAFFINARE: il risultato ha
+  // sempre la stessa lista di facce del primo passaggio (stesso recall), con
+  // i keypoint sostituiti da quelli del secondo passaggio solo per le facce
+  // che hanno una corrispondenza IoU sufficiente nel ritaglio.
   async detectTwoPassRefineFromImageUrl(url: string, marginFraction = 0.3, iouThreshold = 0.3): Promise<FaceDetection[]> {
     const prepared1 = await this.page.evaluate(prepareFromImageUrl, { url, targetSize: MODEL_INPUT_SIZE });
     const pass1 = await this.runAndDecode(prepared1);

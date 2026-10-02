@@ -1,5 +1,5 @@
 // Confronta rilevamento a 1 passaggio vs 2 passaggi (crop+zoom sul cubo,
-// vedi FaceKeypointDetector.detectTwoPassFromImageUrl) con LO STESSO modello,
+// vedi FaceKeypointDetector.detectTwoPassRefineFromImageUrl) con LO STESSO modello,
 // sui 20 fotogrammi di test. Metrica PCK senza bias di selezione: ogni faccia
 // etichettata non rilevata conta come 4 keypoint sbagliati (stesso
 // denominatore fisso per entrambi, vedi compare-models-pck-unbiased.ts).
