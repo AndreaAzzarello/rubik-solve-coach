@@ -154,19 +154,34 @@ async function prepareFromVideoFrame(args: { url: string; time: number; targetSi
   video.playsInline = true;
   video.preload = 'auto';
   video.src = args.url;
+  // Timeout espliciti: senza, un URL irraggiungibile o uno stallo di rete
+  // (nessun evento 'error', solo silenzio) blocca questo script per sempre -
+  // stessa classe di bug gia' vista in bench/lib/dev-server.ts.
   await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`timeout caricando ${args.url} (15s)`)), 15000);
     const onReady = () => {
-      if (video.readyState >= 2 && Number.isFinite(video.duration) && video.duration > 0) resolve();
+      if (video.readyState >= 2 && Number.isFinite(video.duration) && video.duration > 0) {
+        clearTimeout(timeout);
+        resolve();
+      }
     };
     video.addEventListener('loadeddata', onReady);
     video.addEventListener('canplay', onReady);
-    video.addEventListener('error', () => reject(new Error(`impossibile caricare ${args.url}`)));
+    video.addEventListener('error', () => {
+      clearTimeout(timeout);
+      reject(new Error(`impossibile caricare ${args.url}`));
+    });
     onReady();
   });
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
     const target = Math.min(video.duration - 0.01, Math.max(0, args.time));
     if (Math.abs(video.currentTime - target) < 0.005) { resolve(); return; }
-    const done = () => { video.removeEventListener('seeked', done); resolve(); };
+    const timeout = setTimeout(() => reject(new Error(`timeout cercando il fotogramma a ${target}s (8s)`)), 8000);
+    const done = () => {
+      clearTimeout(timeout);
+      video.removeEventListener('seeked', done);
+      resolve();
+    };
     video.addEventListener('seeked', done);
     video.currentTime = target;
   });
