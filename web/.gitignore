@@ -21,6 +21,13 @@
 # fotogrammi estratti dai video reali dell'utente (bench/cases.json): mai
 # committarli, sono foto di casa, la repo e' pubblica
 /vision/eval/real-preview/
+/vision/eval/real-finetune-eval/
+
+# output di bench/debug-grids.ts: PNG con fotogrammi video reali sovrapposti
+# alla griglia diagnostica - MAI committarli (gia' successo una volta, vedi
+# git history). index.json (solo coordinate/colori) resta tracciato perche'
+# gia' committato prima di questa regola, non contiene immagini.
+/bench/debug-grids/*.png
 
 # modelli allenati: pesano decine di MB e sono rigenerabili dal notebook Colab.
 # Eccezione: cube-face-keypoints.onnx e' il modello di produzione, committato
