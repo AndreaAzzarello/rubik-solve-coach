@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { faceGridFromCorners, filterPlausibleDetections } from './face-keypoint-model.ts';
+import {
+  boundsIou,
+  faceGridFromCorners,
+  filterPlausibleDetections,
+  mergeTwoPassDetections,
+  quadBounds,
+} from './face-keypoint-model.ts';
 
 // Stessa costruzione di griglia sintetica usata dal test di detectFaceGrids
 // in video-decoder.test.ts (gridColors -> indice in CUBE_COLORS: 0=white).
@@ -94,4 +100,43 @@ test('filterPlausibleDetections scarta un quadrilatero troppo piccolo rispetto a
   ]);
   assert.equal(kept.length, 1);
   assert.deepEqual(kept[0].keypoints, SQUARE);
+});
+
+test('boundsIou: 1 per due quadrati identici, 0 per quadrati separati', () => {
+  assert.equal(boundsIou(quadBounds(SQUARE), quadBounds(SQUARE)), 1);
+  const far = [{ x: 500, y: 500 }, { x: 600, y: 500 }, { x: 600, y: 600 }, { x: 500, y: 600 }];
+  assert.equal(boundsIou(quadBounds(SQUARE), quadBounds(far)), 0);
+});
+
+test('boundsIou: un quadrato degenere (area 0) non produce NaN/Infinity, IoU 0', () => {
+  const point = [{ x: 50, y: 50 }, { x: 50, y: 50 }, { x: 50, y: 50 }, { x: 50, y: 50 }];
+  const iou = boundsIou(quadBounds(SQUARE), quadBounds(point));
+  assert.equal(iou, 0);
+});
+
+test('mergeTwoPassDetections: sostituisce con la faccia del passaggio 2 se c\'e\' corrispondenza IoU', () => {
+  const shifted = SQUARE.map((p) => ({ x: p.x + 2, y: p.y + 2 })); // IoU alto ma non identico
+  const pass1 = [{ score: 0.7, keypoints: SQUARE }];
+  const pass2 = [{ score: 0.9, keypoints: shifted }];
+  const merged = mergeTwoPassDetections(pass1, pass2, 0.3);
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0], pass2[0]);
+});
+
+test('mergeTwoPassDetections: tiene il passaggio 1 se nessuna corrispondenza nel passaggio 2', () => {
+  const far = [{ x: 500, y: 500 }, { x: 600, y: 500 }, { x: 600, y: 600 }, { x: 500, y: 600 }];
+  const pass1 = [{ score: 0.7, keypoints: SQUARE }];
+  const pass2 = [{ score: 0.9, keypoints: far }];
+  const merged = mergeTwoPassDetections(pass1, pass2, 0.3);
+  assert.equal(merged.length, 1);
+  assert.deepEqual(merged[0], pass1[0]);
+});
+
+test('mergeTwoPassDetections: il risultato ha sempre la stessa lunghezza del passaggio 1, anche con un quadrato degenere nel passaggio 2', () => {
+  const point = [{ x: 50, y: 50 }, { x: 50, y: 50 }, { x: 50, y: 50 }, { x: 50, y: 50 }];
+  const pass1 = [{ score: 0.7, keypoints: SQUARE }, { score: 0.6, keypoints: point }];
+  const pass2: typeof pass1 = [];
+  const merged = mergeTwoPassDetections(pass1, pass2, 0.3);
+  assert.equal(merged.length, pass1.length);
+  assert.deepEqual(merged, pass1);
 });
