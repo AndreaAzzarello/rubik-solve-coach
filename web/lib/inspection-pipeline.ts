@@ -13,13 +13,28 @@ import {
   inferInspectionEnd,
   inferVideoSegmentation,
   lastInspectionFrameTime,
+  profileAdd,
+  profileEnabled,
   scanInspectionFrames,
-  summarizeCubeObservation,
+  summarizeCubeObservation as summarizeCubeObservationRaw,
   type CubeObservationSummary,
   type MotionEvent,
   type MotionSample,
   type SolveWindow,
 } from './video-decoder.ts';
+
+// Wrapper di profiling (Fase C, punto 6): no-op quando __profilePhases e'
+// assente, vedi video-decoder.ts.
+function summarizeCubeObservation(
+  samples: MotionSample[],
+  start: number,
+  end: number,
+): CubeObservationSummary {
+  const fusionStart = profileEnabled() ? performance.now() : 0;
+  const result = summarizeCubeObservationRaw(samples, start, end);
+  if (profileEnabled()) profileAdd('fusione', performance.now() - fusionStart);
+  return result;
+}
 
 export type InspectionRunPhase = 'motion' | 'boundary' | 'frames' | 'fusing';
 

@@ -167,3 +167,40 @@ export function homographyResidual(homography: Homography, correspondences: Corr
   }, 0);
   return total / correspondences.length;
 }
+
+export type FaceSampleGrid = {
+  center: Point;
+  rightVector: Point;
+  downVector: Point;
+  /** 9 punti, ordine riga-maggiore: points[(row+1)*3+(column+1)] per row,column in [-1,0,1]. */
+  points: Point[];
+  sampleRadius: number;
+};
+
+// Estratta da lib/face-keypoint-model.ts (faceGridFromCorners): la geometria
+// (centro, vettori, 9 punti griglia, raggio di campionamento) derivata
+// dall'omografia, usata sia per leggere i colori (faceGridFromCorners) sia
+// per sapere IN ANTICIPO quali pixel andranno classificati
+// (lib/video-decoder.ts, frameSignature - evita di classificare l'intero
+// fotogramma quando serve solo in questi punti). Modulo puro senza
+// dipendenze da nessuno dei due, cosi' entrambi possono importarla senza
+// creare un ciclo fra loro.
+export function computeFaceSampleGrid(keypoints: Point[]): FaceSampleGrid | null {
+  if (keypoints.length !== NOMINAL_CORNERS.length) return null;
+  const correspondences = keypoints.map((image, index) => ({ grid: NOMINAL_CORNERS[index], image }));
+  const homography = fitHomography(correspondences);
+  if (!homography) return null;
+
+  const center = applyHomography(homography, { x: 0, y: 0 });
+  const right = applyHomography(homography, { x: 1, y: 0 });
+  const down = applyHomography(homography, { x: 0, y: 1 });
+  const rightVector = { x: right.x - center.x, y: right.y - center.y };
+  const downVector = { x: down.x - center.x, y: down.y - center.y };
+  const sampleRadius = Math.max(2, Math.min(Math.hypot(rightVector.x, rightVector.y), Math.hypot(downVector.x, downVector.y)) * 0.3);
+
+  const points: Point[] = [];
+  for (let row = -1; row <= 1; row += 1) {
+    for (let column = -1; column <= 1; column += 1) points.push(applyHomography(homography, { x: column, y: row }));
+  }
+  return { center, rightVector, downVector, points, sampleRadius };
+}
