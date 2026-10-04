@@ -1,200 +1,62 @@
 # CubeSolve Coach
 
-Applicazione mobile per analizzare una risoluzione del cubo di Rubik 3x3 da un
-video, ricostruire le mosse eseguite e trasformare la registrazione in un'analisi
-tecnica personalizzata.
+Analizza la risoluzione di un cubo di Rubik 3x3 da un video: ricostruisce lo
+stato iniziale, trascrive le mosse e le divide nelle fasi CFOP (Cross, F2L,
+OLL, PLL).
 
-## Obiettivo
+Tutto il codice vivo sta in [`web/`](web/) (Next.js + TypeScript): non esiste
+un backend separato, l'intera pipeline (decodifica video, rilevamento facce,
+ricostruzione, risoluzione) gira nel browser.
 
-L'app dovra:
+## Pipeline di visione
 
-- trascrivere le mosse con il relativo timestamp;
-- riconoscere rotazioni, wide move e slice move;
-- suddividere una solve CFOP in Cross, F2L, OLL e PLL;
-- riprodurre la sequenza su un cubo virtuale;
-- evidenziare pause, rotazioni ed eventuali passaggi inefficienti;
-- suggerire alternative considerando ergonomia, lookahead e algoritmi conosciuti;
-- rispettare la preferenza dell'utente per il colore della Cross;
-- ricostruire uno scramble valido per lo stato iniziale.
+Il rilevamento dei 4 vertici di ogni faccia visibile usa un modello
+YOLOv8n-pose fine-tuned, esportato in ONNX ed eseguito nel browser con
+`onnxruntime-web` (`web/lib/face-keypoint-model.ts`). Due passaggi per
+fotogramma: un primo passaggio sull'immagine intera localizza il cubo, un
+secondo passaggio su un ritaglio zoomato attorno al cubo raffina i vertici
+quando il cubo e' piccolo nel fotogramma (puo' solo migliorare le facce del
+primo passaggio, mai perderne). Dai 4 vertici, un'omografia proietta i 9 punti
+della griglia 3x3 e ne legge il colore (`web/lib/homography.ts`,
+`web/lib/cell-sampling.ts`).
 
-## Prima versione
+Un secondo percorso, puramente geometrico (sticker adiacenti raggruppati per
+colore, senza modello), resta nel repository come baseline di confronto per
+il banco di prova ma non e' piu' il percorso di produzione
+(`web/lib/geometric-sticker-detection.ts`).
 
-Il primo MVP sara limitato a:
+Addestramento, dataset ed eval del modello sono in `web/vision/` (annotazione
+manuale, generazione dataset sintetico, notebook Colab per il fine-tuning,
+script di confronto PCK fra checkpoint).
 
-- cubo 3x3;
-- video guidati, senza tagli e con camera fissa;
-- analisi del metodo CFOP;
-- configurazione della Cross preferita;
-- revisione manuale dei passaggi riconosciuti con bassa affidabilita;
-- cubo virtuale per verificare la sequenza estratta.
+## Banco di prova (bench)
 
-Il supporto per video liberi, Roux, ZB e altri metodi verra valutato nelle fasi
-successive.
+`pnpm --dir web bench` esegue la pipeline reale su video di test locali
+(mai nel repository: la repo e' pubblica) e confronta lo stato ricostruito
+con lo scramble noto, riportando "caselle giuste su 54" in modo deterministico
+(Chrome for Testing pinnato, WASM/modello locali, nessuna GPU). Vedi
+[`web/bench/README.md`](web/bench/README.md).
+
+## Sviluppo
+
+```powershell
+pnpm --dir web install
+pnpm --dir web dev              # app di sviluppo
+pnpm --dir web test:inspection  # test del motore di ricostruzione/risoluzione
+pnpm --dir web bench            # banco di prova end-to-end (richiede video locali)
+```
+
+CI (`.github/workflows/ci.yml`): lint, type check, test, build di `web/`.
 
 ## Video di test
 
 I filmati personali e gli output di ispezione restano locali e non vengono
-caricati su GitHub. Nel repository vengono salvati soltanto gli strumenti di
-analisi e i metadati non sensibili descritti in
-[`docs/test-videos.md`](docs/test-videos.md).
+caricati su GitHub. Nel repository restano solo strumenti di analisi e
+metadati non sensibili (scramble, orientamento, timestamp).
 
-## Stato del progetto
+## Codice legacy
 
-Il progetto contiene ora un primo motore matematico di riferimento. Gestisce la
-notazione, lo stato dei 54 sticker, le fasi CFOP, la Cross preferita e la
-ricostruzione dello scramble. I dettagli si trovano in
-[`docs/core-engine.md`](docs/core-engine.md).
-
-La specifica funzionale completa si trova in
-[`docs/product-scope.md`](docs/product-scope.md).
-
-Per eseguire i test del motore:
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-Per analizzare una sequenza gia trascritta:
-
-```powershell
-python -m tools.analyze_algorithm --solution "R U R' U'" --cross-color yellow
-```
-
-## MVP web
-
-La cartella [`web`](web/) contiene un sito interattivo per provare il motore nel
-browser. La prima versione permette di:
-
-- inserire e validare una sequenza di mosse;
-- dedurre il colore della Cross dalla progressione della solve;
-- ottenere lo scramble inverso;
-- avanzare nel replay mossa per mossa o riprodurlo automaticamente;
-- osservare lo stato del cubo e le condizioni Cross, F2L, OLL e PLL;
-- individuare rotazioni complete, wide move e slice move.
-
-Il riconoscimento automatico del video viene collegato a questa interfaccia in
-piu fasi. Il decoder video v9 e attivo e fonde due canali locali:
-
-- variazione di luminosita e colore nell'area del cubo;
-- traiettoria di 21 landmark per mano, distinguendo movimento del palmo e
-  movimento residuo delle dita.
-
-Una breve finestra temporale collega il fingertrick che inizia prima al
-cambiamento degli sticker che segue. Se il cubo e coperto puo sostenere il
-pacchetto il canale mani; se le mani escono dal campo resta disponibile il
-canale cubo. I picchi distanti al massimo circa 0,62 secondi vengono conservati
-nella stessa finestra, fino a 1,35 secondi: una fingertrick veloce puo quindi
-produrre un pacchetto di piu mosse invece di essere forzata in eventi singoli.
-Ogni pacchetto espone la sorgente dell'evidenza, il numero di mosse interne, la
-sequenza proposta e la relativa clip completa a `0,40x`.
-
-La rianalisi sposta leggermente istanti di campionamento e area osservata,
-allinea le finestre temporali sovrapposte e aumenta l'affidabilita soltanto dei
-pacchetti ritrovati. Se la prima lettura resta sotto
-l'82%, il browser avvia automaticamente fino a tre letture; il pulsante di
-rianalisi aggiunge poi altre letture alla stessa sovrapposizione. Dopo due
-letture concordi la soglia di accettazione scende all'84%. L'interfaccia mostra
-la confidenza media e il numero di letture confrontate; revisione,
-segmentazione e dati tecnici restano disponibili in pannelli richiudibili. Il
-video non viene caricato: il browser scarica il modello MediaPipe e svolge
-l'inferenza sul dispositivo.
-
-Il v7 separa esplicitamente l'intervallo di osservazione/preparazione dalla
-solve. Nei fotogrammi stabili precedenti alla partenza censisce i sei colori e
-mostra quanto materiale utile ha realmente osservato; le rotazioni di
-preparazione restano fuori dalla sequenza della solve. Per ogni pacchetto della
-solve propone una sequenza modificabile combinando tutti i picchi interni,
-posizione spaziale del cambiamento, traiettoria delle dita e variazione del
-cubo. I pacchetti vengono concatenati nel campo finale senza `?`: replay,
-scramble inverso e divisione Cross/F2L/OLL/PLL appaiono al termine dell'analisi
-e si aggiornano quando viene corretta una finestra.
-
-Negli ultimi fotogrammi stabili della solve il decoder cerca inoltre il colore
-dominante della faccia PLL. Quando la lettura supera la soglia minima, la Cross
-viene proposta usando la coppia di colori opposti (`bianco-giallo`,
-`arancio-rosso`, `verde-blu`). L'interfaccia mostra sia il colore PLL osservato
-sia la Cross risultante; se l'immagine e ambigua resta attiva la deduzione dalla
-progressione della sequenza, senza forzare l'indizio cromatico.
-
-Il v8 ricompone inoltre due quarti di giro consecutivi uguali nella notazione
-doppia (`R R` o `R' R'` diventano `R2`) prima di creare i pacchetti finali.
-
-Il v9 usa invece l'intero intervallo precedente alla partenza come scansione
-dello stato iniziale. Cerca griglie 3x3 nei fotogrammi stabili, allinea e fonde
-piu viste della stessa faccia e riporta separatamente facce, caselle, angoli e
-spigoli risolti. Le caselle coperte vengono inferite solo quando unicita dei
-pezzi, somma degli orientamenti e parita delle permutazioni lasciano un unico
-stato legale. Soltanto in quel caso il sito calcola uno scramble nella
-convenzione bianco sopra e verde davanti e lo verifica riproducendo lo stato
-casella per casella. Una lettura parziale resta esplicitamente ambigua. Dettagli
-e fonti sono in [`docs/inspection-reconstruction.md`](docs/inspection-reconstruction.md).
-
-Il v10 concentra temporaneamente l'interfaccia sul solo stato iniziale. La
-segmentazione sceglie lo stadio `inspection` vero e proprio, evitando di fondere
-i fotogrammi del cubo risolto o dello scramble iniziale con quelli della
-mischiata finale. La pagina mostra le sei griglie colore, evidenzia le facce e
-le caselle mancanti e non presenta piu una sequenza ricavata dalle mosse come
-fallback. Cross, F2L, OLL, PLL, replay e revisione dei fingertrick restano
-nascosti finche lo scramble non e stato validato.
-
-Quando lo stato e completo, il risolutore confronta il risultato diretto con
-18 ricerche inizializzate da un singolo turno, elimina le sequenze non valide e
-conserva quella con meno mosse HTM. Lo scramble mostrato riproduce esattamente
-le 54 caselle; viene descritto come il piu corto trovato, non come ottimo
-matematicamente dimostrato.
-
-Per verificare il ricostruttore TypeScript:
-
-```powershell
-pnpm --dir web test:inspection
-```
-
-## Benchmark supervisionato
-
-Gli strumenti in [`tools/import_cubed_dataset.py`](tools/import_cubed_dataset.py)
-e [`tools/train_temporal_move_model.py`](tools/train_temporal_move_model.py)
-scaricano, verificano e allineano il corpus pubblico `cubed-data-v1`, quindi
-addestrano sulla GPU un classificatore temporale browser-compatibile. Le solve
-sono divise per cattura completa per impedire che fotogrammi dello stesso video
-entrino sia nel training sia nel test.
-
-Il primo modello v2 ha ottenuto 19,92% esatto e 29,08% sulla faccia in 502 mosse
-provenienti da cinque solve mai viste. Non supera la soglia di pubblicazione
-(45% esatto e 65% faccia), quindi i suoi pesi non vengono copiati nel sito e non
-possono abbassare la qualita del decoder attivo. Il report completo e i video
-restano locali e ignorati da Git. La procedura riproducibile e descritta in
-[`docs/move-model.md`](docs/move-model.md).
-
-La UI mantiene separate due affidabilita: esistenza del movimento e identita
-della notazione. Una proposta automatica non viene presentata come verificata:
-lo scramble e marcato come stima finche tutte le mosse non sono state
-controllate. La scansione dei colori misura la copertura osservata, ma non
-dichiara ricostruito uno stato sticker-per-sticker quando il filmato non offre
-ancora abbastanza viste stabili.
-
-La trascrizione alimenta anche un replay tridimensionale interattivo. Il cubo
-parte dallo stato iniziale ricostruito dal video; quando lo schema colore è
-ancora incompleto, lo stato viene dedotto invertendo le mosse riconosciute. I
-controlli permettono di avviare, mettere in pausa, avanzare, tornare indietro,
-scorrere la timeline e cambiare velocità. Ogni passaggio mostra fase CFOP e
-confidenza della mossa, comprese le rotazioni `x`, `y` e `z` dell'ispezione. La
-vista resta ferma durante il replay e mette in evidenza la faccia appena mossa,
-così i cambiamenti degli sticker sono leggibili anche su uno schermo piccolo.
-
-Per i video con una sola risoluzione non e necessario marcare manualmente
-l'inizio o la fine: il decoder segmenta la registrazione in blocchi compatibili
-con scramble, ispezione e solve e seleziona l'ultimo blocco come proposta. Nei
-video con piu tentativi l'utente puo scegliere un altro blocco oppure limitare
-manualmente l'intervallo. Sui filmati lunghi la soglia viene limitata rispetto
-alla distribuzione reale del movimento, evitando che scramble e solve vengano
-scambiati per rumore di fondo.
-
-## Strumenti di sviluppo
-
-Per generare metadati e contact sheet da filmati locali:
-
-```powershell
-python -m pip install -r requirements-dev.txt
-python tools/inspect_videos.py video.mov --output data/private/video-inspection
-python tools/calibrate_motion_decoder.py video.mov --output data/private/motion-calibration.json
-```
+[`legacy-python/`](legacy-python/) contiene un primo motore di riferimento in
+Python (notazione, stato dei 54 sticker, fasi CFOP) scritto prima di
+convergere su `web/` come unica implementazione. Non e' piu' mantenuto, non
+fa parte della CI e non e' collegato in alcun modo alla pipeline attuale.
