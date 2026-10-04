@@ -309,7 +309,31 @@ export async function detectFaceCornersTwoPassRefine(
   if (profileEnabled()) profileAdd('ONNX passaggio 1', performance.now() - pass1Start);
   if (pass1.length === 0) return pass1;
 
-  const allPoints = pass1.flatMap((d) => d.keypoints);
+  const crop = computeTwoPassCrop(pass1, width, height, marginFraction);
+  if (!crop) return pass1;
+
+  const pass2Start = profileEnabled() ? performance.now() : 0;
+  const pass2 = await runInference(context.canvas, width, height, crop);
+  if (profileEnabled()) profileAdd('ONNX passaggio 2', performance.now() - pass2Start);
+  return mergeTwoPassDetections(pass1, pass2, iouThreshold);
+}
+
+/**
+ * Pura: ritaglio quadrato (+ margine) attorno all'unione dei keypoint di
+ * `detections`, clampato dentro il fotogramma. `null` se l'unione e'
+ * degenere (es. tutti i keypoint coincidono) - squareSize collasserebbe a 0,
+ * portando scale=Infinity/newWidth=NaN dentro letterbox() e facendo lanciare
+ * drawImage. Riusata anche per generare ritagli di training dalle facce
+ * annotate (vision/dataset/generate-pass2-crops.ts), non solo dalle
+ * detection del modello.
+ */
+export function computeTwoPassCrop(
+  detections: Array<{ keypoints: Point[] }>,
+  width: number,
+  height: number,
+  marginFraction: number,
+): { x: number; y: number; width: number; height: number } | null {
+  const allPoints = detections.flatMap((d) => d.keypoints);
   const minX = Math.min(...allPoints.map((p) => p.x));
   const minY = Math.min(...allPoints.map((p) => p.y));
   const maxX = Math.max(...allPoints.map((p) => p.x));
@@ -319,19 +343,10 @@ export async function detectFaceCornersTwoPassRefine(
   const centerX = (minX + maxX) / 2;
   const centerY = (minY + maxY) / 2;
   const squareSize = Math.min(Math.max(unionW, unionH) * (1 + marginFraction), Math.min(width, height));
-  // Unione degenere (es. tutti i keypoint del passaggio 1 coincidono):
-  // squareSize collasserebbe a 0, portando scale=Infinity/newWidth=NaN dentro
-  // letterbox() e facendo lanciare drawImage - il chiamante (video-decoder.ts,
-  // detectFaceCornersWithFallback) scarterebbe l'intero passaggio 1, comprese
-  // facce valide. Meglio rinunciare al raffinamento che perdere tutto.
-  if (!Number.isFinite(squareSize) || squareSize < 1) return pass1;
+  if (!Number.isFinite(squareSize) || squareSize < 1) return null;
   const cropX = Math.min(Math.max(centerX - squareSize / 2, 0), width - squareSize);
   const cropY = Math.min(Math.max(centerY - squareSize / 2, 0), height - squareSize);
-
-  const pass2Start = profileEnabled() ? performance.now() : 0;
-  const pass2 = await runInference(context.canvas, width, height, { x: cropX, y: cropY, width: squareSize, height: squareSize });
-  if (profileEnabled()) profileAdd('ONNX passaggio 2', performance.now() - pass2Start);
-  return mergeTwoPassDetections(pass1, pass2, iouThreshold);
+  return { x: cropX, y: cropY, width: squareSize, height: squareSize };
 }
 
 /**
