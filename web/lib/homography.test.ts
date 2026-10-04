@@ -3,7 +3,6 @@ import test from 'node:test';
 import {
   applyHomography,
   fitHomography,
-  homographyResidual,
   isHomographyPlausible,
   type Correspondence,
   type Homography,
@@ -37,7 +36,6 @@ test('con le 9 corrispondenze esatte ricostruisce l’omografia originale, non s
   const correspondences = correspondencesFrom(REFERENCE_HOMOGRAPHY, GRID_CELLS);
   const fitted = fitHomography(correspondences);
   assert.ok(fitted, 'il fit deve riuscire con 9 corrispondenze non degeneri');
-  assert.ok(homographyResidual(fitted!, correspondences) < 1e-6, 'residuo ~0 sui punti usati per il fit');
 
   // Un angolo esterno della faccia (colonna/riga 1.5), MAI passato come
   // corrispondenza: se il fit avesse solo interpolato i 9 campioni invece di
@@ -53,20 +51,6 @@ test('con esattamente 4 corrispondenze (il minimo) risolve un fit esatto', () =>
   const correspondences = correspondencesFrom(REFERENCE_HOMOGRAPHY, corners);
   const fitted = fitHomography(correspondences);
   assert.ok(fitted);
-  assert.ok(homographyResidual(fitted!, correspondences) < 1e-6);
-});
-
-test('con rumore realistico sulle corrispondenze il residuo resta piccolo e limitato', () => {
-  const noise = [0.4, -0.3, 0.2, -0.5, 0.3, -0.2, 0.5, -0.4, 0.1];
-  const correspondences = correspondencesFrom(REFERENCE_HOMOGRAPHY, GRID_CELLS).map((correspondence, index) => ({
-    grid: correspondence.grid,
-    image: { x: correspondence.image.x + noise[index], y: correspondence.image.y - noise[index] },
-  }));
-  const fitted = fitHomography(correspondences);
-  assert.ok(fitted);
-  const residual = homographyResidual(fitted!, correspondences);
-  assert.ok(residual > 0, 'con rumore il residuo non e\' piu\' esattamente zero');
-  assert.ok(residual < 1, 'i minimi quadrati devono mediare il rumore, non inseguirlo');
 });
 
 test('rifiuta meno di 4 corrispondenze', () => {

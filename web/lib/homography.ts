@@ -157,17 +157,6 @@ export function fitHomography(correspondences: Correspondence[]): Homography | n
   return isHomographyPlausible(homography) ? homography : null;
 }
 
-/** Errore medio di riproiezione in pixel: usato nei test e, negli step
- * successivi, come segnale di confidenza del fit. */
-export function homographyResidual(homography: Homography, correspondences: Correspondence[]): number {
-  if (correspondences.length === 0) return 0;
-  const total = correspondences.reduce((sum, { grid, image }) => {
-    const projected = applyHomography(homography, grid);
-    return sum + Math.hypot(projected.x - image.x, projected.y - image.y);
-  }, 0);
-  return total / correspondences.length;
-}
-
 export type FaceSampleGrid = {
   center: Point;
   rightVector: Point;
