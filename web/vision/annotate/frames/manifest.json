@@ -1,0 +1,4394 @@
+[
+  {
+    "id": "IMG_6107-000",
+    "video": "IMG_6107",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-001",
+    "video": "IMG_6107",
+    "time": 3.400000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-002",
+    "video": "IMG_6107",
+    "time": 6.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-003",
+    "video": "IMG_6107",
+    "time": 10.199999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-004",
+    "video": "IMG_6107",
+    "time": 12.399999999999988,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-005",
+    "video": "IMG_6107",
+    "time": 18.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-006",
+    "video": "IMG_6107",
+    "time": 21.199999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-007",
+    "video": "IMG_6107",
+    "time": 21.399999999999956,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-008",
+    "video": "IMG_6107",
+    "time": 21.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-009",
+    "video": "IMG_6107",
+    "time": 21.999999999999954,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-010",
+    "video": "IMG_6107",
+    "time": 22.199999999999953,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-011",
+    "video": "IMG_6107",
+    "time": 22.399999999999952,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-012",
+    "video": "IMG_6107",
+    "time": 22.59999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-013",
+    "video": "IMG_6107",
+    "time": 22.79999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-014",
+    "video": "IMG_6107",
+    "time": 23.19999999999995,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-015",
+    "video": "IMG_6107",
+    "time": 23.39999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-016",
+    "video": "IMG_6107",
+    "time": 23.599999999999948,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-017",
+    "video": "IMG_6107",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-018",
+    "video": "IMG_6107",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-019",
+    "video": "IMG_6107",
+    "time": 24.399999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-020",
+    "video": "IMG_6107",
+    "time": 24.999999999999943,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-021",
+    "video": "IMG_6107",
+    "time": 25.39999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-022",
+    "video": "IMG_6107",
+    "time": 25.59999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-023",
+    "video": "IMG_6107",
+    "time": 25.99999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-024",
+    "video": "IMG_6107",
+    "time": 26.19999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-025",
+    "video": "IMG_6107",
+    "time": 26.399999999999938,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-026",
+    "video": "IMG_6107",
+    "time": 26.599999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-027",
+    "video": "IMG_6107",
+    "time": 26.799999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-028",
+    "video": "IMG_6107",
+    "time": 26.999999999999936,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-029",
+    "video": "IMG_6107",
+    "time": 27.199999999999935,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-030",
+    "video": "IMG_6107",
+    "time": 27.599999999999934,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-031",
+    "video": "IMG_6107",
+    "time": 27.799999999999933,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-032",
+    "video": "IMG_6107",
+    "time": 27.999999999999932,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-033",
+    "video": "IMG_6107",
+    "time": 28.39999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-034",
+    "video": "IMG_6107",
+    "time": 28.99999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-035",
+    "video": "IMG_6107",
+    "time": 29.19999999999993,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-036",
+    "video": "IMG_6107",
+    "time": 29.399999999999928,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-037",
+    "video": "IMG_6107",
+    "time": 29.599999999999927,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-038",
+    "video": "IMG_6107",
+    "time": 29.799999999999926,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-039",
+    "video": "IMG_6107",
+    "time": 30.199999999999925,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-040",
+    "video": "IMG_6107",
+    "time": 30.399999999999924,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-041",
+    "video": "IMG_6107",
+    "time": 30.599999999999923,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-042",
+    "video": "IMG_6107",
+    "time": 30.999999999999922,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-043",
+    "video": "IMG_6107",
+    "time": 31.79999999999992,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-044",
+    "video": "IMG_6107",
+    "time": 31.99999999999992,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-045",
+    "video": "IMG_6107",
+    "time": 32.59999999999992,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-046",
+    "video": "IMG_6107",
+    "time": 33.59999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-047",
+    "video": "IMG_6107",
+    "time": 33.79999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-048",
+    "video": "IMG_6107",
+    "time": 33.99999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-049",
+    "video": "IMG_6107",
+    "time": 34.199999999999946,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-050",
+    "video": "IMG_6107",
+    "time": 34.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-051",
+    "video": "IMG_6107",
+    "time": 35.19999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-052",
+    "video": "IMG_6107",
+    "time": 35.39999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-053",
+    "video": "IMG_6107",
+    "time": 35.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-054",
+    "video": "IMG_6107",
+    "time": 35.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-055",
+    "video": "IMG_6107",
+    "time": 36.39999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-056",
+    "video": "IMG_6107",
+    "time": 36.59999999999998,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-057",
+    "video": "IMG_6107",
+    "time": 36.79999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-058",
+    "video": "IMG_6107",
+    "time": 36.999999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-059",
+    "video": "IMG_6107",
+    "time": 37.19999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-060",
+    "video": "IMG_6107",
+    "time": 37.39999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-061",
+    "video": "IMG_6107",
+    "time": 37.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-062",
+    "video": "IMG_6107",
+    "time": 37.8,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-063",
+    "video": "IMG_6107",
+    "time": 38.2,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-064",
+    "video": "IMG_6107",
+    "time": 38.400000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-065",
+    "video": "IMG_6107",
+    "time": 38.60000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-066",
+    "video": "IMG_6107",
+    "time": 38.80000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-067",
+    "video": "IMG_6107",
+    "time": 39.000000000000014,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-068",
+    "video": "IMG_6107",
+    "time": 39.20000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-069",
+    "video": "IMG_6107",
+    "time": 39.40000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-070",
+    "video": "IMG_6107",
+    "time": 39.60000000000002,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-071",
+    "video": "IMG_6107",
+    "time": 39.800000000000026,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-072",
+    "video": "IMG_6107",
+    "time": 40.20000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-073",
+    "video": "IMG_6107",
+    "time": 40.60000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-074",
+    "video": "IMG_6107",
+    "time": 40.80000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-075",
+    "video": "IMG_6107",
+    "time": 41.00000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-076",
+    "video": "IMG_6107",
+    "time": 41.200000000000045,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-077",
+    "video": "IMG_6107",
+    "time": 41.40000000000005,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-078",
+    "video": "IMG_6107",
+    "time": 41.60000000000005,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-079",
+    "video": "IMG_6107",
+    "time": 42.600000000000065,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-080",
+    "video": "IMG_6107",
+    "time": 42.80000000000007,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-081",
+    "video": "IMG_6107",
+    "time": 43.200000000000074,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-082",
+    "video": "IMG_6107",
+    "time": 44.20000000000009,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-083",
+    "video": "IMG_6107",
+    "time": 44.600000000000094,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-084",
+    "video": "IMG_6107",
+    "time": 45.2000000000001,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-085",
+    "video": "IMG_6107",
+    "time": 45.400000000000105,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-086",
+    "video": "IMG_6107",
+    "time": 45.60000000000011,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-087",
+    "video": "IMG_6107",
+    "time": 46.20000000000012,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-088",
+    "video": "IMG_6107",
+    "time": 46.40000000000012,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-089",
+    "video": "IMG_6107",
+    "time": 46.60000000000012,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-090",
+    "video": "IMG_6107",
+    "time": 46.800000000000125,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-091",
+    "video": "IMG_6107",
+    "time": 47.00000000000013,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-092",
+    "video": "IMG_6107",
+    "time": 47.400000000000134,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-093",
+    "video": "IMG_6107",
+    "time": 47.600000000000136,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-094",
+    "video": "IMG_6107",
+    "time": 48.00000000000014,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-095",
+    "video": "IMG_6107",
+    "time": 48.200000000000145,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-096",
+    "video": "IMG_6107",
+    "time": 48.40000000000015,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-097",
+    "video": "IMG_6107",
+    "time": 48.60000000000015,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-098",
+    "video": "IMG_6107",
+    "time": 48.80000000000015,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-099",
+    "video": "IMG_6107",
+    "time": 49.000000000000156,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-100",
+    "video": "IMG_6107",
+    "time": 49.20000000000016,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-101",
+    "video": "IMG_6107",
+    "time": 49.40000000000016,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-102",
+    "video": "IMG_6107",
+    "time": 49.80000000000017,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-103",
+    "video": "IMG_6107",
+    "time": 50.00000000000017,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-104",
+    "video": "IMG_6107",
+    "time": 50.20000000000017,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-105",
+    "video": "IMG_6107",
+    "time": 51.000000000000185,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-106",
+    "video": "IMG_6107",
+    "time": 52.2000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-107",
+    "video": "IMG_6107",
+    "time": 52.400000000000205,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-108",
+    "video": "IMG_6107",
+    "time": 52.60000000000021,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-109",
+    "video": "IMG_6107",
+    "time": 53.40000000000022,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-000",
+    "video": "IMG_6108",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-001",
+    "video": "IMG_6108",
+    "time": 1.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-002",
+    "video": "IMG_6108",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-003",
+    "video": "IMG_6108",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-004",
+    "video": "IMG_6108",
+    "time": 2.6,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-005",
+    "video": "IMG_6108",
+    "time": 4.200000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-006",
+    "video": "IMG_6108",
+    "time": 4.800000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-007",
+    "video": "IMG_6108",
+    "time": 7.200000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-008",
+    "video": "IMG_6108",
+    "time": 7.400000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-009",
+    "video": "IMG_6108",
+    "time": 7.600000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-010",
+    "video": "IMG_6108",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-011",
+    "video": "IMG_6108",
+    "time": 9.399999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-012",
+    "video": "IMG_6108",
+    "time": 9.599999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-013",
+    "video": "IMG_6108",
+    "time": 9.999999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-014",
+    "video": "IMG_6108",
+    "time": 10.599999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-015",
+    "video": "IMG_6108",
+    "time": 11.79999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-016",
+    "video": "IMG_6108",
+    "time": 12.799999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-017",
+    "video": "IMG_6108",
+    "time": 13.599999999999984,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-018",
+    "video": "IMG_6108",
+    "time": 14.999999999999979,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-019",
+    "video": "IMG_6108",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-020",
+    "video": "IMG_6108",
+    "time": 15.599999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-021",
+    "video": "IMG_6108",
+    "time": 15.799999999999976,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-022",
+    "video": "IMG_6108",
+    "time": 15.999999999999975,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-023",
+    "video": "IMG_6108",
+    "time": 16.199999999999974,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-024",
+    "video": "IMG_6108",
+    "time": 16.399999999999974,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-025",
+    "video": "IMG_6108",
+    "time": 16.599999999999973,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-026",
+    "video": "IMG_6108",
+    "time": 16.99999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-027",
+    "video": "IMG_6108",
+    "time": 17.19999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-028",
+    "video": "IMG_6108",
+    "time": 17.39999999999997,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-029",
+    "video": "IMG_6108",
+    "time": 17.59999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-030",
+    "video": "IMG_6108",
+    "time": 17.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-031",
+    "video": "IMG_6108",
+    "time": 17.999999999999968,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-032",
+    "video": "IMG_6108",
+    "time": 18.199999999999967,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-033",
+    "video": "IMG_6108",
+    "time": 18.399999999999967,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-034",
+    "video": "IMG_6108",
+    "time": 18.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-035",
+    "video": "IMG_6108",
+    "time": 18.799999999999965,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-036",
+    "video": "IMG_6108",
+    "time": 18.999999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-037",
+    "video": "IMG_6108",
+    "time": 19.199999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-038",
+    "video": "IMG_6108",
+    "time": 19.399999999999963,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-039",
+    "video": "IMG_6108",
+    "time": 19.599999999999962,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-040",
+    "video": "IMG_6108",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-041",
+    "video": "IMG_6108",
+    "time": 19.99999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-042",
+    "video": "IMG_6108",
+    "time": 20.19999999999996,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-043",
+    "video": "IMG_6108",
+    "time": 20.39999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-044",
+    "video": "IMG_6108",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-045",
+    "video": "IMG_6108",
+    "time": 20.999999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-046",
+    "video": "IMG_6108",
+    "time": 21.199999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-047",
+    "video": "IMG_6108",
+    "time": 21.399999999999956,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-048",
+    "video": "IMG_6108",
+    "time": 21.599999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-049",
+    "video": "IMG_6108",
+    "time": 21.799999999999955,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-050",
+    "video": "IMG_6108",
+    "time": 21.999999999999954,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-051",
+    "video": "IMG_6108",
+    "time": 22.399999999999952,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-052",
+    "video": "IMG_6108",
+    "time": 22.59999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-053",
+    "video": "IMG_6108",
+    "time": 22.79999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-054",
+    "video": "IMG_6108",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-055",
+    "video": "IMG_6108",
+    "time": 23.19999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-056",
+    "video": "IMG_6108",
+    "time": 23.599999999999948,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-057",
+    "video": "IMG_6108",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-058",
+    "video": "IMG_6108",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-059",
+    "video": "IMG_6108",
+    "time": 24.199999999999946,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-060",
+    "video": "IMG_6108",
+    "time": 24.399999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-061",
+    "video": "IMG_6108",
+    "time": 24.599999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-062",
+    "video": "IMG_6108",
+    "time": 24.799999999999944,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-063",
+    "video": "IMG_6108",
+    "time": 25.199999999999942,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-064",
+    "video": "IMG_6108",
+    "time": 25.39999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-065",
+    "video": "IMG_6108",
+    "time": 26.19999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-066",
+    "video": "IMG_6108",
+    "time": 26.399999999999938,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-067",
+    "video": "IMG_6108",
+    "time": 26.599999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-068",
+    "video": "IMG_6108",
+    "time": 26.799999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-069",
+    "video": "IMG_6108",
+    "time": 27.199999999999935,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-070",
+    "video": "IMG_6108",
+    "time": 27.599999999999934,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-071",
+    "video": "IMG_6108",
+    "time": 27.999999999999932,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-072",
+    "video": "IMG_6108",
+    "time": 28.199999999999932,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-073",
+    "video": "IMG_6108",
+    "time": 29.599999999999927,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-074",
+    "video": "IMG_6108",
+    "time": 29.799999999999926,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-075",
+    "video": "IMG_6108",
+    "time": 30.399999999999924,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-076",
+    "video": "IMG_6108",
+    "time": 30.599999999999923,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-077",
+    "video": "IMG_6108",
+    "time": 31.19999999999992,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-078",
+    "video": "IMG_6108",
+    "time": 31.99999999999992,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-079",
+    "video": "IMG_6108",
+    "time": 32.799999999999926,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-080",
+    "video": "IMG_6108",
+    "time": 33.19999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-081",
+    "video": "IMG_6108",
+    "time": 34.199999999999946,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-082",
+    "video": "IMG_6108",
+    "time": 34.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-083",
+    "video": "IMG_6108",
+    "time": 34.99999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-084",
+    "video": "IMG_6108",
+    "time": 35.19999999999996,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-085",
+    "video": "IMG_6108",
+    "time": 35.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-086",
+    "video": "IMG_6108",
+    "time": 35.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-087",
+    "video": "IMG_6108",
+    "time": 36.59999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-088",
+    "video": "IMG_6108",
+    "time": 37.19999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-089",
+    "video": "IMG_6108",
+    "time": 37.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-090",
+    "video": "IMG_6108",
+    "time": 38.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-091",
+    "video": "IMG_6108",
+    "time": 38.400000000000006,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-092",
+    "video": "IMG_6108",
+    "time": 38.60000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-093",
+    "video": "IMG_6108",
+    "time": 38.80000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-094",
+    "video": "IMG_6108",
+    "time": 39.000000000000014,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-095",
+    "video": "IMG_6108",
+    "time": 39.20000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-096",
+    "video": "IMG_6108",
+    "time": 39.60000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-097",
+    "video": "IMG_6108",
+    "time": 39.800000000000026,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-098",
+    "video": "IMG_6108",
+    "time": 40.00000000000003,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-099",
+    "video": "IMG_6108",
+    "time": 40.20000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-100",
+    "video": "IMG_6108",
+    "time": 40.400000000000034,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-101",
+    "video": "IMG_6108",
+    "time": 40.60000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-102",
+    "video": "IMG_6108",
+    "time": 41.200000000000045,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-103",
+    "video": "IMG_6108",
+    "time": 41.800000000000054,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-104",
+    "video": "IMG_6108",
+    "time": 42.00000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-105",
+    "video": "IMG_6108",
+    "time": 42.20000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-106",
+    "video": "IMG_6108",
+    "time": 42.40000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-107",
+    "video": "IMG_6108",
+    "time": 42.600000000000065,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-108",
+    "video": "IMG_6108",
+    "time": 42.80000000000007,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-109",
+    "video": "IMG_6108",
+    "time": 43.40000000000008,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-000",
+    "video": "IMG_6297",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6297-001",
+    "video": "IMG_6297",
+    "time": 2.1999999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-002",
+    "video": "IMG_6297",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-003",
+    "video": "IMG_6297",
+    "time": 3.2000000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-004",
+    "video": "IMG_6297",
+    "time": 3.400000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-005",
+    "video": "IMG_6297",
+    "time": 4.200000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-006",
+    "video": "IMG_6297",
+    "time": 4.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-007",
+    "video": "IMG_6297",
+    "time": 5.000000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-008",
+    "video": "IMG_6297",
+    "time": 5.200000000000002,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6297-009",
+    "video": "IMG_6297",
+    "time": 5.400000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-010",
+    "video": "IMG_6297",
+    "time": 5.8000000000000025,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-011",
+    "video": "IMG_6297",
+    "time": 6.000000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-012",
+    "video": "IMG_6297",
+    "time": 6.400000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-013",
+    "video": "IMG_6297",
+    "time": 8.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-014",
+    "video": "IMG_6297",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-015",
+    "video": "IMG_6297",
+    "time": 10.199999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-016",
+    "video": "IMG_6297",
+    "time": 10.599999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6297-017",
+    "video": "IMG_6297",
+    "time": 14.199999999999982,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-018",
+    "video": "IMG_6297",
+    "time": 17.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-019",
+    "video": "IMG_6297",
+    "time": 19.99999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-020",
+    "video": "IMG_6297",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-021",
+    "video": "IMG_6297",
+    "time": 25.39999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-022",
+    "video": "IMG_6297",
+    "time": 25.59999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-023",
+    "video": "IMG_6297",
+    "time": 25.99999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-024",
+    "video": "IMG_6297",
+    "time": 27.199999999999935,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-000",
+    "video": "IMG_6298",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6298-001",
+    "video": "IMG_6298",
+    "time": 3.0000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-002",
+    "video": "IMG_6298",
+    "time": 4.800000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-003",
+    "video": "IMG_6298",
+    "time": 5.400000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-004",
+    "video": "IMG_6298",
+    "time": 5.600000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-005",
+    "video": "IMG_6298",
+    "time": 5.8000000000000025,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-006",
+    "video": "IMG_6298",
+    "time": 6.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-007",
+    "video": "IMG_6298",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-008",
+    "video": "IMG_6298",
+    "time": 8.400000000000002,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6298-009",
+    "video": "IMG_6298",
+    "time": 9.399999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-010",
+    "video": "IMG_6298",
+    "time": 12.399999999999988,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-011",
+    "video": "IMG_6298",
+    "time": 13.199999999999985,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-012",
+    "video": "IMG_6298",
+    "time": 15.799999999999976,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-013",
+    "video": "IMG_6298",
+    "time": 16.599999999999973,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-014",
+    "video": "IMG_6298",
+    "time": 17.39999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-015",
+    "video": "IMG_6298",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-016",
+    "video": "IMG_6298",
+    "time": 20.999999999999957,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6298-017",
+    "video": "IMG_6298",
+    "time": 22.59999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-018",
+    "video": "IMG_6298",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-019",
+    "video": "IMG_6298",
+    "time": 23.19999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-020",
+    "video": "IMG_6298",
+    "time": 23.599999999999948,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-021",
+    "video": "IMG_6298",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-022",
+    "video": "IMG_6298",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-023",
+    "video": "IMG_6298",
+    "time": 24.199999999999946,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-024",
+    "video": "IMG_6298",
+    "time": 24.599999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-000",
+    "video": "IMG_6299",
+    "time": 2.4,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6299-001",
+    "video": "IMG_6299",
+    "time": 3.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-002",
+    "video": "IMG_6299",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-003",
+    "video": "IMG_6299",
+    "time": 6.800000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-004",
+    "video": "IMG_6299",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-005",
+    "video": "IMG_6299",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-006",
+    "video": "IMG_6299",
+    "time": 9.799999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-007",
+    "video": "IMG_6299",
+    "time": 10.199999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-008",
+    "video": "IMG_6299",
+    "time": 10.599999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6299-009",
+    "video": "IMG_6299",
+    "time": 10.799999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-010",
+    "video": "IMG_6299",
+    "time": 11.59999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-011",
+    "video": "IMG_6299",
+    "time": 12.999999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-012",
+    "video": "IMG_6299",
+    "time": 15.199999999999978,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-013",
+    "video": "IMG_6299",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-014",
+    "video": "IMG_6299",
+    "time": 16.399999999999974,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-015",
+    "video": "IMG_6299",
+    "time": 16.599999999999973,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-016",
+    "video": "IMG_6299",
+    "time": 16.99999999999997,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6299-017",
+    "video": "IMG_6299",
+    "time": 17.19999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-018",
+    "video": "IMG_6299",
+    "time": 17.59999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-019",
+    "video": "IMG_6299",
+    "time": 17.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-020",
+    "video": "IMG_6299",
+    "time": 18.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-021",
+    "video": "IMG_6299",
+    "time": 18.799999999999965,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-022",
+    "video": "IMG_6299",
+    "time": 19.399999999999963,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-023",
+    "video": "IMG_6299",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-024",
+    "video": "IMG_6299",
+    "time": 20.39999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-000",
+    "video": "IMG_6300",
+    "time": 1.5999999999999999,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6300-001",
+    "video": "IMG_6300",
+    "time": 1.7999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-002",
+    "video": "IMG_6300",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-003",
+    "video": "IMG_6300",
+    "time": 2.1999999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-004",
+    "video": "IMG_6300",
+    "time": 3.0000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-005",
+    "video": "IMG_6300",
+    "time": 4.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-006",
+    "video": "IMG_6300",
+    "time": 5.400000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-007",
+    "video": "IMG_6300",
+    "time": 5.600000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-008",
+    "video": "IMG_6300",
+    "time": 7.400000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6300-009",
+    "video": "IMG_6300",
+    "time": 8.000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-010",
+    "video": "IMG_6300",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-011",
+    "video": "IMG_6300",
+    "time": 9.399999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-012",
+    "video": "IMG_6300",
+    "time": 9.799999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-013",
+    "video": "IMG_6300",
+    "time": 10.999999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-014",
+    "video": "IMG_6300",
+    "time": 11.399999999999991,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-015",
+    "video": "IMG_6300",
+    "time": 12.999999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-016",
+    "video": "IMG_6300",
+    "time": 13.199999999999985,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6300-017",
+    "video": "IMG_6300",
+    "time": 13.799999999999983,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-018",
+    "video": "IMG_6300",
+    "time": 13.999999999999982,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-019",
+    "video": "IMG_6300",
+    "time": 15.799999999999976,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-020",
+    "video": "IMG_6300",
+    "time": 18.399999999999967,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-021",
+    "video": "IMG_6300",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-022",
+    "video": "IMG_6300",
+    "time": 20.999999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-023",
+    "video": "IMG_6300",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-024",
+    "video": "IMG_6300",
+    "time": 24.799999999999944,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6258-000",
+    "video": "IMG_6258",
+    "time": 1,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-001",
+    "video": "IMG_6258",
+    "time": 1.7999999999999998,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-002",
+    "video": "IMG_6258",
+    "time": 3.2000000000000006,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-003",
+    "video": "IMG_6258",
+    "time": 7.0000000000000036,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-004",
+    "video": "IMG_6258",
+    "time": 8.000000000000004,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-005",
+    "video": "IMG_6258",
+    "time": 8.400000000000002,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-006",
+    "video": "IMG_6258",
+    "time": 10.999999999999993,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-007",
+    "video": "IMG_6258",
+    "time": 18.799999999999965,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-008",
+    "video": "IMG_6258",
+    "time": 20.19999999999996,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-009",
+    "video": "IMG_6258",
+    "time": 22.79999999999995,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-010",
+    "video": "IMG_6258",
+    "time": 23.599999999999948,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-011",
+    "video": "IMG_6258",
+    "time": 23.799999999999947,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-012",
+    "video": "IMG_6258",
+    "time": 31.99999999999992,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-013",
+    "video": "IMG_6258",
+    "time": 33.79999999999994,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6258-014",
+    "video": "IMG_6258",
+    "time": 34.199999999999946,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-000",
+    "video": "IMG_6260",
+    "time": 1,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-001",
+    "video": "IMG_6260",
+    "time": 2.6,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-002",
+    "video": "IMG_6260",
+    "time": 2.8000000000000003,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-003",
+    "video": "IMG_6260",
+    "time": 3.2000000000000006,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-004",
+    "video": "IMG_6260",
+    "time": 3.400000000000001,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-005",
+    "video": "IMG_6260",
+    "time": 5.000000000000002,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-006",
+    "video": "IMG_6260",
+    "time": 6.400000000000003,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-007",
+    "video": "IMG_6260",
+    "time": 6.600000000000003,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-008",
+    "video": "IMG_6260",
+    "time": 7.0000000000000036,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-009",
+    "video": "IMG_6260",
+    "time": 9.599999999999998,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-010",
+    "video": "IMG_6260",
+    "time": 12.199999999999989,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-011",
+    "video": "IMG_6260",
+    "time": 17.39999999999997,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-012",
+    "video": "IMG_6260",
+    "time": 20.19999999999996,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-013",
+    "video": "IMG_6260",
+    "time": 21.599999999999955,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6260-014",
+    "video": "IMG_6260",
+    "time": 23.19999999999995,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-000",
+    "video": "IMG_6281",
+    "time": 1.4,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-001",
+    "video": "IMG_6281",
+    "time": 2.6,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-002",
+    "video": "IMG_6281",
+    "time": 2.8000000000000003,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-003",
+    "video": "IMG_6281",
+    "time": 8.600000000000001,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-004",
+    "video": "IMG_6281",
+    "time": 8.8,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-005",
+    "video": "IMG_6281",
+    "time": 12.599999999999987,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-006",
+    "video": "IMG_6281",
+    "time": 14.199999999999982,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-007",
+    "video": "IMG_6281",
+    "time": 14.59999999999998,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-008",
+    "video": "IMG_6281",
+    "time": 14.79999999999998,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-009",
+    "video": "IMG_6281",
+    "time": 17.39999999999997,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-010",
+    "video": "IMG_6281",
+    "time": 18.199999999999967,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-011",
+    "video": "IMG_6281",
+    "time": 20.39999999999996,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-012",
+    "video": "IMG_6281",
+    "time": 20.59999999999996,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-013",
+    "video": "IMG_6281",
+    "time": 23.19999999999995,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6281-014",
+    "video": "IMG_6281",
+    "time": 23.799999999999947,
+    "split": "test"
+  },
+  {
+    "id": "IMG_6334-000",
+    "video": "IMG_6334",
+    "time": 1.9999999999999998,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6334-001",
+    "video": "IMG_6334",
+    "time": 2.8000000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-002",
+    "video": "IMG_6334",
+    "time": 3.2000000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-003",
+    "video": "IMG_6334",
+    "time": 3.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-004",
+    "video": "IMG_6334",
+    "time": 4.200000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-005",
+    "video": "IMG_6334",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-006",
+    "video": "IMG_6334",
+    "time": 5.600000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-007",
+    "video": "IMG_6334",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-008",
+    "video": "IMG_6334",
+    "time": 7.200000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6334-009",
+    "video": "IMG_6334",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-010",
+    "video": "IMG_6334",
+    "time": 9.599999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-011",
+    "video": "IMG_6334",
+    "time": 10.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-012",
+    "video": "IMG_6334",
+    "time": 11.59999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-013",
+    "video": "IMG_6334",
+    "time": 12.199999999999989,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-014",
+    "video": "IMG_6334",
+    "time": 12.999999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-015",
+    "video": "IMG_6334",
+    "time": 13.599999999999984,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-016",
+    "video": "IMG_6334",
+    "time": 14.199999999999982,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6334-017",
+    "video": "IMG_6334",
+    "time": 14.79999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-018",
+    "video": "IMG_6334",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-019",
+    "video": "IMG_6334",
+    "time": 15.999999999999975,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-020",
+    "video": "IMG_6334",
+    "time": 16.799999999999972,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-021",
+    "video": "IMG_6334",
+    "time": 18.799999999999965,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-022",
+    "video": "IMG_6334",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-023",
+    "video": "IMG_6334",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-024",
+    "video": "IMG_6334",
+    "time": 21.599999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-000",
+    "video": "IMG_6336",
+    "time": 1.4,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6336-001",
+    "video": "IMG_6336",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-002",
+    "video": "IMG_6336",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-003",
+    "video": "IMG_6336",
+    "time": 3.800000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-004",
+    "video": "IMG_6336",
+    "time": 4.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-005",
+    "video": "IMG_6336",
+    "time": 5.000000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-006",
+    "video": "IMG_6336",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-007",
+    "video": "IMG_6336",
+    "time": 7.200000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-008",
+    "video": "IMG_6336",
+    "time": 8.000000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6336-009",
+    "video": "IMG_6336",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-010",
+    "video": "IMG_6336",
+    "time": 11.399999999999991,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-011",
+    "video": "IMG_6336",
+    "time": 13.799999999999983,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-012",
+    "video": "IMG_6336",
+    "time": 14.999999999999979,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-013",
+    "video": "IMG_6336",
+    "time": 15.599999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-014",
+    "video": "IMG_6336",
+    "time": 16.799999999999972,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-015",
+    "video": "IMG_6336",
+    "time": 17.39999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-016",
+    "video": "IMG_6336",
+    "time": 17.999999999999968,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6336-017",
+    "video": "IMG_6336",
+    "time": 18.999999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-018",
+    "video": "IMG_6336",
+    "time": 19.599999999999962,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-019",
+    "video": "IMG_6336",
+    "time": 20.19999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-020",
+    "video": "IMG_6336",
+    "time": 21.199999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-021",
+    "video": "IMG_6336",
+    "time": 21.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-022",
+    "video": "IMG_6336",
+    "time": 22.399999999999952,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-023",
+    "video": "IMG_6336",
+    "time": 23.19999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-024",
+    "video": "IMG_6336",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-000",
+    "video": "IMG_6338",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6338-001",
+    "video": "IMG_6338",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-002",
+    "video": "IMG_6338",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-003",
+    "video": "IMG_6338",
+    "time": 3.2000000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-004",
+    "video": "IMG_6338",
+    "time": 4.800000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-005",
+    "video": "IMG_6338",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-006",
+    "video": "IMG_6338",
+    "time": 6.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-007",
+    "video": "IMG_6338",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-008",
+    "video": "IMG_6338",
+    "time": 8.000000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6338-009",
+    "video": "IMG_6338",
+    "time": 10.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-010",
+    "video": "IMG_6338",
+    "time": 13.399999999999984,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-011",
+    "video": "IMG_6338",
+    "time": 13.999999999999982,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-012",
+    "video": "IMG_6338",
+    "time": 14.59999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-013",
+    "video": "IMG_6338",
+    "time": 15.199999999999978,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-014",
+    "video": "IMG_6338",
+    "time": 15.799999999999976,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-015",
+    "video": "IMG_6338",
+    "time": 16.799999999999972,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-016",
+    "video": "IMG_6338",
+    "time": 17.39999999999997,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6338-017",
+    "video": "IMG_6338",
+    "time": 18.999999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-018",
+    "video": "IMG_6338",
+    "time": 20.19999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-019",
+    "video": "IMG_6338",
+    "time": 20.999999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-020",
+    "video": "IMG_6338",
+    "time": 21.999999999999954,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-021",
+    "video": "IMG_6338",
+    "time": 22.79999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-022",
+    "video": "IMG_6338",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-023",
+    "video": "IMG_6338",
+    "time": 24.399999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-024",
+    "video": "IMG_6338",
+    "time": 24.999999999999943,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-000",
+    "video": "IMG_6341",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6341-001",
+    "video": "IMG_6341",
+    "time": 3.0000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-002",
+    "video": "IMG_6341",
+    "time": 4.400000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-003",
+    "video": "IMG_6341",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-004",
+    "video": "IMG_6341",
+    "time": 8.000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-005",
+    "video": "IMG_6341",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-006",
+    "video": "IMG_6341",
+    "time": 9.999999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-007",
+    "video": "IMG_6341",
+    "time": 10.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-008",
+    "video": "IMG_6341",
+    "time": 11.399999999999991,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6341-009",
+    "video": "IMG_6341",
+    "time": 12.999999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-010",
+    "video": "IMG_6341",
+    "time": 13.999999999999982,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-011",
+    "video": "IMG_6341",
+    "time": 14.79999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-012",
+    "video": "IMG_6341",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-013",
+    "video": "IMG_6341",
+    "time": 15.999999999999975,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-014",
+    "video": "IMG_6341",
+    "time": 17.19999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-015",
+    "video": "IMG_6341",
+    "time": 17.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-016",
+    "video": "IMG_6341",
+    "time": 18.399999999999967,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6341-017",
+    "video": "IMG_6341",
+    "time": 19.199999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-018",
+    "video": "IMG_6341",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-019",
+    "video": "IMG_6341",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-020",
+    "video": "IMG_6341",
+    "time": 21.199999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-021",
+    "video": "IMG_6341",
+    "time": 21.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-022",
+    "video": "IMG_6341",
+    "time": 22.399999999999952,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-023",
+    "video": "IMG_6341",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-024",
+    "video": "IMG_6341",
+    "time": 24.399999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-000-p2crop",
+    "video": "IMG_6107",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-001-p2crop",
+    "video": "IMG_6107",
+    "time": 3.400000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-002-p2crop",
+    "video": "IMG_6107",
+    "time": 6.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-003-p2crop",
+    "video": "IMG_6107",
+    "time": 10.199999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-004-p2crop",
+    "video": "IMG_6107",
+    "time": 12.399999999999988,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-005-p2crop",
+    "video": "IMG_6107",
+    "time": 18.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-006-p2crop",
+    "video": "IMG_6107",
+    "time": 21.199999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-008-p2crop",
+    "video": "IMG_6107",
+    "time": 21.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-009-p2crop",
+    "video": "IMG_6107",
+    "time": 21.999999999999954,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-011-p2crop",
+    "video": "IMG_6107",
+    "time": 22.399999999999952,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-012-p2crop",
+    "video": "IMG_6107",
+    "time": 22.59999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-013-p2crop",
+    "video": "IMG_6107",
+    "time": 22.79999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-014-p2crop",
+    "video": "IMG_6107",
+    "time": 23.19999999999995,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-016-p2crop",
+    "video": "IMG_6107",
+    "time": 23.599999999999948,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-018-p2crop",
+    "video": "IMG_6107",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-019-p2crop",
+    "video": "IMG_6107",
+    "time": 24.399999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-021-p2crop",
+    "video": "IMG_6107",
+    "time": 25.39999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-023-p2crop",
+    "video": "IMG_6107",
+    "time": 25.99999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-024-p2crop",
+    "video": "IMG_6107",
+    "time": 26.19999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-026-p2crop",
+    "video": "IMG_6107",
+    "time": 26.599999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-027-p2crop",
+    "video": "IMG_6107",
+    "time": 26.799999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-029-p2crop",
+    "video": "IMG_6107",
+    "time": 27.199999999999935,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-032-p2crop",
+    "video": "IMG_6107",
+    "time": 27.999999999999932,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-033-p2crop",
+    "video": "IMG_6107",
+    "time": 28.39999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-034-p2crop",
+    "video": "IMG_6107",
+    "time": 28.99999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-038-p2crop",
+    "video": "IMG_6107",
+    "time": 29.799999999999926,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-039-p2crop",
+    "video": "IMG_6107",
+    "time": 30.199999999999925,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-041-p2crop",
+    "video": "IMG_6107",
+    "time": 30.599999999999923,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-042-p2crop",
+    "video": "IMG_6107",
+    "time": 30.999999999999922,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-044-p2crop",
+    "video": "IMG_6107",
+    "time": 31.99999999999992,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-045-p2crop",
+    "video": "IMG_6107",
+    "time": 32.59999999999992,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-049-p2crop",
+    "video": "IMG_6107",
+    "time": 34.199999999999946,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-056-p2crop",
+    "video": "IMG_6107",
+    "time": 36.59999999999998,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-060-p2crop",
+    "video": "IMG_6107",
+    "time": 37.39999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-061-p2crop",
+    "video": "IMG_6107",
+    "time": 37.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-070-p2crop",
+    "video": "IMG_6107",
+    "time": 39.60000000000002,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-071-p2crop",
+    "video": "IMG_6107",
+    "time": 39.800000000000026,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-073-p2crop",
+    "video": "IMG_6107",
+    "time": 40.60000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-075-p2crop",
+    "video": "IMG_6107",
+    "time": 41.00000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-077-p2crop",
+    "video": "IMG_6107",
+    "time": 41.40000000000005,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-078-p2crop",
+    "video": "IMG_6107",
+    "time": 41.60000000000005,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-079-p2crop",
+    "video": "IMG_6107",
+    "time": 42.600000000000065,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-080-p2crop",
+    "video": "IMG_6107",
+    "time": 42.80000000000007,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-081-p2crop",
+    "video": "IMG_6107",
+    "time": 43.200000000000074,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-082-p2crop",
+    "video": "IMG_6107",
+    "time": 44.20000000000009,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-084-p2crop",
+    "video": "IMG_6107",
+    "time": 45.2000000000001,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-087-p2crop",
+    "video": "IMG_6107",
+    "time": 46.20000000000012,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-089-p2crop",
+    "video": "IMG_6107",
+    "time": 46.60000000000012,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-090-p2crop",
+    "video": "IMG_6107",
+    "time": 46.800000000000125,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-091-p2crop",
+    "video": "IMG_6107",
+    "time": 47.00000000000013,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-092-p2crop",
+    "video": "IMG_6107",
+    "time": 47.400000000000134,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-094-p2crop",
+    "video": "IMG_6107",
+    "time": 48.00000000000014,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-096-p2crop",
+    "video": "IMG_6107",
+    "time": 48.40000000000015,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-098-p2crop",
+    "video": "IMG_6107",
+    "time": 48.80000000000015,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6107-099-p2crop",
+    "video": "IMG_6107",
+    "time": 49.000000000000156,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-102-p2crop",
+    "video": "IMG_6107",
+    "time": 49.80000000000017,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-104-p2crop",
+    "video": "IMG_6107",
+    "time": 50.20000000000017,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-107-p2crop",
+    "video": "IMG_6107",
+    "time": 52.400000000000205,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6107-109-p2crop",
+    "video": "IMG_6107",
+    "time": 53.40000000000022,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-000-p2crop",
+    "video": "IMG_6108",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-001-p2crop",
+    "video": "IMG_6108",
+    "time": 1.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-002-p2crop",
+    "video": "IMG_6108",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-003-p2crop",
+    "video": "IMG_6108",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-004-p2crop",
+    "video": "IMG_6108",
+    "time": 2.6,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-005-p2crop",
+    "video": "IMG_6108",
+    "time": 4.200000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-006-p2crop",
+    "video": "IMG_6108",
+    "time": 4.800000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-007-p2crop",
+    "video": "IMG_6108",
+    "time": 7.200000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-008-p2crop",
+    "video": "IMG_6108",
+    "time": 7.400000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-009-p2crop",
+    "video": "IMG_6108",
+    "time": 7.600000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-010-p2crop",
+    "video": "IMG_6108",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-011-p2crop",
+    "video": "IMG_6108",
+    "time": 9.399999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-012-p2crop",
+    "video": "IMG_6108",
+    "time": 9.599999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-013-p2crop",
+    "video": "IMG_6108",
+    "time": 9.999999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-014-p2crop",
+    "video": "IMG_6108",
+    "time": 10.599999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-015-p2crop",
+    "video": "IMG_6108",
+    "time": 11.79999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-016-p2crop",
+    "video": "IMG_6108",
+    "time": 12.799999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-017-p2crop",
+    "video": "IMG_6108",
+    "time": 13.599999999999984,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-018-p2crop",
+    "video": "IMG_6108",
+    "time": 14.999999999999979,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-019-p2crop",
+    "video": "IMG_6108",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-020-p2crop",
+    "video": "IMG_6108",
+    "time": 15.599999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-021-p2crop",
+    "video": "IMG_6108",
+    "time": 15.799999999999976,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-022-p2crop",
+    "video": "IMG_6108",
+    "time": 15.999999999999975,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-024-p2crop",
+    "video": "IMG_6108",
+    "time": 16.399999999999974,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-026-p2crop",
+    "video": "IMG_6108",
+    "time": 16.99999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-027-p2crop",
+    "video": "IMG_6108",
+    "time": 17.19999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-028-p2crop",
+    "video": "IMG_6108",
+    "time": 17.39999999999997,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-029-p2crop",
+    "video": "IMG_6108",
+    "time": 17.59999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-030-p2crop",
+    "video": "IMG_6108",
+    "time": 17.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-032-p2crop",
+    "video": "IMG_6108",
+    "time": 18.199999999999967,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-033-p2crop",
+    "video": "IMG_6108",
+    "time": 18.399999999999967,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-034-p2crop",
+    "video": "IMG_6108",
+    "time": 18.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-035-p2crop",
+    "video": "IMG_6108",
+    "time": 18.799999999999965,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-036-p2crop",
+    "video": "IMG_6108",
+    "time": 18.999999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-037-p2crop",
+    "video": "IMG_6108",
+    "time": 19.199999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-039-p2crop",
+    "video": "IMG_6108",
+    "time": 19.599999999999962,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-040-p2crop",
+    "video": "IMG_6108",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-041-p2crop",
+    "video": "IMG_6108",
+    "time": 19.99999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-042-p2crop",
+    "video": "IMG_6108",
+    "time": 20.19999999999996,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-043-p2crop",
+    "video": "IMG_6108",
+    "time": 20.39999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-044-p2crop",
+    "video": "IMG_6108",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-046-p2crop",
+    "video": "IMG_6108",
+    "time": 21.199999999999957,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-048-p2crop",
+    "video": "IMG_6108",
+    "time": 21.599999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-049-p2crop",
+    "video": "IMG_6108",
+    "time": 21.799999999999955,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-053-p2crop",
+    "video": "IMG_6108",
+    "time": 22.79999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-055-p2crop",
+    "video": "IMG_6108",
+    "time": 23.19999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-056-p2crop",
+    "video": "IMG_6108",
+    "time": 23.599999999999948,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-057-p2crop",
+    "video": "IMG_6108",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-061-p2crop",
+    "video": "IMG_6108",
+    "time": 24.599999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-064-p2crop",
+    "video": "IMG_6108",
+    "time": 25.39999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-065-p2crop",
+    "video": "IMG_6108",
+    "time": 26.19999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-068-p2crop",
+    "video": "IMG_6108",
+    "time": 26.799999999999937,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-069-p2crop",
+    "video": "IMG_6108",
+    "time": 27.199999999999935,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-070-p2crop",
+    "video": "IMG_6108",
+    "time": 27.599999999999934,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-072-p2crop",
+    "video": "IMG_6108",
+    "time": 28.199999999999932,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-075-p2crop",
+    "video": "IMG_6108",
+    "time": 30.399999999999924,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-077-p2crop",
+    "video": "IMG_6108",
+    "time": 31.19999999999992,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-079-p2crop",
+    "video": "IMG_6108",
+    "time": 32.799999999999926,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-080-p2crop",
+    "video": "IMG_6108",
+    "time": 33.19999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-081-p2crop",
+    "video": "IMG_6108",
+    "time": 34.199999999999946,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-082-p2crop",
+    "video": "IMG_6108",
+    "time": 34.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-083-p2crop",
+    "video": "IMG_6108",
+    "time": 34.99999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-085-p2crop",
+    "video": "IMG_6108",
+    "time": 35.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-086-p2crop",
+    "video": "IMG_6108",
+    "time": 35.79999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-087-p2crop",
+    "video": "IMG_6108",
+    "time": 36.59999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-088-p2crop",
+    "video": "IMG_6108",
+    "time": 37.19999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-089-p2crop",
+    "video": "IMG_6108",
+    "time": 37.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-093-p2crop",
+    "video": "IMG_6108",
+    "time": 38.80000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-096-p2crop",
+    "video": "IMG_6108",
+    "time": 39.60000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-097-p2crop",
+    "video": "IMG_6108",
+    "time": 39.800000000000026,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-098-p2crop",
+    "video": "IMG_6108",
+    "time": 40.00000000000003,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6108-099-p2crop",
+    "video": "IMG_6108",
+    "time": 40.20000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-100-p2crop",
+    "video": "IMG_6108",
+    "time": 40.400000000000034,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-101-p2crop",
+    "video": "IMG_6108",
+    "time": 40.60000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-106-p2crop",
+    "video": "IMG_6108",
+    "time": 42.40000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-107-p2crop",
+    "video": "IMG_6108",
+    "time": 42.600000000000065,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-108-p2crop",
+    "video": "IMG_6108",
+    "time": 42.80000000000007,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6108-109-p2crop",
+    "video": "IMG_6108",
+    "time": 43.40000000000008,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-001-p2crop",
+    "video": "IMG_6297",
+    "time": 2.1999999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-003-p2crop",
+    "video": "IMG_6297",
+    "time": 3.2000000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-004-p2crop",
+    "video": "IMG_6297",
+    "time": 3.400000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-005-p2crop",
+    "video": "IMG_6297",
+    "time": 4.200000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-006-p2crop",
+    "video": "IMG_6297",
+    "time": 4.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-007-p2crop",
+    "video": "IMG_6297",
+    "time": 5.000000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-008-p2crop",
+    "video": "IMG_6297",
+    "time": 5.200000000000002,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6297-009-p2crop",
+    "video": "IMG_6297",
+    "time": 5.400000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-010-p2crop",
+    "video": "IMG_6297",
+    "time": 5.8000000000000025,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-011-p2crop",
+    "video": "IMG_6297",
+    "time": 6.000000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-015-p2crop",
+    "video": "IMG_6297",
+    "time": 10.199999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-020-p2crop",
+    "video": "IMG_6297",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-022-p2crop",
+    "video": "IMG_6297",
+    "time": 25.59999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-023-p2crop",
+    "video": "IMG_6297",
+    "time": 25.99999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6297-024-p2crop",
+    "video": "IMG_6297",
+    "time": 27.199999999999935,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-000-p2crop",
+    "video": "IMG_6298",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6298-001-p2crop",
+    "video": "IMG_6298",
+    "time": 3.0000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-002-p2crop",
+    "video": "IMG_6298",
+    "time": 4.800000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-003-p2crop",
+    "video": "IMG_6298",
+    "time": 5.400000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-004-p2crop",
+    "video": "IMG_6298",
+    "time": 5.600000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-005-p2crop",
+    "video": "IMG_6298",
+    "time": 5.8000000000000025,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-006-p2crop",
+    "video": "IMG_6298",
+    "time": 6.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-007-p2crop",
+    "video": "IMG_6298",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-008-p2crop",
+    "video": "IMG_6298",
+    "time": 8.400000000000002,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6298-011-p2crop",
+    "video": "IMG_6298",
+    "time": 13.199999999999985,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-014-p2crop",
+    "video": "IMG_6298",
+    "time": 17.39999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-015-p2crop",
+    "video": "IMG_6298",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-016-p2crop",
+    "video": "IMG_6298",
+    "time": 20.999999999999957,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6298-017-p2crop",
+    "video": "IMG_6298",
+    "time": 22.59999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-018-p2crop",
+    "video": "IMG_6298",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-019-p2crop",
+    "video": "IMG_6298",
+    "time": 23.19999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-021-p2crop",
+    "video": "IMG_6298",
+    "time": 23.799999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-022-p2crop",
+    "video": "IMG_6298",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6298-023-p2crop",
+    "video": "IMG_6298",
+    "time": 24.199999999999946,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-000-p2crop",
+    "video": "IMG_6299",
+    "time": 2.4,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6299-001-p2crop",
+    "video": "IMG_6299",
+    "time": 3.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-002-p2crop",
+    "video": "IMG_6299",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-003-p2crop",
+    "video": "IMG_6299",
+    "time": 6.800000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-004-p2crop",
+    "video": "IMG_6299",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-005-p2crop",
+    "video": "IMG_6299",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-008-p2crop",
+    "video": "IMG_6299",
+    "time": 10.599999999999994,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6299-010-p2crop",
+    "video": "IMG_6299",
+    "time": 11.59999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-012-p2crop",
+    "video": "IMG_6299",
+    "time": 15.199999999999978,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-013-p2crop",
+    "video": "IMG_6299",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-016-p2crop",
+    "video": "IMG_6299",
+    "time": 16.99999999999997,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6299-017-p2crop",
+    "video": "IMG_6299",
+    "time": 17.19999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-018-p2crop",
+    "video": "IMG_6299",
+    "time": 17.59999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-020-p2crop",
+    "video": "IMG_6299",
+    "time": 18.599999999999966,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-021-p2crop",
+    "video": "IMG_6299",
+    "time": 18.799999999999965,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-023-p2crop",
+    "video": "IMG_6299",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6299-024-p2crop",
+    "video": "IMG_6299",
+    "time": 20.39999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-000-p2crop",
+    "video": "IMG_6300",
+    "time": 1.5999999999999999,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6300-001-p2crop",
+    "video": "IMG_6300",
+    "time": 1.7999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-003-p2crop",
+    "video": "IMG_6300",
+    "time": 2.1999999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-004-p2crop",
+    "video": "IMG_6300",
+    "time": 3.0000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-006-p2crop",
+    "video": "IMG_6300",
+    "time": 5.400000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-007-p2crop",
+    "video": "IMG_6300",
+    "time": 5.600000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-009-p2crop",
+    "video": "IMG_6300",
+    "time": 8.000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-010-p2crop",
+    "video": "IMG_6300",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-011-p2crop",
+    "video": "IMG_6300",
+    "time": 9.399999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-012-p2crop",
+    "video": "IMG_6300",
+    "time": 9.799999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-013-p2crop",
+    "video": "IMG_6300",
+    "time": 10.999999999999993,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-021-p2crop",
+    "video": "IMG_6300",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6300-023-p2crop",
+    "video": "IMG_6300",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-000-p2crop",
+    "video": "IMG_6334",
+    "time": 1.9999999999999998,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6334-001-p2crop",
+    "video": "IMG_6334",
+    "time": 2.8000000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-002-p2crop",
+    "video": "IMG_6334",
+    "time": 3.2000000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-004-p2crop",
+    "video": "IMG_6334",
+    "time": 4.200000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-005-p2crop",
+    "video": "IMG_6334",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-007-p2crop",
+    "video": "IMG_6334",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-008-p2crop",
+    "video": "IMG_6334",
+    "time": 7.200000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6334-009-p2crop",
+    "video": "IMG_6334",
+    "time": 9,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-010-p2crop",
+    "video": "IMG_6334",
+    "time": 9.599999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-012-p2crop",
+    "video": "IMG_6334",
+    "time": 11.59999999999999,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-013-p2crop",
+    "video": "IMG_6334",
+    "time": 12.199999999999989,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-016-p2crop",
+    "video": "IMG_6334",
+    "time": 14.199999999999982,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6334-017-p2crop",
+    "video": "IMG_6334",
+    "time": 14.79999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-018-p2crop",
+    "video": "IMG_6334",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-022-p2crop",
+    "video": "IMG_6334",
+    "time": 19.79999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6334-023-p2crop",
+    "video": "IMG_6334",
+    "time": 20.59999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-000-p2crop",
+    "video": "IMG_6336",
+    "time": 1.4,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6336-001-p2crop",
+    "video": "IMG_6336",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-002-p2crop",
+    "video": "IMG_6336",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-003-p2crop",
+    "video": "IMG_6336",
+    "time": 3.800000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-004-p2crop",
+    "video": "IMG_6336",
+    "time": 4.600000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-005-p2crop",
+    "video": "IMG_6336",
+    "time": 5.000000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-006-p2crop",
+    "video": "IMG_6336",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-007-p2crop",
+    "video": "IMG_6336",
+    "time": 7.200000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-008-p2crop",
+    "video": "IMG_6336",
+    "time": 8.000000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6336-009-p2crop",
+    "video": "IMG_6336",
+    "time": 9.2,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-010-p2crop",
+    "video": "IMG_6336",
+    "time": 11.399999999999991,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-011-p2crop",
+    "video": "IMG_6336",
+    "time": 13.799999999999983,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-012-p2crop",
+    "video": "IMG_6336",
+    "time": 14.999999999999979,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-013-p2crop",
+    "video": "IMG_6336",
+    "time": 15.599999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-014-p2crop",
+    "video": "IMG_6336",
+    "time": 16.799999999999972,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-015-p2crop",
+    "video": "IMG_6336",
+    "time": 17.39999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-016-p2crop",
+    "video": "IMG_6336",
+    "time": 17.999999999999968,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6336-017-p2crop",
+    "video": "IMG_6336",
+    "time": 18.999999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-021-p2crop",
+    "video": "IMG_6336",
+    "time": 21.799999999999955,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-022-p2crop",
+    "video": "IMG_6336",
+    "time": 22.399999999999952,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6336-024-p2crop",
+    "video": "IMG_6336",
+    "time": 23.999999999999947,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-000-p2crop",
+    "video": "IMG_6338",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6338-001-p2crop",
+    "video": "IMG_6338",
+    "time": 1.9999999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-002-p2crop",
+    "video": "IMG_6338",
+    "time": 2.4,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-003-p2crop",
+    "video": "IMG_6338",
+    "time": 3.2000000000000006,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-004-p2crop",
+    "video": "IMG_6338",
+    "time": 4.800000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-006-p2crop",
+    "video": "IMG_6338",
+    "time": 6.200000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-007-p2crop",
+    "video": "IMG_6338",
+    "time": 6.600000000000003,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-008-p2crop",
+    "video": "IMG_6338",
+    "time": 8.000000000000004,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6338-009-p2crop",
+    "video": "IMG_6338",
+    "time": 10.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-010-p2crop",
+    "video": "IMG_6338",
+    "time": 13.399999999999984,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-011-p2crop",
+    "video": "IMG_6338",
+    "time": 13.999999999999982,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-015-p2crop",
+    "video": "IMG_6338",
+    "time": 16.799999999999972,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-018-p2crop",
+    "video": "IMG_6338",
+    "time": 20.19999999999996,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-020-p2crop",
+    "video": "IMG_6338",
+    "time": 21.999999999999954,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-021-p2crop",
+    "video": "IMG_6338",
+    "time": 22.79999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-023-p2crop",
+    "video": "IMG_6338",
+    "time": 24.399999999999945,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6338-024-p2crop",
+    "video": "IMG_6338",
+    "time": 24.999999999999943,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-000-p2crop",
+    "video": "IMG_6341",
+    "time": 1,
+    "split": "val"
+  },
+  {
+    "id": "IMG_6341-001-p2crop",
+    "video": "IMG_6341",
+    "time": 3.0000000000000004,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-002-p2crop",
+    "video": "IMG_6341",
+    "time": 4.400000000000001,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-003-p2crop",
+    "video": "IMG_6341",
+    "time": 5.200000000000002,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-007-p2crop",
+    "video": "IMG_6341",
+    "time": 10.599999999999994,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-009-p2crop",
+    "video": "IMG_6341",
+    "time": 12.999999999999986,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-011-p2crop",
+    "video": "IMG_6341",
+    "time": 14.79999999999998,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-012-p2crop",
+    "video": "IMG_6341",
+    "time": 15.399999999999977,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-014-p2crop",
+    "video": "IMG_6341",
+    "time": 17.19999999999997,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-017-p2crop",
+    "video": "IMG_6341",
+    "time": 19.199999999999964,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-023-p2crop",
+    "video": "IMG_6341",
+    "time": 22.99999999999995,
+    "split": "train"
+  },
+  {
+    "id": "IMG_6341-024-p2crop",
+    "video": "IMG_6341",
+    "time": 24.399999999999945,
+    "split": "train"
+  }
+]
