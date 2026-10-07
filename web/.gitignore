@@ -40,8 +40,11 @@
 
 # fotogrammi reali estratti per l'annotazione: foto personali dell'utente,
 # MAI nel repo. labels/ invece e' solo coordinate (JSON/YOLO txt, nessuna
-# immagine) - ore di lavoro manuale, va committata.
-/vision/annotate/frames/
+# immagine) - ore di lavoro manuale, va committata. manifest.json (split
+# train/val/test, video, timestamp per ogni id) e' la stessa categoria -
+# senza non si saprebbe a quale video/split appartiene ogni file in labels/.
+/vision/annotate/frames/*
+!/vision/annotate/frames/manifest.json
 /vision/annotate/*.png
 /vision/annotate/*.json
 

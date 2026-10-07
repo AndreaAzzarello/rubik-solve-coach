@@ -11,8 +11,9 @@ GPU locale).
 2. `Runtime > Cambia tipo di runtime > GPU`.
 3. Dataset: nella cella dei parametri, `DATASET_SOURCE = 'drive_zip'` (default,
    consigliata) carica `vision/dataset/cube-face-keypoints-dataset.zip`
-   (6227 train + 840 val: 6000+800 sintetici fusi con 267 fotogrammi reali
-   annotati a mano via `merge-real-annotations.ts`, vedi sotto) da
+   (6454 train + 880 val: 6000+800 sintetici fusi con 534 fotogrammi reali —
+   267 annotati a mano + 267 ritagli "pass2" derivati automaticamente via
+   `generate-pass2-crops.ts` — via `merge-real-annotations.ts`, vedi sotto) da
    `MyDrive/rubik-vision/` su Google Drive. `DATASET_SOURCE =
    'regenerate_in_colab'` rigenera SOLO la parte sintetica direttamente in
    Colab (richiede il branch/main pushato su GitHub) — piu' veloce da
@@ -21,6 +22,12 @@ GPU locale).
    successiva esegue SOLO il ramo scelto (l'altro si auto-salta) e si ferma
    con un errore chiaro se un passaggio fallisce, quindi "Esegui tutte le
    celle" e' sicuro.
+
+   **Nota**: il checkpoint addestrato su questi 534 fotogrammi reali
+   (`finetune-crops.onnx`) e' stato valutato e SCARTATO — bench peggiore
+   sul video IMG_6281 (vedi `docs/pipeline-experiments.md`, esperimento #1).
+   Il modello attualmente in produzione resta quello addestrato sul dataset
+   precedente, da 267 fotogrammi reali (senza i ritagli "pass2").
 4. Training: `MODEL_VARIANT = 'previous_best'` (default) riparte dai pesi
    dell'ultimo run invece che da yolov8n-pose grezzo — richiede `best.pt`
    salvato su Drive l'ultima volta (Opzione 1, sezione 4 del notebook). Se
