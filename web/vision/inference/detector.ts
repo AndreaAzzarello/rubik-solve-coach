@@ -212,6 +212,10 @@ function mapToOriginalSpace(detection: { score: number; box: Box; keypoints: Key
 export class FaceKeypointDetector {
   private session!: ort.InferenceSession;
 
+  // Sperimentale: se impostata (vedi createHybrid), il passaggio 2 di
+  // detectTwoPassRefineFromImageUrl usa questa sessione invece di `session`.
+  private pass2Session?: ort.InferenceSession;
+
   private browser!: Browser;
 
   private page!: Page;
@@ -224,6 +228,17 @@ export class FaceKeypointDetector {
     detector.browser = await chromium.launch({ executablePath: pinnedChromeExecutable(), headless: true });
     detector.page = await detector.browser.newPage();
     await detector.page.setContent('<!doctype html><html><body></body></html>');
+    return detector;
+  }
+
+  // Prova ibrida (nessun training): passaggio 1 con `pass1Path`, passaggio 2
+  // con `pass2Path` - verifica se un modello migliore sul ritaglio zoomato
+  // (passaggio 2) e' peggiore su facce piccole nel fotogramma intero
+  // (passaggio 1), ipotesi diversa dal semplice "un modello e' meglio
+  // dell'altro".
+  static async createHybrid(pass1Path: string, pass2Path: string): Promise<FaceKeypointDetector> {
+    const detector = await FaceKeypointDetector.create(pass1Path);
+    detector.pass2Session = await ort.InferenceSession.create(pass2Path);
     return detector;
   }
 
@@ -285,7 +300,7 @@ export class FaceKeypointDetector {
       cropH: squareSize,
       targetSize: MODEL_INPUT_SIZE,
     });
-    const pass2 = await this.runAndDecode(prepared2);
+    const pass2 = await this.runAndDecode(prepared2, this.pass2Session ?? this.session);
 
     const usedPass2 = new Set<number>();
     return pass1.map((det1) => {
@@ -302,10 +317,10 @@ export class FaceKeypointDetector {
     });
   }
 
-  private async runAndDecode(prepared: PreparedInput): Promise<FaceDetection[]> {
+  private async runAndDecode(prepared: PreparedInput, session: ort.InferenceSession = this.session): Promise<FaceDetection[]> {
     const inputTensor = new ort.Tensor('float32', Float32Array.from(prepared.tensor), [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE]);
-    const results = await this.session.run({ [this.session.inputNames[0]]: inputTensor });
-    const output = results[this.session.outputNames[0]];
+    const results = await session.run({ [session.inputNames[0]]: inputTensor });
+    const output = results[session.outputNames[0]];
     const [, channels, numAnchors] = output.dims as [number, number, number];
     const numKeypoints = (channels - 5) / 3;
     const raw = decodePoseOutput(output.data as Float32Array, numAnchors, numKeypoints, CONF_THRESHOLD);

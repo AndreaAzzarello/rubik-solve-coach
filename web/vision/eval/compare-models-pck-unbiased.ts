@@ -87,11 +87,13 @@ async function main() {
   samples.forEach((sample) => byVideo.set(sample.video, [...(byVideo.get(sample.video) ?? []), sample]));
   console.log(`fotogrammi di test con etichetta: ${samples.length} (${[...byVideo.entries()].map(([v, s]) => `${v}: ${s.length}`).join(', ')})`);
   const twoPassMargin = process.env.TWO_PASS_MARGIN ? Number(process.env.TWO_PASS_MARGIN) : undefined;
-  console.log(`A = ${labelA}\nB = ${labelB}${typeof twoPassMargin === 'number' ? ` (entrambi a 2 passaggi, margine ${twoPassMargin})` : ''}`);
+  const hybrid = process.env.HYBRID === '1';
+  const labelBDisplay = hybrid ? `ibrido (pass1=${labelA}, pass2=${labelB})` : labelB;
+  console.log(`A = ${labelA}\nB = ${labelBDisplay}${typeof twoPassMargin === 'number' ? ` (2 passaggi, margine ${twoPassMargin})` : ''}`);
 
   const server = await startStaticServer(FRAMES_DIR);
   const detectorA = await FaceKeypointDetector.create(pathA);
-  const detectorB = await FaceKeypointDetector.create(pathB);
+  const detectorB = hybrid ? await FaceKeypointDetector.createHybrid(pathA, pathB) : await FaceKeypointDetector.create(pathB);
 
   const overallA = emptyStats();
   const overallB = emptyStats();
@@ -106,7 +108,7 @@ async function main() {
     }
     console.log(`\n# ${video} (${videoSamples.length} fotogrammi)`);
     printStats(`A · ${labelA}`, videoA);
-    printStats(`B · ${labelB}`, videoB);
+    printStats(`B · ${labelBDisplay}`, videoB);
     addStats(overallA, videoA);
     addStats(overallB, videoB);
   }
@@ -118,7 +120,7 @@ async function main() {
   console.log('\n========================================================================');
   console.log(`\n# TOTALE (${samples.length} fotogrammi, ${byVideo.size} video)`);
   printStats(`A · ${labelA}`, overallA);
-  printStats(`B · ${labelB}`, overallB);
+  printStats(`B · ${labelBDisplay}`, overallB);
   console.log('\n========================================================================');
 }
 
