@@ -43,6 +43,11 @@ type CaseSpec = {
   video: string;
   scramble: string;
   orientation?: string;
+  // test = mai visto da nessun modello (decisioni sul MODELLO contano solo
+  // questo gruppo); integration = non in training ma usato a lungo per
+  // debug pipeline; seen = fotogrammi entrati nel training (decisioni sulla
+  // PIPELINE, a modello fisso, contano il totale di tutti i gruppi).
+  group?: 'test' | 'integration' | 'seen';
 };
 
 type BenchConfig = {
@@ -146,6 +151,7 @@ async function main() {
     videoDir: string;
     cases: Array<{
       id: string;
+      group?: 'test' | 'integration' | 'seen';
       scramble: string;
       repeats: number;
       headline: number[];
@@ -160,6 +166,7 @@ async function main() {
       errors: string[];
     }>;
   } = { startedAt: startedAt.toISOString(), videoDir: config.videoDir, cases: [] };
+  const sourceFramesTotals: Record<string, number> = {};
 
   try {
     const page = await browser.newPage();
@@ -181,6 +188,45 @@ async function main() {
         (window as unknown as { __faceTwoPassMargin?: number }).__faceTwoPassMargin = margin;
       }, twoPassMargin);
       log(`due passaggi forzati, margine: ${twoPassMargin}`);
+    }
+    // Sperimentale: BENCH_HYBRID_PASS2_MODEL forza il secondo passaggio a
+    // usare un modello diverso dal primo (vedi lib/face-keypoint-model.ts,
+    // detectFaceCornersTwoPassRefine). Il file deve esistere in public/models/.
+    const hybridPass2Model = process.env.BENCH_HYBRID_PASS2_MODEL;
+    if (hybridPass2Model) {
+      await page.addInitScript((url) => {
+        (window as unknown as { __hybridPass2ModelUrl?: string }).__hybridPass2ModelUrl = url;
+      }, `/models/${hybridPass2Model}`);
+      log(`passaggio 2 ibrido, modello: ${hybridPass2Model}`);
+    }
+    // Sperimentale: BENCH_FUSED_FIRST=1 antepone le candidate a consenso
+    // multi-fotogramma alle letture raw singole (vedi lib/inspection-state.ts,
+    // fuseFaceObservationCandidates).
+    if (process.env.BENCH_FUSED_FIRST === '1') {
+      await page.addInitScript(() => {
+        (window as unknown as { __benchFusedFirst?: boolean }).__benchFusedFirst = true;
+      });
+      log('ordinamento candidate: fuse-prima (sperimentale)');
+    }
+    // Sperimentale: BENCH_WIDE_TIME_WINDOW=1 rimuove il limite di 0.82s per
+    // l'allineamento fra osservazioni della stessa faccia (vedi
+    // lib/inspection-state.ts, fuseFaceObservationCandidates).
+    if (process.env.BENCH_WIDE_TIME_WINDOW === '1') {
+      await page.addInitScript(() => {
+        (window as unknown as { __benchWideTimeWindow?: boolean }).__benchWideTimeWindow = true;
+      });
+      log('finestra temporale estesa (sperimentale)');
+    }
+    if (process.env.BENCH_GATE_DEBUG3 === '1') {
+      await page.addInitScript(() => {
+        (window as unknown as { __gateDebug3?: Record<string, unknown> }).__gateDebug3 = {};
+      });
+    }
+    const sourceFramesTally = process.env.BENCH_SOURCE_FRAMES_TALLY === '1';
+    if (sourceFramesTally) {
+      await page.addInitScript(() => {
+        (window as unknown as { __benchSourceFramesTally?: Record<string, number> }).__benchSourceFramesTally = {};
+      });
     }
     page.on('console', (message) => {
       const text = message.text();
@@ -249,6 +295,14 @@ async function main() {
         harnessResults.push(result);
         headline.push(score.correct);
         statuses.push(score.status);
+        if (sourceFramesTally) {
+          const tally = await page.evaluate(() => (
+            window as unknown as { __benchSourceFramesTally?: Record<string, number> }
+          ).__benchSourceFramesTally ?? {});
+          Object.entries(tally).forEach(([bucket, count]) => {
+            sourceFramesTotals[bucket] = (sourceFramesTotals[bucket] ?? 0) + count;
+          });
+        }
         log(`  → ${score.correct}/54 giuste · stato ${score.status} · ${result.durationMs}ms`);
       }
 
@@ -267,6 +321,7 @@ async function main() {
 
       report.cases.push({
         id: entry.id,
+        group: entry.group,
         scramble: entry.scramble,
         repeats: config.repeats,
         headline,
@@ -307,6 +362,34 @@ async function main() {
     }
   }
   console.log('\n' + '='.repeat(72));
+
+  // --- totali per gruppo: "test" (mai visto, decisioni sul MODELLO), ---
+  // "integration" (non in training, debug pipeline), "seen" (in training,
+  // insieme a "integration"+"test" conta per decisioni sulla PIPELINE a
+  // modello fisso) ---
+  const groupOrder: Array<'test' | 'integration' | 'seen'> = ['test', 'integration', 'seen'];
+  const groupLabel: Record<string, string> = {
+    test: 'test (mai visto - decisioni sul MODELLO)',
+    integration: 'integration (non in training, debug pipeline)',
+    seen: 'seen (in training)',
+  };
+  console.log('\nTOTALI PER GRUPPO (mediana per caso, su 54 ciascuno)');
+  let grandCorrect = 0;
+  let grandTotal = 0;
+  for (const group of groupOrder) {
+    const inGroup = report.cases.filter((c) => c.group === group && c.representative);
+    if (inGroup.length === 0) continue;
+    const correctSum = inGroup.reduce((sum, c) => sum + median(c.headline), 0);
+    const total = inGroup.length * 54;
+    grandCorrect += correctSum;
+    grandTotal += total;
+    console.log(`  ${groupLabel[group]}: ${correctSum}/${total}  (${inGroup.map((c) => `${c.id}=${median(c.headline)}`).join(', ')})`);
+  }
+  console.log(`  TOTALE PIPELINE (tutti i gruppi): ${grandCorrect}/${grandTotal}`);
+  if (Object.keys(sourceFramesTotals).length) {
+    console.log(`  distribuzione sourceFrames (facce vincenti): ${JSON.stringify(sourceFramesTotals)}`);
+  }
+  console.log('='.repeat(72));
 
   // --- salvataggio ---
   fs.mkdirSync(RESULTS_DIR, { recursive: true });

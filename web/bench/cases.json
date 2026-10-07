@@ -1,5 +1,5 @@
 {
-  "_comment": "Banco di prova ripetibile per la ricostruzione dello stato. I video restano locali (fuori dal repo). Override della cartella: variabile d'ambiente BENCH_VIDEO_DIR. Convenzione scramble: cubo risolto con bianco sopra e verde davanti.",
+  "_comment": "Banco di prova ripetibile per la ricostruzione dello stato. I video restano locali (fuori dal repo). Override della cartella: variabile d'ambiente BENCH_VIDEO_DIR. Convenzione scramble: cubo risolto con bianco sopra e verde davanti. Campo \"group\": test = mai visto da nessun modello (decisioni sul MODELLO contano solo questo gruppo); integration = non in training ma usato a lungo per debug pipeline; seen = fotogrammi del video entrati nel training (decisioni sulla PIPELINE, a modello fisso, contano il totale di tutti i gruppi).",
   "videoDir": "C:/Users/Andrea/Desktop/App/lenti",
   "repeats": 3,
   "cases": [
@@ -7,31 +7,92 @@
       "id": "IMG_6107",
       "video": "IMG_6107.mp4",
       "scramble": "F L2 B2 D F2 D' U' B2 D' F2 L2 D2 R2 B' D' F R U' F2 U",
-      "orientation": "white-U/green-F"
+      "orientation": "white-U/green-F",
+      "group": "integration"
     },
     {
       "id": "IMG_6108",
       "video": "IMG_6108.mp4",
       "scramble": "B' R2 B2 F2 U F2 D B2 U2 B2 F2 R2 B' R B L' D2 B D' F'",
-      "orientation": "white-U/green-F"
+      "orientation": "white-U/green-F",
+      "group": "integration"
     },
     {
       "id": "IMG_6258",
       "video": "IMG_6258.mp4",
       "scramble": "U2 R U' D' F' R2 F L F' R' L2 D2 R B2 U2 D2 R U2 B2 L2 U2",
-      "orientation": "white-U/green-F"
+      "orientation": "white-U/green-F",
+      "group": "test"
     },
     {
       "id": "IMG_6260",
       "video": "IMG_6260.mp4",
       "scramble": "R D' L B2 U' R' D B F2 D L2 D L2 F2 L2 D2 F2 D' R' U",
-      "orientation": "white-U/green-F"
+      "orientation": "white-U/green-F",
+      "group": "test"
     },
     {
       "id": "IMG_6281",
       "video": "IMG_6281.mp4",
       "scramble": "B2 L2 D B' U2 L D R D F2 U' L2 D L2 U' R2 D' L2 B2 D R",
-      "orientation": "white-U/green-F"
+      "orientation": "white-U/green-F",
+      "group": "test"
+    },
+    {
+      "id": "IMG_6297",
+      "video": "IMG_6297.mp4",
+      "scramble": "D' B D B D R' B L' U' L2 U' F2 U R2 L2 D' F2 D2 R2 B2 R'",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6298",
+      "video": "IMG_6298.mp4",
+      "scramble": "F2 U L2 B2 L B' D' F' R2 F2 L F2 D2 R F2 R2 U2 R' B2 L' F",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6299",
+      "video": "IMG_6299.mp4",
+      "scramble": "D2 F2 L2 D2 B' L' F2 R' D B2 D' F2 D B2 R2 U' B2 L2 D2 R D'",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6300",
+      "video": "IMG_6300.mp4",
+      "scramble": "L' B2 U2 R' D' L' U B2 D' F2 R2 F2 D2 B' U2 D2 R2 B R2 F' L'",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6334",
+      "video": "IMG_6334.mp4",
+      "scramble": "U' B2 U D' R' F2 B U2 B' U F2 L2 D2 F2 R2 U' L2 D R2",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6336",
+      "video": "IMG_6336.mp4",
+      "scramble": "U L' B D' B' U2 F' U' D L2 F2 L2 B2 U' D2 L2 B2 L' B",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6338",
+      "video": "IMG_6338.mp4",
+      "scramble": "U' F' D2 R D2 L2 D2 B2 D2 F2 L' D2 L' F2 D' L U' F' R' B U",
+      "orientation": "white-U/green-F",
+      "group": "seen"
+    },
+    {
+      "id": "IMG_6341",
+      "video": "IMG_6341.mp4",
+      "scramble": "R2 B2 F' L2 D2 U2 F' U2 B D2 L2 D2 U' B L' D' R' U R2 F",
+      "orientation": "white-U/green-F",
+      "group": "seen"
     }
   ]
 }
