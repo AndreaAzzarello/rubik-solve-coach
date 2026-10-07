@@ -55,6 +55,16 @@ scartato. Nessuno di questi è in produzione.
    di 7 caselle (39→32, oltre il limite di 5) → criterio fallito, scartato
    nonostante avesse risolto la causa originale.
 
+   **Pista aperta**: è l'UNICO esperimento di questo log che ha risolto
+   esattamente il caso bersaglio (6281/D 9/9, 6297/D 7/7). Il fallimento non
+   viene dalla logica rosso/arancione in sé, ma dall'aver sostituito anche
+   la CONFIDENZA con una scala diversa (proiezione Lab) da quella CIEDE2000
+   di `classifyCalibratedColor` — questo ha alterato quante celle vengono
+   accettate anche in facce non coinvolte (6260 −7). Prossimo tentativo
+   suggerito: sovrascrivere SOLO l'etichetta rosso/arancione quando
+   `resolveRedOrangeAxis` è applicabile, mantenendo la confidenza originale
+   di `classifyCalibratedColor` invariata.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
