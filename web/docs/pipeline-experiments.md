@@ -42,6 +42,18 @@ scartato. Nessuno di questi è in produzione.
    peggiora tutto: 352/702 (sotto sia baseline 359 sia V1 400), 6281 crolla
    a -30, e 6338 — il caso bersaglio dell'intero redesign — peggiora
    ulteriormente a 10/54 invece di migliorare → scartato.
+8. **Discriminante dedicato rosso/arancione** (`resolveRedOrangeAxis`:
+   quando una cella è classificata rosso o arancione, la decisione viene
+   rifatta proiettando il campione sulla retta Lab fra i centri rosso e
+   arancione calibrati su QUESTO video, invece del confronto CIEDE2000 a
+   tutti e 6 i colori — nessun'altra fusione o colore toccato) → risolve
+   ESATTAMENTE il problema diagnosticato (faccia D passa da 2-3/9 a 9/9 su
+   6281 e 7/7 su 6297, zero errori rosso/arancione residui su entrambe) —
+   ma la sua confidenza (scala diversa da CIEDE2000) destabilizza quante
+   celle vengono accettate in altri video: 386/702 totale pipeline (sopra
+   baseline 359) ma gruppo test scende a 123/162 (sotto 130) e 6260 crolla
+   di 7 caselle (39→32, oltre il limite di 5) → criterio fallito, scartato
+   nonostante avesse risolto la causa originale.
 
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
