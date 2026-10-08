@@ -64,6 +64,23 @@ scartato. Nessuno di questi è in produzione.
    suggerito: sovrascrivere SOLO l'etichetta rosso/arancione quando
    `resolveRedOrangeAxis` è applicabile, mantenendo la confidenza originale
    di `classifyCalibratedColor` invariata.
+9. **Isolare la sola etichetta rosso/arancione** (`classifyCalibratedCell`:
+   stessa proiezione di #8, ma sovrascrive SOLO il colore — la confidenza
+   resta sempre quella CIEDE2000 originale, bit-identica, verificato con 2
+   test unitari dedicati) → l'ipotesi della pista aperta di #8 era
+   **sbagliata**: isolare la confidenza non risolve il problema, lo
+   peggiora. 6297/D resta perfetto (7/7, invariato da #8), ma **6281 crolla
+   da 37 a 8/54** (-29, peggio della regressione di #8 su 6260) — non per
+   un singolo colore sbagliato, ma per un collasso di copertura su TUTTE le
+   facce (quasi tutte 1-2 celle impegnate su 9): il cambio di etichetta,
+   mantenendo invariata (spesso alta) la confidenza originale, fa sì che il
+   risolutore dei vincoli fisici tratti la cella ri-etichettata come prova
+   forte per un piazzamento che confligge con i pezzi adiacenti, facendo
+   collassare il beam-search su quel video. Totale pipeline 361/702 (sopra
+   359 per 2 punti) ma criterio di sicurezza fallito platealmente →
+   scartato, nessuna pista aperta residua: il mascheramento della
+   confidenza in #8 non era il bug, era (inconsapevolmente) un argine a un
+   problema più profondo nel risolutore dei vincoli.
 
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
