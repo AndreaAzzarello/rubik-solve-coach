@@ -229,7 +229,8 @@ async function main() {
     const gridAlignmentThreshold = process.env.BENCH_GRID_ALIGNMENT_THRESHOLD
       ? Number(process.env.BENCH_GRID_ALIGNMENT_THRESHOLD)
       : undefined;
-    if (typeof gridAlignmentThreshold === 'number' && Number.isFinite(gridAlignmentThreshold)) {
+    const gridAlignmentActive = typeof gridAlignmentThreshold === 'number' && Number.isFinite(gridAlignmentThreshold);
+    if (gridAlignmentActive) {
       await page.addInitScript((threshold) => {
         (window as unknown as { __benchGridAlignmentThreshold?: number }).__benchGridAlignmentThreshold = threshold;
       }, gridAlignmentThreshold);
@@ -285,13 +286,31 @@ async function main() {
       const headline: number[] = [];
       const statuses: string[] = [];
       const errors: string[] = [];
+      const gridAlignmentTally = { before: 0, after: 0, safeguards: 0 };
 
       for (let repeat = 1; repeat <= config.repeats; repeat += 1) {
         log(`${entry.id} · ripetizione ${repeat}/${config.repeats} …`);
+        if (gridAlignmentActive) {
+          await page.evaluate(() => {
+            (window as unknown as {
+              __benchGridAlignmentTally?: { before: number; after: number; safeguards: number };
+            }).__benchGridAlignmentTally = { before: 0, after: 0, safeguards: 0 };
+          });
+        }
         const result: HarnessResult = await page.evaluate(
           (url) => window.__benchReconstruct!(url),
           videoUrl,
         );
+        if (gridAlignmentActive) {
+          const tally = await page.evaluate(() => (
+            window as unknown as {
+              __benchGridAlignmentTally?: { before: number; after: number; safeguards: number };
+            }
+          ).__benchGridAlignmentTally ?? { before: 0, after: 0, safeguards: 0 });
+          gridAlignmentTally.before += tally.before;
+          gridAlignmentTally.after += tally.after;
+          gridAlignmentTally.safeguards += tally.safeguards;
+        }
         if (!result.ok || !result.facelets) {
           errors.push(result.error || 'esito non valido dalla harness');
           log(`  ✗ ${result.error || 'errore'}`);
@@ -317,6 +336,9 @@ async function main() {
           });
         }
         log(`  → ${score.correct}/54 giuste · stato ${score.status} · ${result.durationMs}ms`);
+      }
+      if (gridAlignmentActive) {
+        log(`  [esperimento #10] osservazioni-modello: ${gridAlignmentTally.before} prima -> ${gridAlignmentTally.after} dopo il filtro (somma su ${config.repeats} ripetizioni), salvaguardia scattata ${gridAlignmentTally.safeguards} volte`);
       }
 
       const medianCorrect = median(headline);
