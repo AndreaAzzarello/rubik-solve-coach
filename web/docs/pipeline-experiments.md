@@ -2,11 +2,14 @@
 
 Bench di riferimento: 13 video (`bench/cases.json`) — 3 "test" mai visti dal
 modello (IMG_6258/6260/6281, le sole decisive per cambi di MODELLO), 2
-"integration" (IMG_6107/6108), 8 "seen" usati in training. Baseline di
-produzione = 359/702 (gruppo test 130/162: 6258=54, 6260=39, 6281=37).
+"integration" (IMG_6107/6108), 8 "seen" usati in training. Baseline storica
+(esperimenti #1-9) = 359/702 (gruppo test 130/162: 6258=54, 6260=39,
+6281=37). **Baseline attuale (dopo l'adozione dell'esperimento #10) =
+402/702**, gruppo test invariato 130/162.
 
 Ogni riga: cosa è stato provato → risultato sui 13 video → perché è stato
-scartato. Nessuno di questi è in produzione.
+scartato (o adottato). Solo l'esperimento #10 è in produzione; tutti gli
+altri no.
 
 1. **finetune-crops.onnx da solo** (checkpoint fine-tuned, sostituiva il
    modello di produzione) → PCK migliore ma bench 6281 crolla a 16/54 →
@@ -82,6 +85,61 @@ scartato. Nessuno di questi è in produzione.
    confidenza in #8 non era il bug, era (inconsapevolmente) un argine a un
    problema più profondo nel risolutore dei vincoli.
 
+10. **Filtro delle osservazioni per indice di allineamento griglia**
+    (`lib/grid-alignment-index.ts` + `applyGridAlignmentFilter` in
+    `lib/video-decoder.ts`: scartare a monte, prima della fusione, le
+    osservazioni-modello la cui griglia è storta rispetto ai confini di
+    colore reali — indice puramente geometrico, energia del gradiente di
+    colore sulle linee interne della griglia vs dentro le celle, mai colori
+    classificati — diagnosticato con AUC 0,971 su 52 osservazioni
+    giuste/52 sbagliate, vedi `vision/eval/grid-alignment-signal.ts` e
+    `docs/experiment-10-step1-threshold-sweep.md`) → **ADOTTATO**, con
+    soglia 4, salvaguardia per non perdere mai una faccia (se tutte le
+    osservazioni di un colore sono sotto soglia, tiene quella con l'indice
+    più alto).
+
+    Bench sui 13 video, 3 soglie:
+
+    | Video | Baseline | Soglia 3 | Soglia 4 | Soglia 6 |
+    |---|---|---|---|---|
+    | 6107 | 54 | 54 | 54 | 54 |
+    | 6108 | 8 | 11 | 11 | 11 |
+    | 6258 (test) | 54 | 54 | 54 | 54 |
+    | 6260 (test) | 39 | 39 | 39 | 50 |
+    | 6281 (test) | 37 | 37 | 37 | 37 |
+    | 6297 | 28 | 28 | 28 | 28 |
+    | 6298 | 30 | 30 | 30 | 30 |
+    | 6299 | 12 | 12 | 12 | 20 |
+    | 6300 | 9 | 19 | 19 | 32 |
+    | 6334 | 24 | 51 | 54 | 54 |
+    | 6336 | 16 | 12 | 12 | 25 |
+    | 6338 | 37 | 41 | 41 | 41 |
+    | 6341 | 11 | 11 | 11 | 11 |
+    | **TOTALE** | **359** | **399** | **402** | **447** |
+
+    Criterio di adozione, tutti e 3 soddisfatti: (1) soglia principale 4
+    sopra baseline (402>359); (2) nessun video test (6258/6260/6281) scende
+    di più di 5 caselle a nessuna delle 3 soglie (6260 anzi sale a 50 con
+    soglia 6); (3) le soglie vicine 3 e 6 restano entrambe sopra baseline
+    (399 e 447).
+
+    Video che cambiano di più di 10 caselle a soglia 4, spiegati con i dati
+    misurati (conteggio osservazioni-modello prima/dopo il filtro e
+    salvaguardia scattata, per video, somma su 3 ripetizioni):
+    - **6334 (+30, 24→54)**: 504 osservazioni prima del filtro, 162 dopo;
+      **salvaguardia scattata 18 volte su 18 possibili** (6 colori × 3
+      ripetizioni) — ogni singolo gruppo-colore aveva TUTTE le sue
+      osservazioni sotto soglia, quindi il filtro ha selezionato (via
+      salvaguardia) una sola osservazione per faccia, quella con l'indice
+      di allineamento più alto, bypassando il voto multi-frame. Per questo
+      video la singola lettura più ben allineata geometricamente è più
+      affidabile della fusione fra più letture (probabilmente la maggior
+      parte delle letture proviene da inquadrature storte che fondendosi
+      convergono su un consenso sbagliato).
+    - **6300 (+10, 9→19)**: 492 prima, 228 dopo; salvaguardia scattata 9
+      volte su 18 possibili (metà dei gruppi-colore) — effetto parziale
+      dello stesso meccanismo, coerente con un miglioramento minore.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
@@ -103,3 +161,9 @@ aggregato sul totale pipeline senza controllare ogni singolo video del
 gruppo "test": un totale più alto può nascondere un singolo video crollato
 di decine di caselle. Prima di riprovare una direzione simile a una già
 elencata sopra, verificare che non sia già stata scartata qui.
+
+L'esperimento #10 è il primo a rompere questo schema: agisce PRIMA della
+fusione (scartando osservazioni geometricamente storte), non dentro di essa,
+usando un segnale (pixel grezzi) indipendente dalla lettura colore che ha
+reso tutti i tentativi precedenti instabili — risultato coerente su 3
+soglie diverse, nessuna regressione sul gruppo test.

@@ -7,12 +7,13 @@
 // utile a scartare osservazioni PRIMA della fusione.
 //
 // Riusa solo funzioni pure/esportate esistenti (faceGridFromCorners,
-// fitHomography/applyHomography, computeFaceSampleGrid, i classificatori
-// colore, referenceFromScramble) per ottenere le stesse osservazioni che la
-// pipeline produce - nessuna logica di classificazione duplicata. L'unica
-// parte NUOVA e' l'indice geometrico (energia del gradiente) e il minimo
-// collante per farlo girare in Node (inferenza ONNX + estrazione fotogramma
-// via Playwright, stesso pattern di vision/inference/detector.ts).
+// computeFaceSampleGrid, i classificatori colore, referenceFromScramble,
+// e lib/grid-alignment-index.ts per l'indice stesso - introdotto in
+// produzione nell'esperimento #10, nessuna copia locale) per ottenere le
+// stesse osservazioni che la pipeline produce - nessuna logica duplicata.
+// L'unico codice nuovo qui e' il minimo collante per farlo girare in Node
+// (inferenza ONNX + estrazione fotogramma via Playwright, stesso pattern di
+// vision/inference/detector.ts).
 //
 // Semplificazioni dichiarate rispetto alla produzione:
 // - un solo passaggio di rilevamento (il fotogramma intero), non il
@@ -58,15 +59,10 @@ import {
   filterPlausibleDetections,
   type FaceCornerDetection,
 } from '../../lib/face-keypoint-model.ts';
-import {
-  fitHomography,
-  applyHomography,
-  computeFaceSampleGrid,
-  NOMINAL_CORNERS,
-  type Point,
-} from '../../lib/homography.ts';
-import { createAdaptiveColorClassifier, rgbToLab, type RgbSample } from '../../lib/color-calibration.ts';
+import { computeFaceSampleGrid } from '../../lib/homography.ts';
+import { createAdaptiveColorClassifier, type RgbSample } from '../../lib/color-calibration.ts';
 import { CANONICAL_COLOR_FACE, CUBE_COLORS, type CubeColor, type Face } from '../../lib/cube.ts';
+import { gridAlignmentIndex } from '../../lib/grid-alignment-index.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '../..');
@@ -108,73 +104,6 @@ function pickSample<T>(candidates: T[], count: number, seed: number): { chosen: 
     order.push(pool.splice(index, 1)[0]);
   }
   return { chosen: order.slice(0, count), order };
-}
-
-// --- indice geometrico: energia del gradiente di colore (Lab), solo pixel ---
-
-function pixelLab(pixels: Uint8ClampedArray, width: number, height: number, x: number, y: number) {
-  const clampedX = Math.max(0, Math.min(width - 1, Math.round(x)));
-  const clampedY = Math.max(0, Math.min(height - 1, Math.round(y)));
-  const offset = (clampedY * width + clampedX) * 4;
-  return rgbToLab({ red: pixels[offset], green: pixels[offset + 1], blue: pixels[offset + 2] });
-}
-
-function gradientEnergyAt(pixels: Uint8ClampedArray, width: number, height: number, point: Point): number {
-  const step = 2;
-  const left = pixelLab(pixels, width, height, point.x - step, point.y);
-  const right = pixelLab(pixels, width, height, point.x + step, point.y);
-  const up = pixelLab(pixels, width, height, point.x, point.y - step);
-  const down = pixelLab(pixels, width, height, point.x, point.y + step);
-  const dx = Math.hypot(right.lightness - left.lightness, right.a - left.a, right.b - left.b);
-  const dy = Math.hypot(down.lightness - up.lightness, down.a - up.a, down.b - up.b);
-  return Math.hypot(dx, dy);
-}
-
-const LINE_BAND_HALF_WIDTH = 0.07;
-const LINE_POSITIONS = [-0.5, 0.5];
-const LINE_RANGE_FROM = -1.1;
-const LINE_RANGE_TO = 1.1;
-const LINE_RANGE_STEP = 0.05;
-const CELL_MARGIN = 0.2; // meta' lato del patch centrale campionato in ogni cella (meta' cella = 0.5)
-const CELL_STEP = 0.08;
-
-function gridAlignmentIndex(
-  keypoints: Point[],
-  pixels: Uint8ClampedArray,
-  width: number,
-  height: number,
-): number | null {
-  const homography = fitHomography(keypoints.map((image, index) => ({ grid: NOMINAL_CORNERS[index], image })));
-  if (!homography) return null;
-
-  const lineEnergies: number[] = [];
-  LINE_POSITIONS.forEach((linePos) => {
-    for (let along = LINE_RANGE_FROM; along <= LINE_RANGE_TO; along += LINE_RANGE_STEP) {
-      [-LINE_BAND_HALF_WIDTH, 0, LINE_BAND_HALF_WIDTH].forEach((offset) => {
-        const vertical = applyHomography(homography, { x: linePos + offset, y: along });
-        const horizontal = applyHomography(homography, { x: along, y: linePos + offset });
-        lineEnergies.push(gradientEnergyAt(pixels, width, height, vertical));
-        lineEnergies.push(gradientEnergyAt(pixels, width, height, horizontal));
-      });
-    }
-  });
-
-  const cellEnergies: number[] = [];
-  for (let row = -1; row <= 1; row += 1) {
-    for (let column = -1; column <= 1; column += 1) {
-      for (let dx = -CELL_MARGIN; dx <= CELL_MARGIN + 1e-9; dx += CELL_STEP) {
-        for (let dy = -CELL_MARGIN; dy <= CELL_MARGIN + 1e-9; dy += CELL_STEP) {
-          const gridPoint = applyHomography(homography, { x: column + dx, y: row + dy });
-          cellEnergies.push(gradientEnergyAt(pixels, width, height, gridPoint));
-        }
-      }
-    }
-  }
-
-  const mean = (values: number[]) => values.reduce((total, value) => total + value, 0) / Math.max(1, values.length);
-  const lineEnergy = mean(lineEnergies);
-  const cellEnergy = mean(cellEnergies);
-  return lineEnergy / Math.max(1e-6, cellEnergy);
 }
 
 // --- verita' da scramble, dopo allineamento di rotazione ---
@@ -383,8 +312,25 @@ async function captureFrame(
 type Row = {
   videoId: string; face: Face; time: number; correct: number;
   label: 'giusta' | 'sbagliata' | 'esclusa'; index: number | null;
-  detectionScore: number;
+  detectionScore: number; expectedFace: CubeColor[];
 };
+
+// Confini di colore nella verita' (3x3, indice riga-maggiore 0..8): le 12
+// coppie di celle adiacenti (6 orizzontali + 6 verticali) con colore diverso.
+function colorBoundaryCount(grid: CubeColor[]): number {
+  let boundaries = 0;
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 2; column += 1) {
+      if (grid[row * 3 + column] !== grid[row * 3 + column + 1]) boundaries += 1;
+    }
+  }
+  for (let row = 0; row < 2; row += 1) {
+    for (let column = 0; column < 3; column += 1) {
+      if (grid[row * 3 + column] !== grid[(row + 1) * 3 + column]) boundaries += 1;
+    }
+  }
+  return boundaries;
+}
 
 async function main() {
   const casesRaw = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'bench/cases.json'), 'utf8'));
@@ -455,7 +401,10 @@ async function main() {
           const face = CANONICAL_COLOR_FACE[observation.centerColor];
           const { correct, label } = classifyAgainstTruth(observation.colors, expected[face]);
           const index = gridAlignmentIndex(detection.keypoints, fullPixels, frame.fullWidth, frame.fullHeight);
-          allRows.push({ videoId: entry.id, face, time, correct, label, index, detectionScore: detection.score });
+          allRows.push({
+            videoId: entry.id, face, time, correct, label, index,
+            detectionScore: detection.score, expectedFace: expected[face],
+          });
           videoRows += 1;
         });
       }
@@ -533,6 +482,23 @@ async function main() {
     const s = rows.filter((r) => r.label === 'sbagliata').length;
     const flag = g < 10 || s < 10 ? 'SI - AUC di questo video non affidabile' : 'no';
     log(`   ${id}: giuste=${g} sbagliate=${s} -> sbilanciato: ${flag}`);
+  });
+
+  // --- esperimento #10, passo 1: sweep di soglie (solo misura) ---
+  log('=== ESPERIMENTO #10 - PASSO 1 (sweep soglie, solo misura) ===');
+  const giusteRows = withIndex.filter((r) => r.label === 'giusta');
+  const sbagliateRows = withIndex.filter((r) => r.label === 'sbagliata');
+  [2, 3, 4, 6, 8].forEach((threshold) => {
+    const giusteScartate = giusteRows.filter((r) => r.index < threshold);
+    const sbagliateScartate = sbagliateRows.filter((r) => r.index < threshold);
+    const giustePct = (100 * giusteScartate.length) / giusteRows.length;
+    const sbagliatePct = (100 * sbagliateScartate.length) / sbagliateRows.length;
+    const boundaries = giusteScartate.map((r) => colorBoundaryCount(r.expectedFace));
+    const boundaryCounts = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => boundaries.filter((b) => b === n).length).map((count, n) => `${n}:${count}`).filter((entry) => !entry.endsWith(':0')).join(' ');
+    log(`soglia=${threshold}: giuste scartate=${giusteScartate.length}/${giusteRows.length} (${giustePct.toFixed(1)}%), sbagliate scartate=${sbagliateScartate.length}/${sbagliateRows.length} (${sbagliatePct.toFixed(1)}%)`);
+    log(`  confini di colore (verita') delle giuste scartate [boundaries:conteggio]: ${boundaryCounts || 'nessuna giusta scartata'}`);
+    const qualifies = sbagliatePct >= 85 && giustePct <= 5;
+    log(`  criterio soglia principale (>=85% sbagliate E <=5% giuste): ${qualifies ? 'SI' : 'no'}`);
   });
 }
 

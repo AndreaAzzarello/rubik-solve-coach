@@ -17,6 +17,19 @@ export function profileAdd(bucket: string, ms: number): void {
   target.__profileTimings = target.__profileTimings ?? {};
   target.__profileTimings[bucket] = (target.__profileTimings[bucket] ?? 0) + ms;
 }
+
+// Esperimento #10 (vedi docs/pipeline-experiments.md e
+// lib/grid-alignment-index.ts), ADOTTATO in produzione con soglia 4: bench
+// sui 13 video, soglia principale 402/702 (baseline 359/702, test group
+// 130/162 invariato), soglie vicine 3 e 6 entrambe sopra baseline (399 e
+// 447/702) - tutti i criteri di adozione soddisfatti. BENCH_GRID_ALIGNMENT_THRESHOLD
+// resta disponibile per confrontare altre soglie nel bench, assente -> soglia
+// di produzione validata.
+const GRID_ALIGNMENT_THRESHOLD_DEFAULT = 4;
+export function benchGridAlignmentThreshold(): number {
+  const value = (globalThis as { __benchGridAlignmentThreshold?: number }).__benchGridAlignmentThreshold;
+  return typeof value === 'number' && Number.isFinite(value) ? value : GRID_ALIGNMENT_THRESHOLD_DEFAULT;
+}
 import {
   type FaceGridObservation,
   type InspectionReconstruction,
@@ -31,6 +44,7 @@ import {
   type RgbSample,
 } from './color-calibration.ts';
 import { computeFaceSampleGrid, type Point } from './homography.ts';
+import { gridAlignmentIndex } from './grid-alignment-index.ts';
 import { detectFaceGrids } from './geometric-sticker-detection.ts';
 import {
   CANONICAL_FACE_COLOR,
@@ -479,9 +493,19 @@ function frameSignature(
   const geometricGrids = includeFaceGrids && faceDetectionSource === 'geometric'
     ? detectFaceGrids(pixelLabels, width, height, data)
     : [];
-  const modelGrids = includeFaceGrids && faceDetectionSource === 'model'
+  const modelGridsRaw = includeFaceGrids && faceDetectionSource === 'model'
     ? faceGridsFromDetectionsWithFallback(modelDetections, pixelLabels, width, height, data)
     : [];
+  // Esperimento #10 (adottato): indice calcolato per ogni osservazione-
+  // modello, usato dal filtro prima di selectSingleBestModelObservationPerFace
+  // (vedi sotto). Usa solo pixel grezzi (silhouette + data), mai colori
+  // classificati/confidenza.
+  const modelGrids = modelGridsRaw.map((grid) => ({
+    ...grid,
+    gridAlignmentIndex: grid.silhouette
+      ? gridAlignmentIndex(grid.silhouette, data, width, height) ?? undefined
+      : undefined,
+  }));
   const faceGrids = [...geometricGrids, ...modelGrids];
   return {
     luma,
@@ -1358,6 +1382,50 @@ export async function scanInspectionFrames(
 // premia i pattern visti in piu' fotogrammi indipendenti, fonde per-cella
 // entro il gruppo vincente - stessa logica gia' usata per bestByFace/
 // faceReference nel percorso geometrico.
+// Esperimento #10: scarta le osservazioni-modello con gridAlignmentIndex
+// sotto soglia PRIMA di selectSingleBestModelObservationPerFace, raggruppate
+// per centerColor come fa quella funzione. Salvaguardia: se per un colore
+// verrebbero scartate tutte le osservazioni, tiene quella con l'indice piu'
+// alto - il filtro non deve mai far perdere una faccia. Non tocca le
+// osservazioni non-modello, la confidenza o altre soglie.
+// Strumentazione solo-bench (vedi bench/run-bench.ts, BENCH_GRID_ALIGNMENT_THRESHOLD):
+// no-op a meno che il global non sia gia' stato predisposto dalla pagina
+// bench, stesso schema lazy di __benchSourceFramesTally.
+function recordGridAlignmentTally(before: number, after: number, safeguards: number): void {
+  const target = globalThis as {
+    __benchGridAlignmentTally?: { before: number; after: number; safeguards: number };
+  };
+  if (!target.__benchGridAlignmentTally) return;
+  target.__benchGridAlignmentTally.before += before;
+  target.__benchGridAlignmentTally.after += after;
+  target.__benchGridAlignmentTally.safeguards += safeguards;
+}
+
+export function applyGridAlignmentFilter(observations: FaceGridObservation[], threshold: number): FaceGridObservation[] {
+  const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
+  const nonModel: FaceGridObservation[] = [];
+  let modelBefore = 0;
+  observations.forEach((observation) => {
+    if (observation.gridSource !== 'model') {
+      nonModel.push(observation);
+      return;
+    }
+    modelBefore += 1;
+    modelByColor.set(observation.centerColor, [...(modelByColor.get(observation.centerColor) ?? []), observation]);
+  });
+  let safeguards = 0;
+  const filteredModel = [...modelByColor.values()].flatMap((group) => {
+    const kept = group.filter((observation) => (observation.gridAlignmentIndex ?? Infinity) >= threshold);
+    if (kept.length > 0) return kept;
+    safeguards += 1;
+    return [group.reduce((best, candidate) => (
+      (candidate.gridAlignmentIndex ?? -Infinity) > (best.gridAlignmentIndex ?? -Infinity) ? candidate : best
+    ))];
+  });
+  recordGridAlignmentTally(modelBefore, filteredModel.length, safeguards);
+  return [...nonModel, ...filteredModel];
+}
+
 function selectSingleBestModelObservationPerFace(observations: FaceGridObservation[]): FaceGridObservation[] {
   const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
   const nonModel: FaceGridObservation[] = [];
@@ -1401,8 +1469,9 @@ export function summarizeCubeObservation(
   // buona con letture sbagliate (bench, IMG_6258/6260: nessun video
   // peggiora, due migliorano nettamente). Le osservazioni non-modello
   // (pairs/silhouette) non sono toccate.
+  const flatObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
   const originalObservations = selectSingleBestModelObservationPerFace(
-    useful.flatMap((sample) => sample.faceGrids ?? []),
+    applyGridAlignmentFilter(flatObservations, benchGridAlignmentThreshold()),
   );
   // Prima fase: raccogliamo e salviamo le medie robuste dei centri. Solo dopo
   // questa calibrazione iniziale riclassifichiamo le 48 caselle non centrali.
