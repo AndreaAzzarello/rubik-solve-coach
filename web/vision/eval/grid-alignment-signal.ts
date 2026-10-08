@@ -380,7 +380,11 @@ async function captureFrame(
   }, { time, analysisMax: ANALYSIS_MAX_DIMENSION, modelSize: MODEL_INPUT_SIZE });
 }
 
-type Row = { videoId: string; face: Face; time: number; correct: number; label: 'giusta' | 'sbagliata' | 'esclusa'; index: number | null };
+type Row = {
+  videoId: string; face: Face; time: number; correct: number;
+  label: 'giusta' | 'sbagliata' | 'esclusa'; index: number | null;
+  detectionScore: number;
+};
 
 async function main() {
   const casesRaw = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'bench/cases.json'), 'utf8'));
@@ -451,7 +455,7 @@ async function main() {
           const face = CANONICAL_COLOR_FACE[observation.centerColor];
           const { correct, label } = classifyAgainstTruth(observation.colors, expected[face]);
           const index = gridAlignmentIndex(detection.keypoints, fullPixels, frame.fullWidth, frame.fullHeight);
-          allRows.push({ videoId: entry.id, face, time, correct, label, index });
+          allRows.push({ videoId: entry.id, face, time, correct, label, index, detectionScore: detection.score });
           videoRows += 1;
         });
       }
@@ -493,6 +497,43 @@ async function main() {
   } else {
     log('Interpretazione: pista chiusa (AUC totale <0.65).');
   }
+
+  // --- verifiche richieste ---
+  log('=== VERIFICHE ===');
+
+  log('1. Indipendenza: gridAlignmentIndex(keypoints, pixels, width, height) usa solo');
+  log('   fitHomography/applyHomography (geometria dai 4 vertici) e rgbToLab sui pixel');
+  log('   grezzi del fotogramma raddrizzato dall\'omografia. Non riceve in input colors,');
+  log('   centerColor, confidence, cellConfidences, rawColors, né alcun dato di fusione/');
+  log('   ricostruzione: SI, verificato per firma della funzione (vedi file), non solo a parole.');
+
+  log('2. Composizione delle sbagliate (proxy: correct 0-3="lontana", 4-5="vicina" - nessuna');
+  log('   etichetta spuria a mano disponibile, questa e\' una soglia sul conteggio celle');
+  log('   corrette gia\' calcolato, non un nuovo giudizio visivo):');
+  const giustaRows = withIndex.filter((r) => r.label === 'giusta');
+  const giustaIdx = giustaRows.map((r) => r.index);
+  const vicina = withIndex.filter((r) => r.label === 'sbagliata' && r.correct >= 4);
+  const lontana = withIndex.filter((r) => r.label === 'sbagliata' && r.correct <= 3);
+  const medianScore = (rows: Row[]) => quartiles(rows.map((r) => r.detectionScore)).median;
+  log(`   (contesto) giuste: n=${giustaRows.length}, detection.score mediana=${medianScore(giustaRows).toFixed(3)}`);
+  log(`   vicina (4-5/9, prob. faccia vera spostata): n=${vicina.length}, detection.score mediana=${medianScore(vicina).toFixed(3)}, AUC(giusta vs vicina)=${auc(giustaIdx, vicina.map((r) => r.index)).toFixed(3)}`);
+  log(`   lontana (0-3/9, prob. rilevamento spurio o lettura molto sbagliata): n=${lontana.length}, detection.score mediana=${medianScore(lontana).toFixed(3)}, AUC(giusta vs lontana)=${auc(giustaIdx, lontana.map((r) => r.index)).toFixed(3)}`);
+
+  log('3. Ridondanza: filterPlausibleDetections e il gate "visibleCells>=6 && centerColor" di');
+  log('   faceGridFromCorners sono applicati PRIMA di registrare qualunque riga (vedi il');
+  log('   flusso: plausible=filterPlausibleDetections(...); poi faceGridFromCorners ritorna');
+  log('   null se uno dei due gate non passa, e solo allora la riga entra in allRows).');
+  log('   Quindi 0 osservazioni registrate verrebbero scartate da questi due filtri: l\'AUC');
+  log('   "solo su quelle che arrivano alla fusione" e\' la STESSA gia\' riportata sopra.');
+
+  log('4. Sbilanciamento per video (soglia: meno di 10 giuste O meno di 10 sbagliate):');
+  videoIds.forEach((id) => {
+    const rows = withIndex.filter((r) => r.videoId === id);
+    const g = rows.filter((r) => r.label === 'giusta').length;
+    const s = rows.filter((r) => r.label === 'sbagliata').length;
+    const flag = g < 10 || s < 10 ? 'SI - AUC di questo video non affidabile' : 'no';
+    log(`   ${id}: giuste=${g} sbagliate=${s} -> sbilanciato: ${flag}`);
+  });
 }
 
 main().catch((error) => {
