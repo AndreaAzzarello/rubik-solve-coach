@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { CubeColor } from './cube.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
 import {
+  applyGridAlignmentFilter,
   buildInspectionSampleTimes,
   inferInspectionEnd,
   lastInspectionFrameTime,
@@ -242,4 +243,63 @@ test('mapModelPointToAnalysisSpace riporta un punto dal canvas modello (video in
   );
   assert.ok(Math.abs(cropOrigin.x) < 1e-6);
   assert.ok(Math.abs(cropOrigin.y) < 1e-6);
+});
+
+// Esperimento #10 (vedi docs/pipeline-experiments.md): filtro delle
+// osservazioni-modello per indice di allineamento griglia, dietro flag.
+function modelObservation(centerColor: CubeColor, index: number | undefined, time = 0): FaceGridObservation {
+  return {
+    time,
+    centerColor,
+    colors: Array(9).fill(centerColor),
+    confidence: 80,
+    visibleCells: 9,
+    gridSource: 'model',
+    gridAlignmentIndex: index,
+  };
+}
+
+test('applyGridAlignmentFilter non tocca le osservazioni non-modello', () => {
+  const nonModel: FaceGridObservation = { time: 0, centerColor: 'white', colors: Array(9).fill('white'), confidence: 80, visibleCells: 9 };
+  const result = applyGridAlignmentFilter([nonModel], 100);
+  assert.deepEqual(result, [nonModel]);
+});
+
+test('applyGridAlignmentFilter scarta per gruppo (centerColor) le osservazioni-modello sotto soglia', () => {
+  const observations = [
+    modelObservation('white', 1, 0),
+    modelObservation('white', 10, 1),
+    modelObservation('red', 20, 2),
+  ];
+  const result = applyGridAlignmentFilter(observations, 5);
+  assert.equal(result.length, 2);
+  assert.ok(result.some((o) => o.centerColor === 'white' && o.gridAlignmentIndex === 10));
+  assert.ok(!result.some((o) => o.centerColor === 'white' && o.gridAlignmentIndex === 1));
+  assert.ok(result.some((o) => o.centerColor === 'red' && o.gridAlignmentIndex === 20));
+});
+
+test('applyGridAlignmentFilter: salvaguardia, se tutte le osservazioni di una faccia sono sotto soglia tiene quella con indice piu\' alto', () => {
+  const observations = [
+    modelObservation('green', 1, 0),
+    modelObservation('green', 2, 1),
+    modelObservation('green', 1.5, 2),
+  ];
+  const result = applyGridAlignmentFilter(observations, 100); // nessuna supera la soglia
+  assert.equal(result.length, 1);
+  assert.equal(result[0].gridAlignmentIndex, 2);
+});
+
+test('summarizeCubeObservation: a flag spento (nessuna soglia impostata) il filtro non viene applicato, output invariato', () => {
+  const samples: MotionSample[] = [
+    {
+      time: 0, difference: 0, cubeDifference: 0, sharpness: 30, visibleColors: coverage(...COLORS),
+      faceGrids: [modelObservation('white', 1, 0)],
+    },
+    {
+      time: 0.5, difference: 0, cubeDifference: 0, sharpness: 30, visibleColors: coverage(...COLORS),
+      faceGrids: [modelObservation('white', 1, 0.5)],
+    },
+  ];
+  const summary = summarizeCubeObservation(samples, 0, 1);
+  assert.ok(summary.detectedColors.includes('white'));
 });

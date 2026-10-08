@@ -42,6 +42,13 @@ export type FaceGridObservation = {
   gridSource?: 'silhouette' | 'pairs' | 'model';
   /** Vertici della silhouette esagonale, quando la griglia viene da lì. */
   silhouette?: Array<{ x: number; y: number }>;
+  /**
+   * Indice di qualità geometrica (energia del gradiente di colore sulle
+   * linee interne della griglia vs dentro le celle, vedi
+   * lib/grid-alignment-index.ts) — solo per gridSource='model', calcolato
+   * solo quando il filtro sperimentale #10 è attivo (altrimenti undefined).
+   */
+  gridAlignmentIndex?: number;
 };
 
 export type CubeOrientation = {

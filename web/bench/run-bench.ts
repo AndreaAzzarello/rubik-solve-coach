@@ -222,6 +222,19 @@ async function main() {
         (window as unknown as { __gateDebug3?: Record<string, unknown> }).__gateDebug3 = {};
       });
     }
+    // Esperimento #10 (vedi docs/pipeline-experiments.md,
+    // lib/grid-alignment-index.ts): BENCH_GRID_ALIGNMENT_THRESHOLD filtra le
+    // osservazioni-modello con indice di allineamento griglia sotto soglia
+    // prima di selectSingleBestModelObservationPerFace.
+    const gridAlignmentThreshold = process.env.BENCH_GRID_ALIGNMENT_THRESHOLD
+      ? Number(process.env.BENCH_GRID_ALIGNMENT_THRESHOLD)
+      : undefined;
+    if (typeof gridAlignmentThreshold === 'number' && Number.isFinite(gridAlignmentThreshold)) {
+      await page.addInitScript((threshold) => {
+        (window as unknown as { __benchGridAlignmentThreshold?: number }).__benchGridAlignmentThreshold = threshold;
+      }, gridAlignmentThreshold);
+      log(`filtro indice griglia attivo, soglia: ${gridAlignmentThreshold}`);
+    }
     const sourceFramesTally = process.env.BENCH_SOURCE_FRAMES_TALLY === '1';
     if (sourceFramesTally) {
       await page.addInitScript(() => {
