@@ -383,25 +383,8 @@ async function captureFrame(
 type Row = {
   videoId: string; face: Face; time: number; correct: number;
   label: 'giusta' | 'sbagliata' | 'esclusa'; index: number | null;
-  detectionScore: number; expectedFace: CubeColor[];
+  detectionScore: number;
 };
-
-// Confini di colore nella verita' (3x3, indice riga-maggiore 0..8): le 12
-// coppie di celle adiacenti (6 orizzontali + 6 verticali) con colore diverso.
-function colorBoundaryCount(grid: CubeColor[]): number {
-  let boundaries = 0;
-  for (let row = 0; row < 3; row += 1) {
-    for (let column = 0; column < 2; column += 1) {
-      if (grid[row * 3 + column] !== grid[row * 3 + column + 1]) boundaries += 1;
-    }
-  }
-  for (let row = 0; row < 2; row += 1) {
-    for (let column = 0; column < 3; column += 1) {
-      if (grid[row * 3 + column] !== grid[(row + 1) * 3 + column]) boundaries += 1;
-    }
-  }
-  return boundaries;
-}
 
 async function main() {
   const casesRaw = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'bench/cases.json'), 'utf8'));
@@ -472,10 +455,7 @@ async function main() {
           const face = CANONICAL_COLOR_FACE[observation.centerColor];
           const { correct, label } = classifyAgainstTruth(observation.colors, expected[face]);
           const index = gridAlignmentIndex(detection.keypoints, fullPixels, frame.fullWidth, frame.fullHeight);
-          allRows.push({
-            videoId: entry.id, face, time, correct, label, index,
-            detectionScore: detection.score, expectedFace: expected[face],
-          });
+          allRows.push({ videoId: entry.id, face, time, correct, label, index, detectionScore: detection.score });
           videoRows += 1;
         });
       }
@@ -553,23 +533,6 @@ async function main() {
     const s = rows.filter((r) => r.label === 'sbagliata').length;
     const flag = g < 10 || s < 10 ? 'SI - AUC di questo video non affidabile' : 'no';
     log(`   ${id}: giuste=${g} sbagliate=${s} -> sbilanciato: ${flag}`);
-  });
-
-  // --- esperimento #10, passo 1: sweep di soglie (solo misura) ---
-  log('=== ESPERIMENTO #10 - PASSO 1 (sweep soglie, solo misura) ===');
-  const giusteRows = withIndex.filter((r) => r.label === 'giusta');
-  const sbagliateRows = withIndex.filter((r) => r.label === 'sbagliata');
-  [2, 3, 4, 6, 8].forEach((threshold) => {
-    const giusteScartate = giusteRows.filter((r) => r.index < threshold);
-    const sbagliateScartate = sbagliateRows.filter((r) => r.index < threshold);
-    const giustePct = (100 * giusteScartate.length) / giusteRows.length;
-    const sbagliatePct = (100 * sbagliateScartate.length) / sbagliateRows.length;
-    const boundaries = giusteScartate.map((r) => colorBoundaryCount(r.expectedFace));
-    const boundaryCounts = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => boundaries.filter((b) => b === n).length).map((count, n) => `${n}:${count}`).filter((entry) => !entry.endsWith(':0')).join(' ');
-    log(`soglia=${threshold}: giuste scartate=${giusteScartate.length}/${giusteRows.length} (${giustePct.toFixed(1)}%), sbagliate scartate=${sbagliateScartate.length}/${sbagliateRows.length} (${sbagliatePct.toFixed(1)}%)`);
-    log(`  confini di colore (verita') delle giuste scartate [boundaries:conteggio]: ${boundaryCounts || 'nessuna giusta scartata'}`);
-    const qualifies = sbagliatePct >= 85 && giustePct <= 5;
-    log(`  criterio soglia principale (>=85% sbagliate E <=5% giuste): ${qualifies ? 'SI' : 'no'}`);
   });
 }
 
