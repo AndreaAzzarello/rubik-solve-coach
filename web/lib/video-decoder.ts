@@ -1388,41 +1388,23 @@ export async function scanInspectionFrames(
 // verrebbero scartate tutte le osservazioni, tiene quella con l'indice piu'
 // alto - il filtro non deve mai far perdere una faccia. Non tocca le
 // osservazioni non-modello, la confidenza o altre soglie.
-// Strumentazione solo-bench (vedi bench/run-bench.ts, BENCH_GRID_ALIGNMENT_THRESHOLD):
-// no-op a meno che il global non sia gia' stato predisposto dalla pagina
-// bench, stesso schema lazy di __benchSourceFramesTally.
-function recordGridAlignmentTally(before: number, after: number, safeguards: number): void {
-  const target = globalThis as {
-    __benchGridAlignmentTally?: { before: number; after: number; safeguards: number };
-  };
-  if (!target.__benchGridAlignmentTally) return;
-  target.__benchGridAlignmentTally.before += before;
-  target.__benchGridAlignmentTally.after += after;
-  target.__benchGridAlignmentTally.safeguards += safeguards;
-}
-
 export function applyGridAlignmentFilter(observations: FaceGridObservation[], threshold: number): FaceGridObservation[] {
   const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
   const nonModel: FaceGridObservation[] = [];
-  let modelBefore = 0;
   observations.forEach((observation) => {
     if (observation.gridSource !== 'model') {
       nonModel.push(observation);
       return;
     }
-    modelBefore += 1;
     modelByColor.set(observation.centerColor, [...(modelByColor.get(observation.centerColor) ?? []), observation]);
   });
-  let safeguards = 0;
   const filteredModel = [...modelByColor.values()].flatMap((group) => {
     const kept = group.filter((observation) => (observation.gridAlignmentIndex ?? Infinity) >= threshold);
     if (kept.length > 0) return kept;
-    safeguards += 1;
     return [group.reduce((best, candidate) => (
       (candidate.gridAlignmentIndex ?? -Infinity) > (best.gridAlignmentIndex ?? -Infinity) ? candidate : best
     ))];
   });
-  recordGridAlignmentTally(modelBefore, filteredModel.length, safeguards);
   return [...nonModel, ...filteredModel];
 }
 
