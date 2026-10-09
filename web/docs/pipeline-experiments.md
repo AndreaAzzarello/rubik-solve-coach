@@ -140,6 +140,51 @@ altri no.
       volte su 18 possibili (metà dei gruppi-colore) — effetto parziale
       dello stesso meccanismo, coerente con un miglioramento minore.
 
+11. **Variante A: selezione per indice invece di filtro a soglia**
+    (`selectByGridAlignmentIndex` in `lib/video-decoder.ts`, dietro flag
+    `BENCH_GRID_INDEX_SELECT`: nessuna soglia da tarare, per ogni faccia
+    sceglie direttamente l'osservazione-modello con l'indice di
+    allineamento griglia più alto del gruppo, al posto del filtro a
+    soglia 4 + fusione multi-frame) → **scartata**.
+
+    Bench sui 13 video:
+
+    | Video | Produzione (soglia 4) | Variante A | Δ |
+    |---|---|---|---|
+    | 6107 | 54 | 54 | 0 |
+    | 6108 | 11 | 11 | 0 |
+    | 6258 (test) | 54 | 54 | 0 |
+    | 6260 (test) | 39 | 46 | +7 |
+    | 6281 (test) | 37 | **19** | **−18** |
+    | 6297 | 28 | 37 | +9 |
+    | 6298 | 30 | 34 | +4 |
+    | 6299 | 12 | 20 | +8 |
+    | 6300 | 19 | 46 | +27 |
+    | 6334 | 54 | 54 | 0 |
+    | 6336 | 12 | 12 | 0 |
+    | 6338 | 41 | **17** | **−24** |
+    | 6341 | 11 | 8 | −3 |
+    | **TOTALE** | **402** | **412** | **+10** |
+
+    Il totale sale (412>402) ma **6281 (video test) crolla di 18 caselle**,
+    oltre il limite di 5 — criterio di sicurezza fallito, nonostante il
+    guadagno aggregato.
+
+    **Motivo misurato, non un'ipotesi**: scegliere sempre la singola
+    osservazione con indice più alto del gruppo — anche quando è solo la
+    migliore fra letture comunque scadenti — forza una lettura su ogni
+    cella invece di lasciarla non impegnata come fa il filtro a soglia.
+    Su 6281 questo aumenta le celle impegnate da 31/48 a 43/48 ma fa
+    **crollare la precisione dal 100% al 30%** (13/43) — 5 facce su 6
+    peggiorano (U 3/3→2/6, R 2/2→2/9, F 7/7→2/7, L 9/9→3/9, B 7/7→2/9).
+    Lo stesso identico meccanismo, in direzione opposta, spiega il crollo
+    di **6338 (−24, precisione 100%→30%, 35/35→11/37)** e il miglioramento
+    di 6300 (+27, precisione 35%→100%, 13/37→40/40): riempire a tutti i
+    costi aiuta quando la "migliore fra le cattive" era comunque
+    accettabile, affonda quando non lo era — stesso schema di instabilità
+    già osservato per gli esperimenti #1-9, qui dentro al meccanismo di
+    selezione invece che nel colore.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
