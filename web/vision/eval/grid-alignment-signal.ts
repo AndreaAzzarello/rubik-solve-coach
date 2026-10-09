@@ -8,27 +8,37 @@
 //
 // Riusa solo funzioni pure/esportate esistenti (faceGridFromCorners,
 // computeFaceSampleGrid, i classificatori colore, referenceFromScramble,
-// e lib/grid-alignment-index.ts per l'indice stesso - introdotto in
-// produzione nell'esperimento #10, nessuna copia locale) per ottenere le
-// stesse osservazioni che la pipeline produce - nessuna logica duplicata.
-// L'unico codice nuovo qui e' il minimo collante per farlo girare in Node
-// (inferenza ONNX + estrazione fotogramma via Playwright, stesso pattern di
-// vision/inference/detector.ts).
+// lib/grid-alignment-index.ts per l'indice stesso, e - CORREZIONE del
+// 2026-10-09, vedi docs/pipeline-experiments.md - inspectionCropVariants/
+// mapModelPointToAnalysisSpace/ANALYSIS_CANVAS_WIDTH_PORTRAIT/LANDSCAPE da
+// lib/video-decoder.ts) per ottenere le stesse osservazioni che la
+// pipeline produce - nessuna logica duplicata.
 //
-// Semplificazioni dichiarate rispetto alla produzione:
-// - un solo passaggio di rilevamento (il fotogramma intero), non il
-//   raffinamento a due passaggi - i vertici del passaggio 1 sono comunque
-//   quelli con cui faceGridFromCorners legge i colori quando il passaggio 2
-//   non trova corrispondenza, quindi restano un sottoinsieme fedele.
-// - finestra di ispezione fissa (1s..min(durata-0.5, 16s)) invece della
-//   segmentazione automatica basata sul moto: non serve il confine esatto,
-//   un fotogramma preso durante lo scramble produce semplicemente
-//   un'osservazione "sbagliata" (coerente con la verita'), non un dato falsato.
-// - classificazione colore SENZA calibrazione sui centri del video (la stessa
-//   usata DENTRO faceGridFromCorners/frameSignature per il percorso modello,
-//   prima di qualunque raffinamento successivo in summarizeCubeObservation):
-//   e' esattamente lo stadio "osservazioni che arrivano a faceGridFromCorners"
-//   richiesto, non uno stadio successivo.
+// BUG TROVATO E CORRETTO (esperimento #10, verifica di coerenza): questo
+// script calcolava l'indice su un fotogramma INTERO a 640px, mentre la
+// produzione lo calcola sul canvas "analysis" a 320/480px, spesso
+// RITAGLIATO (3 varianti di ritaglio per fotogramma, vedi
+// readHighResolutionInspectionFrame). La differenza misurata fra i due
+// input superava l'1% (tipicamente 1-8%, fino al 22% in alcuni casi) -
+// per questo ora lo script produce, per ogni rilevamento, UNA RIGA PER
+// CIASCUNO DEI 3 RITAGLI DI PRODUZIONE (stessa risoluzione, stesso
+// ritaglio, stessa formula di conversione dei vertici), non piu' un'unica
+// lettura a piena immagine.
+//
+// Semplificazione dichiarata rimasta: un solo passaggio di rilevamento (sul
+// fotogramma intero, a risoluzione MODEL_FRAME_MAX_DIMENSION), non il
+// raffinamento a due passaggi - i vertici del passaggio 1 sono comunque
+// quelli con cui faceGridFromCorners legge i colori quando il passaggio 2
+// non trova corrispondenza, quindi restano un sottoinsieme fedele. Finestra
+// di ispezione fissa (1s..min(durata-0.5, 16s)) invece della segmentazione
+// automatica basata sul moto: non serve il confine esatto, un fotogramma
+// preso durante lo scramble produce semplicemente un'osservazione
+// "sbagliata" (coerente con la verita'), non un dato falsato.
+// Classificazione colore SENZA calibrazione sui centri del video (la stessa
+// usata DENTRO faceGridFromCorners/frameSignature per il percorso modello,
+// prima di qualunque raffinamento successivo in summarizeCubeObservation):
+// e' esattamente lo stadio "osservazioni che arrivano a faceGridFromCorners"
+// richiesto, non uno stadio successivo.
 //
 // INDICE (definizione esatta): spazio colore Lab (CIE L*a*b*, stesso
 // rgbToLab della pipeline). Per ogni detezione, l'omografia proiettiva vera
@@ -63,6 +73,12 @@ import { computeFaceSampleGrid } from '../../lib/homography.ts';
 import { createAdaptiveColorClassifier, type RgbSample } from '../../lib/color-calibration.ts';
 import { CANONICAL_COLOR_FACE, CUBE_COLORS, type CubeColor, type Face } from '../../lib/cube.ts';
 import { gridAlignmentIndex } from '../../lib/grid-alignment-index.ts';
+import {
+  ANALYSIS_CANVAS_WIDTH_LANDSCAPE,
+  ANALYSIS_CANVAS_WIDTH_PORTRAIT,
+  inspectionCropVariants,
+  mapModelPointToAnalysisSpace,
+} from '../../lib/video-decoder.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '../..');
@@ -70,7 +86,6 @@ const MODEL_PATH = path.join(WEB_ROOT, 'vision/models/cube-face-keypoints.onnx')
 const MODEL_INPUT_SIZE = 512;
 const CONF_THRESHOLD = 0.25;
 const IOU_THRESHOLD = 0.5;
-const ANALYSIS_MAX_DIMENSION = 640; // risoluzione per l'indice geometrico e la classificazione colore (non il modello)
 const EXCLUDED_IDS = new Set(['IMG_6281', 'IMG_6297', 'IMG_6338', 'IMG_6260']);
 const SEED = 20261009;
 const SAMPLE_COUNT = 5;
@@ -251,17 +266,29 @@ async function runDetection(session: ort.InferenceSession, modelPixels: Buffer):
   }));
 }
 
+type CropVariant = { x: number; y: number; width: number; height: number };
+
+type CropReading = { analysisWidth: number; analysisHeight: number; pixelsBase64: string };
+
 type FrameCapture = {
   srcWidth: number; srcHeight: number;
-  fullWidth: number; fullHeight: number; fullPixelsBase64: string;
   modelScale: number; modelPadX: number; modelPadY: number; modelPixelsBase64: string;
+  crops: CropReading[];
 };
 
+// Riproduce ESATTAMENTE il rendering dei 3 canvas "analysis" di produzione
+// (lib/video-decoder.ts, readHighResolutionInspectionFrame): stesso ritaglio,
+// stessa risoluzione (ANALYSIS_CANVAS_WIDTH_PORTRAIT/LANDSCAPE), stesso
+// drawImage del browser (non un resample approssimato in Node) - unica
+// differenza rimasta dichiarata: qui il rilevamento resta a un solo
+// passaggio (vedi testa del file).
 async function captureFrame(
   page: import('playwright').Page,
   time: number,
+  cropVariants: CropVariant[],
+  analysisWidth: number,
 ): Promise<FrameCapture> {
-  return page.evaluate(({ time: seekTime, analysisMax, modelSize }) => {
+  return page.evaluate(({ time: seekTime, modelSize, crops, analysisW }) => {
     function toBase64(data: Uint8ClampedArray): string {
       let binary = '';
       const chunkSize = 8192;
@@ -277,15 +304,19 @@ async function captureFrame(
         const srcWidth = video.videoWidth;
         const srcHeight = video.videoHeight;
 
-        const analysisScale = Math.min(1, analysisMax / Math.max(srcWidth, srcHeight));
-        const fullWidth = Math.round(srcWidth * analysisScale);
-        const fullHeight = Math.round(srcHeight * analysisScale);
-        const fullCanvas = document.createElement('canvas');
-        fullCanvas.width = fullWidth;
-        fullCanvas.height = fullHeight;
-        const fullCtx = fullCanvas.getContext('2d')!;
-        fullCtx.drawImage(video, 0, 0, fullWidth, fullHeight);
-        const fullPixelsBase64 = toBase64(fullCtx.getImageData(0, 0, fullWidth, fullHeight).data);
+        const cropReadings: CropReading[] = crops.map((crop) => {
+          const analysisHeight = Math.round(analysisW * (srcHeight * crop.height) / (srcWidth * crop.width));
+          const canvas = document.createElement('canvas');
+          canvas.width = analysisW;
+          canvas.height = analysisHeight;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+          ctx.drawImage(
+            video,
+            srcWidth * crop.x, srcHeight * crop.y, srcWidth * crop.width, srcHeight * crop.height,
+            0, 0, analysisW, analysisHeight,
+          );
+          return { analysisWidth: analysisW, analysisHeight, pixelsBase64: toBase64(ctx.getImageData(0, 0, analysisW, analysisHeight).data) };
+        });
 
         const modelScale = Math.min(modelSize / srcWidth, modelSize / srcHeight);
         const newW = Math.round(srcWidth * modelScale);
@@ -301,18 +332,18 @@ async function captureFrame(
         modelCtx.drawImage(video, modelPadX, modelPadY, newW, newH);
         const modelPixelsBase64 = toBase64(modelCtx.getImageData(0, 0, modelSize, modelSize).data);
 
-        resolve({ srcWidth, srcHeight, fullWidth, fullHeight, fullPixelsBase64, modelScale, modelPadX, modelPadY, modelPixelsBase64 });
+        resolve({ srcWidth, srcHeight, modelScale, modelPadX, modelPadY, modelPixelsBase64, crops: cropReadings });
       };
       video.addEventListener('seeked', onSeeked);
       video.currentTime = seekTime;
     });
-  }, { time, analysisMax: ANALYSIS_MAX_DIMENSION, modelSize: MODEL_INPUT_SIZE });
+  }, { time, modelSize: MODEL_INPUT_SIZE, crops: cropVariants, analysisW: analysisWidth });
 }
 
 type Row = {
   videoId: string; face: Face; time: number; correct: number;
   label: 'giusta' | 'sbagliata' | 'esclusa'; index: number | null;
-  detectionScore: number; expectedFace: CubeColor[];
+  detectionScore: number; expectedFace: CubeColor[]; cropIndex: number;
 };
 
 // Confini di colore nella verita' (3x3, indice riga-maggiore 0..8): le 12
@@ -356,18 +387,28 @@ async function main() {
       log(`=== ${entry.id} ===`);
       const expected = referenceFromScramble(entry.scramble);
       const videoUrl = `http://127.0.0.1:${videoServer.port}/${entry.video}`;
-      const duration: number = await page.evaluate((url) => {
+      const { duration, srcWidth, srcHeight } = await page.evaluate((url) => {
         const video = document.createElement('video');
         video.src = url;
         video.crossOrigin = 'anonymous';
         video.muted = true;
         (window as unknown as { __video?: HTMLVideoElement }).__video = video;
         document.body.appendChild(video);
-        return new Promise<number>((resolve, reject) => {
-          video.addEventListener('loadeddata', () => resolve(video.duration), { once: true });
+        return new Promise<{ duration: number; srcWidth: number; srcHeight: number }>((resolve, reject) => {
+          video.addEventListener('loadeddata', () => resolve({
+            duration: video.duration, srcWidth: video.videoWidth, srcHeight: video.videoHeight,
+          }), { once: true });
           video.addEventListener('error', () => reject(new Error('video error')), { once: true });
         });
       }, videoUrl);
+
+      // Stessa convenzione di produzione (readHighResolutionInspectionFrame):
+      // ritaglio/risoluzione dipendono solo da ritratto/orizzontale, non dal
+      // singolo fotogramma - calcolati una sola volta per video.
+      const portrait = srcHeight >= srcWidth;
+      const cropVariants = inspectionCropVariants(portrait);
+      const analysisWidth = portrait ? ANALYSIS_CANVAS_WIDTH_PORTRAIT : ANALYSIS_CANVAS_WIDTH_LANDSCAPE;
+      const video = { videoWidth: srcWidth, videoHeight: srcHeight };
 
       const scanEnd = Math.min(duration - 0.5, SCAN_END_CAP);
       let videoRows = 0;
@@ -375,41 +416,57 @@ async function main() {
 
       for (let time = SCAN_START; time <= scanEnd; time += SCAN_STEP) {
         videoTimestamps += 1;
-        const frame = await captureFrame(page, time);
-        const fullBuffer = Buffer.from(frame.fullPixelsBase64, 'base64');
-        const fullPixels = new Uint8ClampedArray(fullBuffer.buffer, fullBuffer.byteOffset, fullBuffer.byteLength);
+        const frame = await captureFrame(page, time, cropVariants, analysisWidth);
         const modelPixels = Buffer.from(frame.modelPixelsBase64, 'base64');
 
         const rawDetections = await runDetection(session, modelPixels);
-        const analysisScale = frame.fullWidth / frame.srcWidth;
-        const detectionsAnalysisSpace: FaceCornerDetection[] = rawDetections.map((detection) => ({
+        const nativeDetections: FaceCornerDetection[] = rawDetections.map((detection) => ({
           score: detection.score,
           keypoints: detection.keypoints.map((kp) => ({
-            x: ((kp.x - frame.modelPadX) / frame.modelScale) * analysisScale,
-            y: ((kp.y - frame.modelPadY) / frame.modelScale) * analysisScale,
+            x: (kp.x - frame.modelPadX) / frame.modelScale,
+            y: (kp.y - frame.modelPadY) / frame.modelScale,
           })),
         }));
-        const plausible = filterPlausibleDetections(detectionsAnalysisSpace);
-        if (!plausible.length) continue;
+        // filterPlausibleDetections si applica UNA SOLA VOLTA in spazio
+        // nativo (stesso ordine di readHighResolutionInspectionFrame): le
+        // aree relative fra detection non sarebbero comparabili se calcolate
+        // dentro ritagli diversi.
+        const plausibleNative = filterPlausibleDetections(nativeDetections);
+        if (!plausibleNative.length) continue;
 
-        const classify = buildAdaptiveClassifier(fullPixels, frame.fullWidth, frame.fullHeight);
-        const labels = buildLabels(plausible, classify, fullPixels, frame.fullWidth, frame.fullHeight);
+        frame.crops.forEach((cropReading, cropIndex) => {
+          const crop = cropVariants[cropIndex];
+          const cropBuffer = Buffer.from(cropReading.pixelsBase64, 'base64');
+          const cropPixels = new Uint8ClampedArray(cropBuffer.buffer, cropBuffer.byteOffset, cropBuffer.byteLength);
+          const { analysisWidth: cw, analysisHeight: ch } = cropReading;
 
-        plausible.forEach((detection) => {
-          const observation = faceGridFromCorners(detection, labels, frame.fullWidth, frame.fullHeight, fullPixels);
-          if (!observation || !observation.centerColor) return;
-          const face = CANONICAL_COLOR_FACE[observation.centerColor];
-          const { correct, label } = classifyAgainstTruth(observation.colors, expected[face]);
-          const index = gridAlignmentIndex(detection.keypoints, fullPixels, frame.fullWidth, frame.fullHeight);
-          allRows.push({
-            videoId: entry.id, face, time, correct, label, index,
-            detectionScore: detection.score, expectedFace: expected[face],
+          const cropDetections: FaceCornerDetection[] = plausibleNative.map((detection) => ({
+            score: detection.score,
+            keypoints: detection.keypoints.map((p) => mapModelPointToAnalysisSpace(p, 1, video, crop, cw, ch)),
+          }));
+
+          const classify = buildAdaptiveClassifier(cropPixels, cw, ch);
+          const labels = buildLabels(cropDetections, classify, cropPixels, cw, ch);
+
+          cropDetections.forEach((detection) => {
+            const observation = faceGridFromCorners(detection, labels, cw, ch, cropPixels);
+            if (!observation || !observation.centerColor) return;
+            const face = CANONICAL_COLOR_FACE[observation.centerColor];
+            const { correct, label } = classifyAgainstTruth(observation.colors, expected[face]);
+            const index = gridAlignmentIndex(detection.keypoints, cropPixels, cw, ch);
+            allRows.push({
+              videoId: entry.id, face, time, correct, label, index,
+              detectionScore: detection.score, expectedFace: expected[face], cropIndex,
+            });
+            videoRows += 1;
+            if (process.env.DEBUG_ROWS_VIDEO === entry.id) {
+              log(`  [debug-row] t=${time} crop=${cropIndex} face=${face} label=${label} correct=${correct} index=${index?.toFixed(3)} keypoints=${JSON.stringify(detection.keypoints)}`);
+            }
           });
-          videoRows += 1;
         });
       }
 
-      log(`  ${entry.id}: ${videoTimestamps} fotogrammi campionati, ${videoRows} osservazioni valide`);
+      log(`  ${entry.id}: ${videoTimestamps} fotogrammi campionati, ${videoRows} osservazioni valide (su 3 ritagli)`);
     }
   } finally {
     await browser.close();

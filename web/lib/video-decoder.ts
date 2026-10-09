@@ -1178,6 +1178,17 @@ export function inferInspectionEnd(
   };
 }
 
+// Larghezza del canvas "analysis" (dopo il ritaglio) su cui viene calcolato
+// TUTTO cio' che legge pixel grezzi per il percorso modello (colore,
+// gridAlignmentIndex): esportate perche' uno strumento diagnostico esterno
+// (vision/eval/grid-alignment-signal.ts, esperimento #10) deve usare
+// esattamente questi numeri, non una propria risoluzione indipendente -
+// altrimenti misura un segnale diverso da quello che il filtro vede davvero
+// in produzione (bug di coerenza trovato e corretto, vedi
+// docs/pipeline-experiments.md).
+export const ANALYSIS_CANVAS_WIDTH_PORTRAIT = 320;
+export const ANALYSIS_CANVAS_WIDTH_LANDSCAPE = 480;
+
 export function inspectionCropVariants(portrait: boolean) {
   return portrait
     ? [
@@ -1284,7 +1295,7 @@ async function readHighResolutionInspectionFrame(video: HTMLVideoElement, time: 
   const captureId = time.toFixed(4);
   const readings = cropVariants.map((crop, cropIndex) => {
     const analysis = document.createElement('canvas');
-    analysis.width = portrait ? 320 : 480;
+    analysis.width = portrait ? ANALYSIS_CANVAS_WIDTH_PORTRAIT : ANALYSIS_CANVAS_WIDTH_LANDSCAPE;
     analysis.height = Math.round(
       analysis.width * (video.videoHeight * crop.height) / (video.videoWidth * crop.width),
     );
