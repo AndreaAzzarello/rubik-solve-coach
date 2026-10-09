@@ -1437,6 +1437,49 @@ export function applyGridAlignmentFilter(observations: FaceGridObservation[], th
   return [...nonModel, ...filteredModel];
 }
 
+// Esperimento #10 variante A (vedi docs/pipeline-experiments.md): no-op a
+// meno che bench/run-bench.ts non imposti esplicitamente
+// __benchGridIndexSelect (BENCH_GRID_INDEX_SELECT=1).
+export function benchGridIndexSelectEnabled(): boolean {
+  return (globalThis as { __benchGridIndexSelect?: boolean }).__benchGridIndexSelect === true;
+}
+
+// Variante A: al posto della fusione multi-frame, scegli l'osservazione con
+// gridAlignmentIndex piu' alto. A parita' (o se nessuna ha un indice), vale
+// il criterio attuale (fuseFaceObservations) - solo fra le pari merito, non
+// sull'intero gruppo, quando una parita' esiste comunque un vincitore unico.
+export function selectByGridAlignmentIndex(group: FaceGridObservation[]): FaceGridObservation {
+  let best: FaceGridObservation[] = [];
+  let bestIndex = -Infinity;
+  group.forEach((observation) => {
+    const index = observation.gridAlignmentIndex;
+    if (index === undefined) return;
+    if (index > bestIndex) {
+      bestIndex = index;
+      best = [observation];
+    } else if (index === bestIndex) {
+      best.push(observation);
+    }
+  });
+  if (best.length === 1) return best[0];
+  if (best.length > 1) return fuseFaceObservations(best);
+  return fuseFaceObservations(group);
+}
+
+// Strumentazione solo-bench: confronta, per lo STESSO gruppo (stessa faccia,
+// stesso fotogramma di ripetizione), cosa avrebbe letto la produzione
+// attuale (filtro a soglia 4 + fusione) contro cosa legge la variante A
+// (selezione per indice), senza eseguire la produzione due volte sul
+// cubo intero - serve solo a contare quante facce cambiano lettura.
+function recordGridIndexSelectComparison(group: FaceGridObservation[], variantResult: FaceGridObservation): void {
+  const target = globalThis as { __benchGridIndexSelectTally?: { total: number; changed: number } };
+  if (!target.__benchGridIndexSelectTally) return;
+  const productionResult = fuseFaceObservations(applyGridAlignmentFilter(group, GRID_ALIGNMENT_THRESHOLD_DEFAULT));
+  const changed = productionResult.colors.some((color, index) => color !== variantResult.colors[index]);
+  target.__benchGridIndexSelectTally.total += 1;
+  if (changed) target.__benchGridIndexSelectTally.changed += 1;
+}
+
 function selectSingleBestModelObservationPerFace(observations: FaceGridObservation[]): FaceGridObservation[] {
   const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
   const nonModel: FaceGridObservation[] = [];
@@ -1447,7 +1490,13 @@ function selectSingleBestModelObservationPerFace(observations: FaceGridObservati
     }
     modelByColor.set(observation.centerColor, [...(modelByColor.get(observation.centerColor) ?? []), observation]);
   });
-  const fused = [...modelByColor.values()].map((group) => fuseFaceObservations(group));
+  const selectByAlignment = benchGridIndexSelectEnabled();
+  const fused = [...modelByColor.values()].map((group) => {
+    if (!selectByAlignment) return fuseFaceObservations(group);
+    const variantResult = selectByGridAlignmentIndex(group);
+    recordGridIndexSelectComparison(group, variantResult);
+    return variantResult;
+  });
   return [...nonModel, ...fused];
 }
 
@@ -1481,8 +1530,13 @@ export function summarizeCubeObservation(
   // peggiora, due migliorano nettamente). Le osservazioni non-modello
   // (pairs/silhouette) non sono toccate.
   const flatObservations = useful.flatMap((sample) => sample.faceGrids ?? []);
+  // Variante A: nessuna soglia/filtro - la selezione per indice piu' alto
+  // (vedi selectSingleBestModelObservationPerFace) sostituisce interamente
+  // il filtro a soglia.
   const originalObservations = selectSingleBestModelObservationPerFace(
-    applyGridAlignmentFilter(flatObservations, benchGridAlignmentThreshold()),
+    benchGridIndexSelectEnabled()
+      ? flatObservations
+      : applyGridAlignmentFilter(flatObservations, benchGridAlignmentThreshold()),
   );
   // Prima fase: raccogliamo e salviamo le medie robuste dei centri. Solo dopo
   // questa calibrazione iniziale riclassifichiamo le 48 caselle non centrali.

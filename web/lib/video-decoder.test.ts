@@ -7,10 +7,12 @@ import {
   ANALYSIS_CANVAS_WIDTH_PORTRAIT,
   applyGridAlignmentFilter,
   benchGridAlignmentThreshold,
+  benchGridIndexSelectEnabled,
   buildInspectionSampleTimes,
   inferInspectionEnd,
   lastInspectionFrameTime,
   mapModelPointToAnalysisSpace,
+  selectByGridAlignmentIndex,
   selectInspectionKeyframes,
   summarizeCubeObservation,
   type MotionSample,
@@ -319,4 +321,63 @@ test('summarizeCubeObservation: per default (nessuna soglia impostata) il filtro
 test('ANALYSIS_CANVAS_WIDTH_PORTRAIT/LANDSCAPE sono le dimensioni esatte del canvas su cui si calcola gridAlignmentIndex in produzione - lo strumento diagnostico (vision/eval/grid-alignment-signal.ts, esperimento #10) le importa da qui invece di usare una propria risoluzione indipendente, altrimenti misurerebbe un segnale diverso da quello reale (bug di coerenza trovato e corretto)', () => {
   assert.equal(ANALYSIS_CANVAS_WIDTH_PORTRAIT, 320);
   assert.equal(ANALYSIS_CANVAS_WIDTH_LANDSCAPE, 480);
+});
+
+// Esperimento #10 variante A (vedi docs/pipeline-experiments.md): scelta
+// dell'osservazione con indice di allineamento piu' alto, invece del
+// filtro a soglia + fusione.
+test('selectByGridAlignmentIndex scegli l\'osservazione con indice piu\' alto', () => {
+  const observations = [
+    modelObservation('white', 1, 0),
+    modelObservation('white', 10, 1),
+    modelObservation('white', 5, 2),
+  ];
+  const result = selectByGridAlignmentIndex(observations);
+  assert.equal(result.gridAlignmentIndex, 10);
+});
+
+test('selectByGridAlignmentIndex: a parita\' di indice massimo, vale il criterio attuale (fuseFaceObservations) solo fra i pari merito', () => {
+  const observations = [
+    modelObservation('white', 1, 0),
+    modelObservation('white', 10, 1),
+    modelObservation('white', 10, 2),
+  ];
+  const result = selectByGridAlignmentIndex(observations);
+  // fuseFaceObservations su un singolo elemento ripetuto produce lo stesso
+  // pattern colore (centro bianco, accenti gialli, vedi modelObservation):
+  // qui verifichiamo solo che non scelga quella con indice 1 e che non lanci.
+  assert.equal(result.centerColor, 'white');
+  assert.notEqual(result.gridAlignmentIndex, 1);
+});
+
+test('benchGridIndexSelectEnabled: spento di default, acceso solo quando il bench lo imposta esplicitamente', () => {
+  const globalTarget = globalThis as { __benchGridIndexSelect?: boolean };
+  assert.equal(benchGridIndexSelectEnabled(), false);
+  globalTarget.__benchGridIndexSelect = true;
+  assert.equal(benchGridIndexSelectEnabled(), true);
+  delete globalTarget.__benchGridIndexSelect;
+  assert.equal(benchGridIndexSelectEnabled(), false);
+});
+
+test('summarizeCubeObservation: a flag acceso (variante A) sceglie l\'osservazione con indice piu\' alto senza applicare alcuna soglia', () => {
+  const globalTarget = globalThis as { __benchGridIndexSelect?: boolean };
+  globalTarget.__benchGridIndexSelect = true;
+  try {
+    const samples: MotionSample[] = [
+      {
+        time: 0, difference: 0, cubeDifference: 0, sharpness: 30, visibleColors: coverage(...COLORS),
+        // indice 0.5: sotto la soglia 4 di produzione, ma la variante A non
+        // usa soglie - deve comunque restituire una lettura per 'white'.
+        faceGrids: [modelObservation('white', 0.5, 0)],
+      },
+      {
+        time: 0.5, difference: 0, cubeDifference: 0, sharpness: 30, visibleColors: coverage(...COLORS),
+        faceGrids: [modelObservation('white', 0.5, 0.5)],
+      },
+    ];
+    const summary = summarizeCubeObservation(samples, 0, 1);
+    assert.ok(summary.detectedColors.includes('white'));
+  } finally {
+    delete globalTarget.__benchGridIndexSelect;
+  }
 });

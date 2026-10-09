@@ -236,6 +236,16 @@ async function main() {
       }, gridAlignmentThreshold);
       log(`filtro indice griglia attivo, soglia: ${gridAlignmentThreshold}`);
     }
+    // Esperimento #10 variante A: BENCH_GRID_INDEX_SELECT=1 sostituisce il
+    // filtro a soglia con la scelta dell'osservazione a indice piu' alto
+    // (vedi selectByGridAlignmentIndex in lib/video-decoder.ts).
+    const gridIndexSelectActive = process.env.BENCH_GRID_INDEX_SELECT === '1';
+    if (gridIndexSelectActive) {
+      await page.addInitScript(() => {
+        (window as unknown as { __benchGridIndexSelect?: boolean }).__benchGridIndexSelect = true;
+      });
+      log('variante A attiva: selezione per indice di allineamento piu\' alto (nessuna soglia)');
+    }
     const sourceFramesTally = process.env.BENCH_SOURCE_FRAMES_TALLY === '1';
     if (sourceFramesTally) {
       await page.addInitScript(() => {
@@ -287,6 +297,7 @@ async function main() {
       const statuses: string[] = [];
       const errors: string[] = [];
       const gridAlignmentTally = { before: 0, after: 0, safeguards: 0 };
+      const gridIndexSelectTally = { total: 0, changed: 0 };
 
       for (let repeat = 1; repeat <= config.repeats; repeat += 1) {
         log(`${entry.id} · ripetizione ${repeat}/${config.repeats} …`);
@@ -295,6 +306,13 @@ async function main() {
             (window as unknown as {
               __benchGridAlignmentTally?: { before: number; after: number; safeguards: number };
             }).__benchGridAlignmentTally = { before: 0, after: 0, safeguards: 0 };
+          });
+        }
+        if (gridIndexSelectActive) {
+          await page.evaluate(() => {
+            (window as unknown as {
+              __benchGridIndexSelectTally?: { total: number; changed: number };
+            }).__benchGridIndexSelectTally = { total: 0, changed: 0 };
           });
         }
         const result: HarnessResult = await page.evaluate(
@@ -310,6 +328,15 @@ async function main() {
           gridAlignmentTally.before += tally.before;
           gridAlignmentTally.after += tally.after;
           gridAlignmentTally.safeguards += tally.safeguards;
+        }
+        if (gridIndexSelectActive) {
+          const tally = await page.evaluate(() => (
+            window as unknown as {
+              __benchGridIndexSelectTally?: { total: number; changed: number };
+            }
+          ).__benchGridIndexSelectTally ?? { total: 0, changed: 0 });
+          gridIndexSelectTally.total += tally.total;
+          gridIndexSelectTally.changed += tally.changed;
         }
         if (!result.ok || !result.facelets) {
           errors.push(result.error || 'esito non valido dalla harness');
@@ -339,6 +366,9 @@ async function main() {
       }
       if (gridAlignmentActive) {
         log(`  [esperimento #10] osservazioni-modello: ${gridAlignmentTally.before} prima -> ${gridAlignmentTally.after} dopo il filtro (somma su ${config.repeats} ripetizioni), salvaguardia scattata ${gridAlignmentTally.safeguards} volte`);
+      }
+      if (gridIndexSelectActive) {
+        log(`  [esperimento #10 variante A] facce confrontate: ${gridIndexSelectTally.total}, lettura cambiata rispetto alla produzione (soglia 4): ${gridIndexSelectTally.changed} (somma su ${config.repeats} ripetizioni)`);
       }
 
       const medianCorrect = median(headline);
