@@ -3,6 +3,8 @@ import test from 'node:test';
 import type { CubeColor } from './cube.ts';
 import type { FaceGridObservation } from './inspection-state.ts';
 import {
+  ANALYSIS_CANVAS_WIDTH_LANDSCAPE,
+  ANALYSIS_CANVAS_WIDTH_PORTRAIT,
   applyGridAlignmentFilter,
   benchGridAlignmentThreshold,
   buildInspectionSampleTimes,
@@ -312,4 +314,9 @@ test('summarizeCubeObservation: per default (nessuna soglia impostata) il filtro
   ];
   const summary = summarizeCubeObservation(samples, 0, 1);
   assert.ok(summary.detectedColors.includes('white'));
+});
+
+test('ANALYSIS_CANVAS_WIDTH_PORTRAIT/LANDSCAPE sono le dimensioni esatte del canvas su cui si calcola gridAlignmentIndex in produzione - lo strumento diagnostico (vision/eval/grid-alignment-signal.ts, esperimento #10) le importa da qui invece di usare una propria risoluzione indipendente, altrimenti misurerebbe un segnale diverso da quello reale (bug di coerenza trovato e corretto)', () => {
+  assert.equal(ANALYSIS_CANVAS_WIDTH_PORTRAIT, 320);
+  assert.equal(ANALYSIS_CANVAS_WIDTH_LANDSCAPE, 480);
 });
