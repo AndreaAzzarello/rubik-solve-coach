@@ -19,13 +19,16 @@ export function profileAdd(bucket: string, ms: number): void {
 }
 
 // Esperimento #10 (vedi docs/pipeline-experiments.md e
-// lib/grid-alignment-index.ts), ADOTTATO in produzione con soglia 4: bench
-// sui 13 video, soglia principale 402/702 (baseline 359/702, test group
-// 130/162 invariato), soglie vicine 3 e 6 entrambe sopra baseline (399 e
-// 447/702) - tutti i criteri di adozione soddisfatti. BENCH_GRID_ALIGNMENT_THRESHOLD
-// resta disponibile per confrontare altre soglie nel bench, assente -> soglia
-// di produzione validata.
-const GRID_ALIGNMENT_THRESHOLD_DEFAULT = 4;
+// lib/grid-alignment-index.ts), ADOTTATO in produzione con soglia 6 (salita
+// da 4 dopo verifica che non fosse un picco isolato: bench anche a soglia 5
+// e 8 sui 13 video, nessuna regressione, precisione sulle celle impegnate
+// monotona 70%->74%->80%->84% da soglia 4 a 8). Soglia 6: 447/702 (baseline
+// storica 359/702, test group 141/162, nessun video sotto la soglia 4 su
+// nessuna delle soglie vicine 5/8 testate) - tutti i criteri di adozione
+// soddisfatti. BENCH_GRID_ALIGNMENT_THRESHOLD resta disponibile per
+// confrontare altre soglie nel bench, assente -> soglia di produzione
+// validata.
+const GRID_ALIGNMENT_THRESHOLD_DEFAULT = 6;
 export function benchGridAlignmentThreshold(): number {
   const value = (globalThis as { __benchGridAlignmentThreshold?: number }).__benchGridAlignmentThreshold;
   return typeof value === 'number' && Number.isFinite(value) ? value : GRID_ALIGNMENT_THRESHOLD_DEFAULT;

@@ -292,16 +292,16 @@ test('applyGridAlignmentFilter: salvaguardia, se tutte le osservazioni di una fa
   assert.equal(result[0].gridAlignmentIndex, 2);
 });
 
-test('benchGridAlignmentThreshold: soglia di produzione 4 di default, sovrascrivibile solo dal bench', () => {
+test('benchGridAlignmentThreshold: soglia di produzione 6 di default, sovrascrivibile solo dal bench', () => {
   const globalTarget = globalThis as { __benchGridAlignmentThreshold?: number };
-  assert.equal(benchGridAlignmentThreshold(), 4);
+  assert.equal(benchGridAlignmentThreshold(), 6);
   globalTarget.__benchGridAlignmentThreshold = 7;
   assert.equal(benchGridAlignmentThreshold(), 7);
   delete globalTarget.__benchGridAlignmentThreshold;
-  assert.equal(benchGridAlignmentThreshold(), 4);
+  assert.equal(benchGridAlignmentThreshold(), 6);
 });
 
-test('summarizeCubeObservation: per default (nessuna soglia impostata) il filtro con soglia 4 e\' comunque applicato - la salvaguardia non fa perdere la faccia anche se tutte le osservazioni sono sotto soglia', () => {
+test('summarizeCubeObservation: per default (nessuna soglia impostata) il filtro con soglia 6 e\' comunque applicato - la salvaguardia non fa perdere la faccia anche se tutte le osservazioni sono sotto soglia', () => {
   const samples: MotionSample[] = [
     {
       time: 0, difference: 0, cubeDifference: 0, sharpness: 30, visibleColors: coverage(...COLORS),

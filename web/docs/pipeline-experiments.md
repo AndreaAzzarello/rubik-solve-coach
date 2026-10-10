@@ -4,8 +4,8 @@ Bench di riferimento: 13 video (`bench/cases.json`) — 3 "test" mai visti dal
 modello (IMG_6258/6260/6281, le sole decisive per cambi di MODELLO), 2
 "integration" (IMG_6107/6108), 8 "seen" usati in training. Baseline storica
 (esperimenti #1-9) = 359/702 (gruppo test 130/162: 6258=54, 6260=39,
-6281=37). **Baseline attuale (dopo l'adozione dell'esperimento #10) =
-402/702**, gruppo test invariato 130/162.
+6281=37). **Baseline attuale (dopo l'adozione dell'esperimento #10, soglia
+6) = 447/702**, gruppo test 141/162 (6258=54, 6260=50, 6281=37).
 
 Ogni riga: cosa è stato provato → risultato sui 13 video → perché è stato
 scartato (o adottato). Solo l'esperimento #10 è in produzione; tutti gli
@@ -140,6 +140,51 @@ altri no.
       volte su 18 possibili (metà dei gruppi-colore) — effetto parziale
       dello stesso meccanismo, coerente con un miglioramento minore.
 
+    **Soglia salita a 6** (2026-10-10): prima di adottare la soglia 6 come
+    definitiva, verificato che non fosse un picco isolato sui 13 video
+    bench-ando anche le soglie 5 e 8:
+
+    | Video | Soglia 4 | Soglia 5 | Soglia 6 | Soglia 8 |
+    |---|---|---|---|---|
+    | 6107 | 54 | 54 | 54 | 54 |
+    | 6108 | 11 | 11 | 11 | 11 |
+    | 6258 (test) | 54 | 54 | 54 | 54 |
+    | 6260 (test) | 39 | 50 | 50 | 46 |
+    | 6281 (test) | 37 | 37 | 37 | 37 |
+    | 6297 | 28 | 28 | 28 | 37 |
+    | 6298 | 30 | 30 | 30 | 30 |
+    | 6299 | 12 | 13 | 20 | 19 |
+    | 6300 | 19 | 19 | 32 | 32 |
+    | 6334 | 54 | 54 | 54 | 54 |
+    | 6336 | 12 | 25 | 25 | 20 |
+    | 6338 | 41 | 41 | 41 | 41 |
+    | 6341 | 11 | 11 | 11 | 8 |
+    | **TOTALE** | **402** | **427** | **447** | **443** |
+
+    Celle impegnate (non centri, su 48×13=624 totali) e precisione su
+    quelle impegnate, sommate sui 13 video:
+
+    | Soglia | Impegnate | Corrette | Precisione |
+    |---|---|---|---|
+    | 4 | 461/624 | 324 | 70,3% |
+    | 5 | 470/624 | 349 | 74,3% |
+    | 6 | 460/624 | 369 | 80,2% |
+    | 8 | 435/624 | 365 | 83,9% |
+
+    La precisione sale in modo monotono con la soglia mentre le celle
+    impegnate calano solo leggermente: salire di soglia scarta osservazioni
+    peggiori, non riempie a caso — comportamento sano, non il pattern
+    caotico della variante A (#11).
+
+    Criterio di adozione per la soglia 6, tutte e 3 soddisfatte: (1) con
+    soglia 5 (427) e soglia 8 (443) il totale resta sopra 402; (2) nessuna
+    delle soglie 5/6/8 fa scendere un video test di più di 5 caselle
+    rispetto alla soglia 4 (tutti i delta sui video test sono ≥0); (3) con
+    soglia 6 nessun video peggiora rispetto alla soglia 4 (tutti i delta
+    sono ≥0). La soglia 8 non è migliore della 6 (443<447): nessun motivo
+    per salire oltre. **Soglia 6 adottata come default di produzione**
+    (`GRID_ALIGNMENT_THRESHOLD_DEFAULT` in `lib/video-decoder.ts`).
+
 11. **Variante A: selezione per indice invece di filtro a soglia**
     (`selectByGridAlignmentIndex` in `lib/video-decoder.ts`, dietro flag
     `BENCH_GRID_INDEX_SELECT`: nessuna soglia da tarare, per ogni faccia
@@ -210,5 +255,10 @@ elencata sopra, verificare che non sia già stata scartata qui.
 L'esperimento #10 è il primo a rompere questo schema: agisce PRIMA della
 fusione (scartando osservazioni geometricamente storte), non dentro di essa,
 usando un segnale (pixel grezzi) indipendente dalla lettura colore che ha
-reso tutti i tentativi precedenti instabili — risultato coerente su 3
-soglie diverse, nessuna regressione sul gruppo test.
+reso tutti i tentativi precedenti instabili — risultato coerente su 5
+soglie diverse (3, 4, 5, 6, 8), nessuna regressione sul gruppo test. La sua
+variante A (#11, scegliere sempre la singola osservazione più allineata
+invece di filtrare per soglia) ricade invece nello stesso schema caotico:
+il meccanismo non è la geometria in sé, ma il MODO in cui la si usa — una
+soglia che lascia celle non impegnate è stabile, forzare una lettura
+ovunque no.
