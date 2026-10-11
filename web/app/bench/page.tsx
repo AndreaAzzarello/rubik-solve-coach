@@ -25,12 +25,20 @@ type BenchResult = {
   runCount?: number;
   durationMs?: number;
   error?: string;
+  // Diagnostica esperimento #11 (vedi bench/missing-cells-diagnosis.ts):
+  // presenti solo quando la pagina bench ha predisposto i rispettivi global
+  // PRIMA della chiamata (stesso schema lazy di __benchGridAlignmentTally).
+  faceCoverage?: Record<Face, { observedCells: number; status: string }>;
+  faceObservationDiag?: Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+  gridAlignmentSafeguardColors?: CubeColor[];
 };
 
 declare global {
   interface Window {
     __benchReconstruct?: (videoUrl: string) => Promise<BenchResult>;
     __benchReady?: boolean;
+    __benchFaceObservationDiag?: Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+    __benchGridAlignmentSafeguardColors?: CubeColor[];
   }
 }
 
@@ -98,6 +106,11 @@ export default function BenchHarness() {
 
         const reconstruction = result.summary.reconstruction;
         append(`stato: ${reconstruction.status} · facce ${reconstruction.observedFaces.length}/6`);
+        const faceCoverage = Object.fromEntries(
+          Object.entries(reconstruction.faceCoverage).map(([face, coverage]) => (
+            [face, { observedCells: coverage.observedCells, status: coverage.status }]
+          )),
+        ) as Record<Face, { observedCells: number; status: string }>;
         return {
           ok: true,
           status: reconstruction.status,
@@ -110,6 +123,9 @@ export default function BenchHarness() {
           interval: result.interval,
           runCount: result.runCount,
           durationMs: Math.round(performance.now() - startedAt),
+          faceCoverage,
+          faceObservationDiag: window.__benchFaceObservationDiag,
+          gridAlignmentSafeguardColors: window.__benchGridAlignmentSafeguardColors,
         };
       } catch (caught) {
         const error = caught instanceof Error ? caught.message : String(caught);

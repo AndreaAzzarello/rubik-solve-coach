@@ -1275,6 +1275,27 @@ function buildFaceCoverage(
   })) as InspectionReconstruction['faceCoverage'];
 }
 
+// Strumentazione solo-bench per la diagnosi delle caselle mancanti (vedi
+// bench/missing-cells-diagnosis.ts): la "migliore" osservazione per faccia
+// PRIMA della beam search di completamento (bestByFace), cosi' si puo'
+// distinguere una casella vuota perche' mai letta da una casella vuota
+// perche' letta ma non impegnata dai vincoli/troncamento della ricerca.
+// Sovrascrive (non accumula): ogni chiamata a reconstructInspectionState
+// ricalcola da zero. No-op a meno che il global non sia gia' predisposto
+// dalla pagina bench, stesso schema lazy usato altrove (video-decoder.ts).
+function recordFaceObservationDiag(bestByFace: Map<Face, FaceGridObservation>): void {
+  const target = globalThis as {
+    __benchFaceObservationDiag?: Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+  };
+  if (!target.__benchFaceObservationDiag) return;
+  target.__benchFaceObservationDiag = Object.fromEntries(FACES.map((face) => {
+    const observation = bestByFace.get(face);
+    return [face, observation
+      ? { colors: [...observation.colors], gridAlignmentIndex: observation.gridAlignmentIndex }
+      : null];
+  })) as Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+}
+
 export function reconstructInspectionState(
   observations: FaceGridObservation[],
   balancedInfo: { observedCells: number; usable: boolean } = { observedCells: 0, usable: false },
@@ -1297,6 +1318,7 @@ export function reconstructInspectionState(
   const observedFaces = [...bestByFace.keys()].sort((left, right) => (
     (bestByFace.get(right)?.visibleCells ?? 0) - (bestByFace.get(left)?.visibleCells ?? 0)
   ));
+  recordFaceObservationDiag(bestByFace);
   if (!observedFaces.length) {
     const facelets = withCanonicalCenters();
     return {

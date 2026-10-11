@@ -1415,6 +1415,18 @@ function recordGridAlignmentTally(before: number, after: number, safeguards: num
   target.__benchGridAlignmentTally.safeguards += safeguards;
 }
 
+// Strumentazione solo-bench per la diagnosi delle caselle mancanti (vedi
+// bench/missing-cells-diagnosis.ts): quali colori-faccia hanno fatto scattare
+// la salvaguardia nell'ULTIMA chiamata (sovrascrive, non accumula - come
+// __benchFaceObservationDiag in inspection-state.ts, stessa ragione: ogni
+// chiamata a summarizeCubeObservation ricalcola da zero sui campioni
+// accumulati finora). No-op a meno che il global non sia gia' predisposto.
+function recordGridAlignmentSafeguardColors(colors: CubeColor[]): void {
+  const target = globalThis as { __benchGridAlignmentSafeguardColors?: CubeColor[] };
+  if (!target.__benchGridAlignmentSafeguardColors) return;
+  target.__benchGridAlignmentSafeguardColors = colors;
+}
+
 export function applyGridAlignmentFilter(observations: FaceGridObservation[], threshold: number): FaceGridObservation[] {
   const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
   const nonModel: FaceGridObservation[] = [];
@@ -1428,15 +1440,18 @@ export function applyGridAlignmentFilter(observations: FaceGridObservation[], th
     modelByColor.set(observation.centerColor, [...(modelByColor.get(observation.centerColor) ?? []), observation]);
   });
   let safeguards = 0;
-  const filteredModel = [...modelByColor.values()].flatMap((group) => {
+  const safeguardColors: CubeColor[] = [];
+  const filteredModel = [...modelByColor.entries()].flatMap(([color, group]) => {
     const kept = group.filter((observation) => (observation.gridAlignmentIndex ?? Infinity) >= threshold);
     if (kept.length > 0) return kept;
     safeguards += 1;
+    safeguardColors.push(color);
     return [group.reduce((best, candidate) => (
       (candidate.gridAlignmentIndex ?? -Infinity) > (best.gridAlignmentIndex ?? -Infinity) ? candidate : best
     ))];
   });
   recordGridAlignmentTally(modelBefore, filteredModel.length, safeguards);
+  recordGridAlignmentSafeguardColors(safeguardColors);
   return [...nonModel, ...filteredModel];
 }
 

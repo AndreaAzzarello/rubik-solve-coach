@@ -1,0 +1,3246 @@
+{
+  "generatedAt": "2026-10-11T10:59:35.871Z",
+  "categoryLabels": {
+    "1": "corrette",
+    "2": "vuote - nessuna osservazione/gate modello",
+    "3": "vuote - salvaguardia filtro allineamento",
+    "4": "vuote - non impegnate dalla ricostruzione (vincoli/beam)",
+    "5": "sbagliate - colore su griglia ben allineata (indice>=6)",
+    "6": "sbagliate - orientamento/rotazione faccia",
+    "7": "sbagliate - altro"
+  },
+  "grandTotals": {
+    "1": 225,
+    "2": 65,
+    "3": 17,
+    "4": 82,
+    "5": 26,
+    "6": 24,
+    "7": 41
+  },
+  "videos": [
+    {
+      "id": "IMG_6107",
+      "group": "integration",
+      "correct": 54,
+      "faces": [],
+      "interval": {
+        "start": 0.8999999999999999,
+        "end": 21.970833333333335
+      }
+    },
+    {
+      "id": "IMG_6108",
+      "group": "integration",
+      "correct": 11,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 0,
+            "2": 8,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 2
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 2
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 3,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 7,
+              "note": "yellow->blue, indice 4.764346706917787 sotto soglia"
+            },
+            {
+              "index": 2,
+              "category": 7,
+              "note": "green->blue, indice 4.764346706917787 sotto soglia"
+            },
+            {
+              "index": 3,
+              "category": 7,
+              "note": "green->yellow, indice 4.764346706917787 sotto soglia"
+            },
+            {
+              "index": 5,
+              "category": 7,
+              "note": "white->red, indice 4.764346706917787 sotto soglia"
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 3,
+            "4": 4,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 3
+            },
+            {
+              "index": 1,
+              "category": 3
+            },
+            {
+              "index": 2,
+              "category": 3
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 7,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 5,
+              "note": "orange->yellow"
+            },
+            {
+              "index": 1,
+              "category": 5,
+              "note": "blue->red"
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 5,
+              "note": "white->red"
+            },
+            {
+              "index": 5,
+              "category": 5,
+              "note": "blue->yellow"
+            },
+            {
+              "index": 6,
+              "category": 5,
+              "note": "yellow->blue"
+            },
+            {
+              "index": 7,
+              "category": 5,
+              "note": "orange->red"
+            },
+            {
+              "index": 8,
+              "category": 5,
+              "note": "yellow->green"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": [
+            {
+              "expected": "orange",
+              "got": "yellow"
+            },
+            {
+              "expected": "blue",
+              "got": "red"
+            },
+            {
+              "expected": "white",
+              "got": "red"
+            },
+            {
+              "expected": "blue",
+              "got": "yellow"
+            },
+            {
+              "expected": "yellow",
+              "got": "blue"
+            },
+            {
+              "expected": "orange",
+              "got": "red"
+            },
+            {
+              "expected": "yellow",
+              "got": "green"
+            }
+          ]
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 0,
+            "2": 8,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 2
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 2
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 0,
+            "2": 7,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 1
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "blue->yellow, indice di allineamento non disponibile"
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 2
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 26.939999999999998,
+        "end": 28.699533333333335
+      }
+    },
+    {
+      "id": "IMG_6258",
+      "group": "test",
+      "correct": 54,
+      "faces": [],
+      "interval": {
+        "start": 0.48000000000000004,
+        "end": 14.255833333333333
+      }
+    },
+    {
+      "id": "IMG_6260",
+      "group": "test",
+      "correct": 50,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 2,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 3
+            },
+            {
+              "index": 5,
+              "category": 3
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0,
+        "end": 7.318833333333333
+      }
+    },
+    {
+      "id": "IMG_6281",
+      "group": "test",
+      "correct": 37,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 2,
+            "2": 6,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 2
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 1,
+            "2": 3,
+            "3": 0,
+            "4": 4,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 2
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 0,
+            "4": 2,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 0,
+            "4": 2,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0.24,
+        "end": 8.843733333333333
+      }
+    },
+    {
+      "id": "IMG_6297",
+      "group": "seen",
+      "correct": 28,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 2,
+            "2": 0,
+            "3": 0,
+            "4": 3,
+            "5": 0,
+            "6": 0,
+            "7": 3
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 7,
+              "note": "green->white, indice 1.1236059165107473 sotto soglia"
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 7,
+              "note": "white->red, indice 1.1236059165107473 sotto soglia"
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "orange->blue, indice 1.1236059165107473 sotto soglia"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 0,
+            "2": 4,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 7,
+              "note": "green->yellow, indice di allineamento non disponibile"
+            },
+            {
+              "index": 2,
+              "category": 7,
+              "note": "green->orange, indice di allineamento non disponibile"
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 7,
+              "note": "orange->green, indice di allineamento non disponibile"
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "blue->red, indice di allineamento non disponibile"
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 2
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 0,
+            "4": 2,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 2,
+            "2": 5,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 1
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "orange->blue, indice di allineamento non disponibile"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 5,
+            "2": 0,
+            "3": 0,
+            "4": 3,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0,
+        "end": 3.223333333333333
+      }
+    },
+    {
+      "id": "IMG_6298",
+      "group": "seen",
+      "correct": 30,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 2,
+            "4": 5,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 3
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 3
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 5,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 2,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": 2,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 2,
+            "2": 6,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 2,
+            "2": 6,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 2
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0,
+        "end": 8.203333333333331
+      }
+    },
+    {
+      "id": "IMG_6299",
+      "group": "seen",
+      "correct": 20,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 2,
+            "2": 0,
+            "3": 0,
+            "4": 3,
+            "5": 3,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 5,
+              "note": "yellow->red"
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 5,
+              "note": "blue->white"
+            },
+            {
+              "index": 8,
+              "category": 5,
+              "note": "blue->yellow"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": [
+            {
+              "expected": "yellow",
+              "got": "red"
+            },
+            {
+              "expected": "blue",
+              "got": "white"
+            },
+            {
+              "expected": "blue",
+              "got": "yellow"
+            }
+          ]
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 3,
+            "5": 0,
+            "6": 0,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 7,
+              "note": "red->yellow, indice 2.277354176584781 sotto soglia"
+            },
+            {
+              "index": 3,
+              "category": 7,
+              "note": "green->red, indice 2.277354176584781 sotto soglia"
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "yellow->white, indice 2.277354176584781 sotto soglia"
+            },
+            {
+              "index": 7,
+              "category": 7,
+              "note": "white->yellow, indice 2.277354176584781 sotto soglia"
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 3,
+            "5": 0,
+            "6": 1,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 1,
+              "category": 7,
+              "note": "orange->green, indice 5.183510529793106 sotto soglia"
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 7,
+              "note": "red->green, indice 5.183510529793106 sotto soglia"
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "red->yellow, indice 5.183510529793106 sotto soglia"
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "green->blue, indice 5.183510529793106 sotto soglia"
+            }
+          ],
+          "rotationTurns": 2,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 3,
+            "6": 4,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 1,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 5,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 6,
+              "category": 5,
+              "note": "red->white"
+            },
+            {
+              "index": 7,
+              "category": 5,
+              "note": "green->blue"
+            },
+            {
+              "index": 8,
+              "category": 5,
+              "note": "yellow->orange"
+            }
+          ],
+          "rotationTurns": 2,
+          "colorConfusions": [
+            {
+              "expected": "red",
+              "got": "white"
+            },
+            {
+              "expected": "green",
+              "got": "blue"
+            },
+            {
+              "expected": "yellow",
+              "got": "orange"
+            }
+          ]
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 3,
+            "2": 1,
+            "3": 0,
+            "4": 1,
+            "5": 3,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 5,
+              "note": "green->blue"
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 5,
+              "note": "white->red"
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 5,
+              "note": "white->orange"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": [
+            {
+              "expected": "green",
+              "got": "blue"
+            },
+            {
+              "expected": "white",
+              "got": "red"
+            },
+            {
+              "expected": "white",
+              "got": "orange"
+            }
+          ]
+        }
+      ],
+      "interval": {
+        "start": 0.42,
+        "end": 8.443333333333332
+      }
+    },
+    {
+      "id": "IMG_6300",
+      "group": "seen",
+      "correct": 32,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 3,
+            "2": 0,
+            "3": 2,
+            "4": 3,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 3
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 3
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 2,
+            "2": 0,
+            "3": 1,
+            "4": 4,
+            "5": 0,
+            "6": 0,
+            "7": 1
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 3
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 7,
+              "note": "green->blue, indice 5.830589328948759 sotto soglia"
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 4
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 0,
+            "4": 2,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 2,
+            "4": 5,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 3
+            },
+            {
+              "index": 5,
+              "category": 3
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 1.2,
+        "end": 10.003333333333332
+      }
+    },
+    {
+      "id": "IMG_6334",
+      "group": "seen",
+      "correct": 54,
+      "faces": [],
+      "interval": {
+        "start": 0,
+        "end": 8.090833333333332
+      }
+    },
+    {
+      "id": "IMG_6336",
+      "group": "seen",
+      "correct": 25,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 6,
+            "2": 1,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 0,
+            "4": 2,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 2,
+            "2": 0,
+            "3": 1,
+            "4": 3,
+            "5": 0,
+            "6": 0,
+            "7": 2
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 3
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "green->orange, indice 3.5029075373495635 sotto soglia"
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "green->blue, indice 3.5029075373495635 sotto soglia"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 1,
+            "6": 5,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 1,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 2,
+              "category": 5,
+              "note": "white->yellow"
+            },
+            {
+              "index": 3,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 5,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 6,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 4
+            }
+          ],
+          "rotationTurns": 3,
+          "colorConfusions": [
+            {
+              "expected": "white",
+              "got": "yellow"
+            }
+          ]
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 3,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 4
+            },
+            {
+              "index": 3,
+              "category": 7,
+              "note": "white->green, indice 2.8442489113797413 sotto soglia"
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "red->white, indice 2.8442489113797413 sotto soglia"
+            },
+            {
+              "index": 7,
+              "category": 7,
+              "note": "yellow->orange, indice 2.8442489113797413 sotto soglia"
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "orange->white, indice 2.8442489113797413 sotto soglia"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 5,
+            "5": 0,
+            "6": 0,
+            "7": 2
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 7,
+              "note": "orange->blue, indice 1.9842754433898029 sotto soglia"
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "yellow->green, indice 1.9842754433898029 sotto soglia"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0,
+        "end": 7.563833333333333
+      }
+    },
+    {
+      "id": "IMG_6338",
+      "group": "seen",
+      "correct": 41,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 6,
+            "2": 0,
+            "3": 0,
+            "4": 2,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 7,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 4
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 2,
+            "2": 0,
+            "3": 3,
+            "4": 3,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 4
+            },
+            {
+              "index": 1,
+              "category": 3
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 4
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 3
+            },
+            {
+              "index": 8,
+              "category": 3
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 4,
+            "2": 4,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 2
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 8,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 1
+            },
+            {
+              "index": 3,
+              "category": 1
+            },
+            {
+              "index": 5,
+              "category": 1
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 1
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0,
+        "end": 8.888933333333332
+      }
+    },
+    {
+      "id": "IMG_6341",
+      "group": "seen",
+      "correct": 11,
+      "faces": [
+        {
+          "face": "U",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 1,
+            "6": 6,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 1,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 2,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 3,
+              "category": 5,
+              "note": "white->red"
+            },
+            {
+              "index": 5,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 6,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 7,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 8,
+              "category": 1
+            }
+          ],
+          "rotationTurns": 3,
+          "colorConfusions": [
+            {
+              "expected": "white",
+              "got": "red"
+            }
+          ]
+        },
+        {
+          "face": "R",
+          "counts": {
+            "1": 1,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 4,
+            "6": 2,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 1,
+              "category": 4
+            },
+            {
+              "index": 2,
+              "category": 5,
+              "note": "blue->red"
+            },
+            {
+              "index": 3,
+              "category": 6,
+              "note": "ruotando di 180 gradi coincide con la verita'"
+            },
+            {
+              "index": 5,
+              "category": 5,
+              "note": "blue->green"
+            },
+            {
+              "index": 6,
+              "category": 1
+            },
+            {
+              "index": 7,
+              "category": 5,
+              "note": "green->blue"
+            },
+            {
+              "index": 8,
+              "category": 5,
+              "note": "white->green"
+            }
+          ],
+          "rotationTurns": 2,
+          "colorConfusions": [
+            {
+              "expected": "blue",
+              "got": "red"
+            },
+            {
+              "expected": "blue",
+              "got": "green"
+            },
+            {
+              "expected": "green",
+              "got": "blue"
+            },
+            {
+              "expected": "white",
+              "got": "green"
+            }
+          ]
+        },
+        {
+          "face": "F",
+          "counts": {
+            "1": 2,
+            "2": 0,
+            "3": 0,
+            "4": 1,
+            "5": 4,
+            "6": 1,
+            "7": 0
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 1
+            },
+            {
+              "index": 2,
+              "category": 5,
+              "note": "orange->blue"
+            },
+            {
+              "index": 3,
+              "category": 5,
+              "note": "orange->white"
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 6,
+              "note": "ruotando di 90 gradi coincide con la verita'"
+            },
+            {
+              "index": 7,
+              "category": 5,
+              "note": "yellow->red"
+            },
+            {
+              "index": 8,
+              "category": 5,
+              "note": "yellow->green"
+            }
+          ],
+          "rotationTurns": 1,
+          "colorConfusions": [
+            {
+              "expected": "orange",
+              "got": "blue"
+            },
+            {
+              "expected": "orange",
+              "got": "white"
+            },
+            {
+              "expected": "yellow",
+              "got": "red"
+            },
+            {
+              "expected": "yellow",
+              "got": "green"
+            }
+          ]
+        },
+        {
+          "face": "D",
+          "counts": {
+            "1": 0,
+            "2": 3,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 2,
+            "7": 3
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 1,
+              "category": 2
+            },
+            {
+              "index": 2,
+              "category": 7,
+              "note": "blue->yellow, indice di allineamento non disponibile"
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 7,
+              "note": "orange->yellow, indice di allineamento non disponibile"
+            },
+            {
+              "index": 6,
+              "category": 6,
+              "note": "ruotando di 270 gradi coincide con la verita'"
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "red->orange, indice di allineamento non disponibile"
+            }
+          ],
+          "rotationTurns": 3,
+          "colorConfusions": []
+        },
+        {
+          "face": "L",
+          "counts": {
+            "1": 1,
+            "2": 3,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 1
+            },
+            {
+              "index": 1,
+              "category": 7,
+              "note": "orange->white, indice di allineamento non disponibile"
+            },
+            {
+              "index": 2,
+              "category": 7,
+              "note": "yellow->green, indice di allineamento non disponibile"
+            },
+            {
+              "index": 3,
+              "category": 2
+            },
+            {
+              "index": 5,
+              "category": 2
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "green->blue, indice di allineamento non disponibile"
+            },
+            {
+              "index": 7,
+              "category": 2
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "orange->blue, indice di allineamento non disponibile"
+            }
+          ],
+          "rotationTurns": null,
+          "colorConfusions": []
+        },
+        {
+          "face": "B",
+          "counts": {
+            "1": 0,
+            "2": 0,
+            "3": 1,
+            "4": 2,
+            "5": 0,
+            "6": 1,
+            "7": 4
+          },
+          "cells": [
+            {
+              "index": 0,
+              "category": 7,
+              "note": "orange->yellow, indice 2.6294047738792248 sotto soglia"
+            },
+            {
+              "index": 1,
+              "category": 3
+            },
+            {
+              "index": 2,
+              "category": 6,
+              "note": "ruotando di 90 gradi coincide con la verita'"
+            },
+            {
+              "index": 3,
+              "category": 7,
+              "note": "red->yellow, indice 2.6294047738792248 sotto soglia"
+            },
+            {
+              "index": 5,
+              "category": 4
+            },
+            {
+              "index": 6,
+              "category": 7,
+              "note": "blue->yellow, indice 2.6294047738792248 sotto soglia"
+            },
+            {
+              "index": 7,
+              "category": 4
+            },
+            {
+              "index": 8,
+              "category": 7,
+              "note": "red->yellow, indice 2.6294047738792248 sotto soglia"
+            }
+          ],
+          "rotationTurns": 1,
+          "colorConfusions": []
+        }
+      ],
+      "interval": {
+        "start": 0,
+        "end": 3.4190333333333336
+      }
+    }
+  ]
+}
