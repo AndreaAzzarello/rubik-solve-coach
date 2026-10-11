@@ -236,6 +236,15 @@ async function main() {
       }, gridAlignmentThreshold);
       log(`filtro indice griglia attivo, soglia: ${gridAlignmentThreshold}`);
     }
+    // Esperimento #17 (vedi docs/pipeline-experiments.md): BENCH_ROTATION_TIE_VARIANT_A=1
+    // attiva la fusione per erosione dei pareggi di qualita' in considerPartial
+    // (lib/inspection-state.ts) invece di scegliere arbitrariamente.
+    if (process.env.BENCH_ROTATION_TIE_VARIANT_A === '1') {
+      await page.addInitScript(() => {
+        (window as unknown as { __benchRotationTieBreakVariantA?: boolean }).__benchRotationTieBreakVariantA = true;
+      });
+      log('variante A (esperimento #17) attiva: fusione dei pareggi per erosione');
+    }
     const sourceFramesTally = process.env.BENCH_SOURCE_FRAMES_TALLY === '1';
     if (sourceFramesTally) {
       await page.addInitScript(() => {
