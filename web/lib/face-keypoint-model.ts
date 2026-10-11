@@ -58,6 +58,26 @@ const MIN_RELATIVE_AREA = 0.35;
 
 export type FaceCornerDetection = { score: number; keypoints: Point[] };
 
+// Strumentazione solo-bench per la diagnosi #12 (vedi
+// bench/missing-cells-diagnosis.ts, parte C): conta i tentativi di
+// rilevamento per colore-centro (prima del gate >=6 celle) e quanti lo
+// superano. Accumula (+=) su tutta l'ispezione, resettato dallo script
+// diagnostico prima di ogni video - stesso schema lazy, no-op di
+// __benchGridAlignmentTally in lib/video-decoder.ts. 'ignoto' = quadrilatero
+// rilevato ma la cella centrale non e' classificabile, quindi non
+// attribuibile a un colore.
+function recordModelGateAttempt(centerColor: CubeColor | null, passed: boolean): void {
+  const target = globalThis as {
+    __benchModelGateAttempts?: Record<string, { attempts: number; passed: number }>;
+  };
+  if (!target.__benchModelGateAttempts) return;
+  const key = centerColor ?? 'ignoto';
+  const entry = target.__benchModelGateAttempts[key] ?? { attempts: 0, passed: 0 };
+  entry.attempts += 1;
+  if (passed) entry.passed += 1;
+  target.__benchModelGateAttempts[key] = entry;
+}
+
 function quadArea(corners: Point[]): number {
   let sum = 0;
   for (let i = 0; i < corners.length; i += 1) {
@@ -150,6 +170,7 @@ export function faceGridFromCorners(
   });
 
   const centerColor = colors[4];
+  recordModelGateAttempt(centerColor, visibleCells >= 6);
   if (visibleCells < 6 || !centerColor) return null;
   applyLocalCenterCalibration(centerColor, rawColors, colors, cellConfidences);
 

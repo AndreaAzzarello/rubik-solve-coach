@@ -11,6 +11,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CubeColor, Face } from '../../lib/cube';
 import { reconstructInspectionFromVideo } from '../../lib/inspection-pipeline';
+import type { BenchFaceObservationDiag, BenchStableRawDiag } from '../../lib/inspection-state';
+import type { MotionSample } from '../../lib/video-decoder';
+
+type ColorPresence = { maxInsideWindow: number; maxBeforeWindow: number; samplesBeforeWindow: number };
 
 type BenchResult = {
   ok: boolean;
@@ -25,21 +29,64 @@ type BenchResult = {
   runCount?: number;
   durationMs?: number;
   error?: string;
-  // Diagnostica esperimento #11 (vedi bench/missing-cells-diagnosis.ts):
+  // Diagnostica esperimento #12 (vedi bench/missing-cells-diagnosis.ts):
   // presenti solo quando la pagina bench ha predisposto i rispettivi global
   // PRIMA della chiamata (stesso schema lazy di __benchGridAlignmentTally).
   faceCoverage?: Record<Face, { observedCells: number; status: string }>;
-  faceObservationDiag?: Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+  faceObservationDiag?: Record<Face, BenchFaceObservationDiag>;
   gridAlignmentSafeguardColors?: CubeColor[];
+  stableRawDiag?: Record<Face, BenchStableRawDiag>;
+  modelGateAttempts?: Record<string, { attempts: number; passed: number }>;
+  candidateCount?: number;
+  truncated?: boolean;
+  coverage?: Record<CubeColor, number>;
+  detectedColors?: CubeColor[];
+  videoDuration?: number;
+  colorPresence?: Record<CubeColor, ColorPresence>;
 };
 
 declare global {
   interface Window {
     __benchReconstruct?: (videoUrl: string) => Promise<BenchResult>;
     __benchReady?: boolean;
-    __benchFaceObservationDiag?: Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+    __benchFaceObservationDiag?: Record<Face, BenchFaceObservationDiag>;
     __benchGridAlignmentSafeguardColors?: CubeColor[];
+    __benchStableRawDiag?: Record<Face, BenchStableRawDiag>;
+    __benchModelGateAttempts?: Record<string, { attempts: number; passed: number }>;
   }
+}
+
+const CUBE_COLORS_LOCAL: CubeColor[] = ['white', 'red', 'green', 'yellow', 'orange', 'blue'];
+
+// Diagnosi #12, parte C: presenza del colore (segnale fotometrico grezzo
+// gia' calcolato dalla prima passata su TUTTO il video, lib/video-decoder.ts
+// decodeVideoMotion) dentro la finestra di ispezione individuata vs PRIMA
+// che la finestra inizi - per distinguere "finestra sbagliata" da "non
+// rilevata"/"scartata dal gate" (quelle due si misurano con
+// __benchModelGateAttempts, qui serve solo a vedere se il colore era
+// altrove visibile).
+function computeColorPresence(
+  samples: MotionSample[],
+  interval: { start: number; end: number },
+): Record<CubeColor, ColorPresence> {
+  const presence = Object.fromEntries(CUBE_COLORS_LOCAL.map((color) => (
+    [color, { maxInsideWindow: 0, maxBeforeWindow: 0, samplesBeforeWindow: 0 }]
+  ))) as Record<CubeColor, ColorPresence>;
+  samples.forEach((sample) => {
+    if (!sample.visibleColors) return;
+    const bucket = sample.time < interval.start ? 'maxBeforeWindow'
+      : sample.time <= interval.end ? 'maxInsideWindow'
+        : null;
+    if (!bucket) return;
+    CUBE_COLORS_LOCAL.forEach((color) => {
+      const value = sample.visibleColors?.[color] ?? 0;
+      if (value > presence[color][bucket]) presence[color][bucket] = value;
+    });
+    if (bucket === 'maxBeforeWindow') {
+      CUBE_COLORS_LOCAL.forEach((color) => { presence[color].samplesBeforeWindow += 1; });
+    }
+  });
+  return presence;
 }
 
 function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
@@ -126,6 +173,14 @@ export default function BenchHarness() {
           faceCoverage,
           faceObservationDiag: window.__benchFaceObservationDiag,
           gridAlignmentSafeguardColors: window.__benchGridAlignmentSafeguardColors,
+          stableRawDiag: window.__benchStableRawDiag,
+          modelGateAttempts: window.__benchModelGateAttempts,
+          candidateCount: reconstruction.candidateCount,
+          truncated: reconstruction.truncated,
+          coverage: result.summary.coverage,
+          detectedColors: result.summary.detectedColors,
+          videoDuration: video.duration,
+          colorPresence: computeColorPresence(result.motionSamples, result.interval),
         };
       } catch (caught) {
         const error = caught instanceof Error ? caught.message : String(caught);

@@ -1279,27 +1279,63 @@ function buildFaceCoverage(
 // bench/missing-cells-diagnosis.ts): la "migliore" osservazione per faccia
 // PRIMA della beam search di completamento (bestByFace), cosi' si puo'
 // distinguere una casella vuota perche' mai letta da una casella vuota
-// perche' letta ma non impegnata dai vincoli/troncamento della ricerca.
+// perche' letta ma non impegnata dai vincoli/troncamento della ricerca, e
+// (diagnosi #12, parte A) da quale percorso arriva una lettura sbagliata.
 // Sovrascrive (non accumula): ogni chiamata a reconstructInspectionState
 // ricalcola da zero. No-op a meno che il global non sia gia' predisposto
 // dalla pagina bench, stesso schema lazy usato altrove (video-decoder.ts).
+export type BenchFaceObservationDiag = {
+  colors: Array<CubeColor | null>;
+  gridAlignmentIndex?: number;
+  gridSource?: FaceGridObservation['gridSource'];
+  syntheticFusion?: boolean;
+  cellConfidences?: number[];
+} | null;
 function recordFaceObservationDiag(bestByFace: Map<Face, FaceGridObservation>): void {
-  const target = globalThis as {
-    __benchFaceObservationDiag?: Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
-  };
+  const target = globalThis as { __benchFaceObservationDiag?: Record<Face, BenchFaceObservationDiag> };
   if (!target.__benchFaceObservationDiag) return;
   target.__benchFaceObservationDiag = Object.fromEntries(FACES.map((face) => {
     const observation = bestByFace.get(face);
     return [face, observation
-      ? { colors: [...observation.colors], gridAlignmentIndex: observation.gridAlignmentIndex }
+      ? {
+        colors: [...observation.colors],
+        gridAlignmentIndex: observation.gridAlignmentIndex,
+        gridSource: observation.gridSource,
+        syntheticFusion: observation.syntheticFusion,
+        cellConfidences: observation.cellConfidences ? [...observation.cellConfidences] : undefined,
+      }
       : null];
-  })) as Record<Face, { colors: Array<CubeColor | null>; gridAlignmentIndex?: number } | null>;
+  })) as Record<Face, BenchFaceObservationDiag>;
+}
+
+// Strumentazione solo-bench per la diagnosi #12, parte B (vedi
+// bench/missing-cells-diagnosis.ts): la lettura grezza stabile e la soglia
+// minima di confidenza usate dal blocco di "rilassamento" sotto (l'unico
+// punto dove una casella letta puo' restare vuota per confidenza troppo
+// bassa) - stessi identici valori, non un'approssimazione. Sovrascrive
+// (resettato a null per ogni faccia a inizio funzione, cosi' non resta
+// sporco quando lo stato e' 'complete' e il blocco sotto non viene eseguito).
+export type BenchStableRawDiag = {
+  colors: Array<CubeColor | null>;
+  confidences: number[];
+  minimumCellConfidence: number;
+} | null;
+function recordStableRawDiag(face: Face, data: BenchStableRawDiag): void {
+  const target = globalThis as { __benchStableRawDiag?: Record<Face, BenchStableRawDiag> };
+  if (!target.__benchStableRawDiag) return;
+  target.__benchStableRawDiag[face] = data;
+}
+function resetStableRawDiag(): void {
+  const target = globalThis as { __benchStableRawDiag?: Record<Face, BenchStableRawDiag> };
+  if (!target.__benchStableRawDiag) return;
+  target.__benchStableRawDiag = Object.fromEntries(FACES.map((face) => [face, null])) as Record<Face, BenchStableRawDiag>;
 }
 
 export function reconstructInspectionState(
   observations: FaceGridObservation[],
   balancedInfo: { observedCells: number; usable: boolean } = { observedCells: 0, usable: false },
 ): InspectionReconstruction {
+  resetStableRawDiag();
   const orientedObservations = normalizeObservationOrientations(observations);
   const observationsByFace = new Map<Face, FaceGridObservation[]>();
   orientedObservations.forEach((observation) => {
@@ -1683,7 +1719,10 @@ export function reconstructInspectionState(
           right.visibleCells * 20 + (right.sourceFrames ?? 1) * 14 + right.confidence
           - (left.visibleCells * 20 + (left.sourceFrames ?? 1) * 14 + left.confidence)
         ))[0];
-      if (!stableRaw) return;
+      if (!stableRaw) {
+        recordStableRawDiag(face, null);
+        return;
+      }
       const alignment = [0, 1, 2, 3].map((turns) => {
         const colors = rotateGrid(stableRaw.colors, turns);
         const confidences = rotateNumbers(stableRaw.cellConfidences, turns);
@@ -1694,8 +1733,16 @@ export function reconstructInspectionState(
         });
         return { colors, confidences, score };
       }).sort((left, right) => right.score - left.score)[0];
-      if (!alignment) return;
+      if (!alignment) {
+        recordStableRawDiag(face, null);
+        return;
+      }
       const minimumCellConfidence = (stableRaw.sourceFrames ?? 1) >= 3 ? 45 : 50;
+      recordStableRawDiag(face, {
+        colors: alignment.colors,
+        confidences: alignment.confidences.map((value, index) => value || (alignment.colors[index] ? stableRaw.confidence : 0)),
+        minimumCellConfidence,
+      });
       alignment.colors.forEach((color, index) => {
         if (!color || index === 4) return;
         if ((alignment.confidences[index] || stableRaw.confidence) < minimumCellConfidence) return;

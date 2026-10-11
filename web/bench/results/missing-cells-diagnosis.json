@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T10:59:35.871Z",
+  "generatedAt": "2026-10-11T12:32:08.573Z",
   "categoryLabels": {
     "1": "corrette",
     "2": "vuote - nessuna osservazione/gate modello",
@@ -8,6 +8,18 @@
     "5": "sbagliate - colore su griglia ben allineata (indice>=6)",
     "6": "sbagliate - orientamento/rotazione faccia",
     "7": "sbagliate - altro"
+  },
+  "bSubcauseLabels": {
+    "1": "piu candidati ugualmente validi, nessuno unico",
+    "2": "troncamento del beam search",
+    "3": "confidenza sotto il minimo nel ramo di rilassamento",
+    "4": "altro"
+  },
+  "cBucketLabels": {
+    "0": "anomalia (gate superato ma la faccia e comunque vuota - da investigare)",
+    "1": "finestra sbagliata (visibile altrove, non nella finestra)",
+    "2": "nella finestra ma non rilevata dal modello",
+    "3": "rilevata ma scartata dal gate >=6 celle"
   },
   "grandTotals": {
     "1": 225,
@@ -18,6 +30,93 @@
     "6": 24,
     "7": 41
   },
+  "partA": {
+    "pathTally": {
+      "modello, salvaguardia (indice sotto soglia)": 28,
+      "nessuna osservazione": 13
+    },
+    "wouldEmptyWrong": 28,
+    "wouldEmptyCorrect": 14,
+    "nonSimulableWrong": 13
+  },
+  "partB": {
+    "totals": {
+      "1": 77,
+      "2": 0,
+      "3": 0,
+      "4": 5
+    },
+    "byVideo": {
+      "IMG_6108": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 5
+      },
+      "IMG_6260": {
+        "1": 2,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6281": {
+        "1": 8,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6297": {
+        "1": 9,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6298": {
+        "1": 8,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6299": {
+        "1": 11,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6300": {
+        "1": 16,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6336": {
+        "1": 13,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6338": {
+        "1": 6,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "IMG_6341": {
+        "1": 4,
+        "2": 0,
+        "3": 0,
+        "4": 0
+      }
+    }
+  },
+  "partC": {
+    "totals": {
+      "0": 24,
+      "1": 0,
+      "2": 30,
+      "3": 11
+    }
+  },
   "videos": [
     {
       "id": "IMG_6107",
@@ -27,7 +126,8 @@
       "interval": {
         "start": 0.8999999999999999,
         "end": 21.970833333333335
-      }
+      },
+      "videoDuration": 55.3
     },
     {
       "id": "IMG_6108",
@@ -80,7 +180,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 2,
+            "detail": "0 tentativi di rilevamento con questo centro-colore (presenza dentro finestra 5.8%, fuori 15.8%)"
+          }
         },
         {
           "face": "R",
@@ -96,27 +207,29 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "nessuno stato fisicamente valido trovato, non per troncamento",
+              "bSubcause": 4
             },
             {
               "index": 1,
               "category": 7,
-              "note": "yellow->blue, indice 4.764346706917787 sotto soglia"
+              "note": "yellow->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 2,
               "category": 7,
-              "note": "green->blue, indice 4.764346706917787 sotto soglia"
+              "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 3,
               "category": 7,
-              "note": "green->yellow, indice 4.764346706917787 sotto soglia"
+              "note": "green->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 5,
               "category": 7,
-              "note": "white->red, indice 4.764346706917787 sotto soglia"
+              "note": "white->red, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 6,
@@ -132,7 +245,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -160,19 +281,27 @@
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "nessuno stato fisicamente valido trovato, non per troncamento",
+              "bSubcause": 4
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "nessuno stato fisicamente valido trovato, non per troncamento",
+              "bSubcause": 4
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "nessuno stato fisicamente valido trovato, non per troncamento",
+              "bSubcause": 4
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "nessuno stato fisicamente valido trovato, non per troncamento",
+              "bSubcause": 4
             },
             {
               "index": 8,
@@ -180,7 +309,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -264,7 +401,15 @@
               "expected": "yellow",
               "got": "green"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -312,7 +457,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=3>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 17.4%) - anomalia da investigare"
+          }
         },
         {
           "face": "B",
@@ -349,7 +505,7 @@
             {
               "index": 6,
               "category": 7,
-              "note": "blue->yellow, indice di allineamento non disponibile"
+              "note": "blue->yellow, percorso: nessuna osservazione"
             },
             {
               "index": 7,
@@ -361,13 +517,25 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 2,
+            "detail": "0 tentativi di rilevamento con questo centro-colore (presenza dentro finestra 11.8%, fuori 18.8%)"
+          }
         }
       ],
       "interval": {
         "start": 26.939999999999998,
         "end": 28.699533333333335
-      }
+      },
+      "videoDuration": 44.986667
     },
     {
       "id": "IMG_6258",
@@ -377,7 +545,8 @@
       "interval": {
         "start": 0.48000000000000004,
         "end": 14.255833333333333
-      }
+      },
+      "videoDuration": 37.69
     },
     {
       "id": "IMG_6260",
@@ -430,7 +599,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -478,7 +655,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -510,7 +695,9 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "2 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -526,7 +713,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -574,7 +769,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -622,7 +825,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "B",
@@ -654,7 +865,9 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "2 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -670,13 +883,22 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 0,
         "end": 7.318833333333333
-      }
+      },
+      "videoDuration": 24.451667
     },
     {
       "id": "IMG_6281",
@@ -729,7 +951,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 2,
+            "detail": "0 tentativi di rilevamento con questo centro-colore (presenza dentro finestra 18.1%, fuori 8.5%)"
+          }
         },
         {
           "face": "R",
@@ -753,15 +986,21 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -769,7 +1008,9 @@
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -777,7 +1018,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=19>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 86.3%) - anomalia da investigare"
+          }
         },
         {
           "face": "F",
@@ -801,7 +1053,9 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -809,7 +1063,9 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -825,7 +1081,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -873,7 +1137,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -921,7 +1193,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "B",
@@ -941,7 +1221,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -957,7 +1239,9 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "100 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
@@ -969,13 +1253,22 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 0.24,
         "end": 8.843733333333333
-      }
+      },
+      "videoDuration": 25.32
     },
     {
       "id": "IMG_6297",
@@ -996,12 +1289,14 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
               "category": 7,
-              "note": "green->white, indice 1.1236059165107473 sotto soglia"
+              "note": "green->white, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 2,
@@ -1009,7 +1304,9 @@
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
@@ -1017,21 +1314,31 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
               "category": 7,
-              "note": "white->red, indice 1.1236059165107473 sotto soglia"
+              "note": "white->red, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 8,
               "category": 7,
-              "note": "orange->blue, indice 1.1236059165107473 sotto soglia"
+              "note": "orange->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -1067,7 +1374,9 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
@@ -1079,7 +1388,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -1100,12 +1417,12 @@
             {
               "index": 1,
               "category": 7,
-              "note": "green->yellow, indice di allineamento non disponibile"
+              "note": "green->yellow, percorso: nessuna osservazione"
             },
             {
               "index": 2,
               "category": 7,
-              "note": "green->orange, indice di allineamento non disponibile"
+              "note": "green->orange, percorso: nessuna osservazione"
             },
             {
               "index": 3,
@@ -1114,12 +1431,12 @@
             {
               "index": 5,
               "category": 7,
-              "note": "orange->green, indice di allineamento non disponibile"
+              "note": "orange->green, percorso: nessuna osservazione"
             },
             {
               "index": 6,
               "category": 7,
-              "note": "blue->red, indice di allineamento non disponibile"
+              "note": "blue->red, percorso: nessuna osservazione"
             },
             {
               "index": 7,
@@ -1131,7 +1448,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=13>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 7.4%) - anomalia da investigare"
+          }
         },
         {
           "face": "D",
@@ -1151,11 +1479,15 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -1179,7 +1511,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -1224,11 +1564,22 @@
             {
               "index": 8,
               "category": 7,
-              "note": "orange->blue, indice di allineamento non disponibile"
+              "note": "orange->blue, percorso: nessuna osservazione"
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 3,
+            "detail": "3 tentativi, 0 hanno superato il gate >=6 celle (presenza dentro finestra 10.0%)"
+          }
         },
         {
           "face": "B",
@@ -1248,11 +1599,15 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -1260,7 +1615,9 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "60 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -1276,13 +1633,22 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 0,
         "end": 3.223333333333333
-      }
+      },
+      "videoDuration": 28.376667
     },
     {
       "id": "IMG_6298",
@@ -1303,11 +1669,15 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -1315,7 +1685,9 @@
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
@@ -1323,11 +1695,15 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -1335,7 +1711,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -1360,7 +1744,9 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -1385,7 +1771,15 @@
             }
           ],
           "rotationTurns": 2,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -1405,7 +1799,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -1433,7 +1829,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -1453,7 +1857,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "48 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -1481,7 +1887,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -1529,7 +1943,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 2,
+            "detail": "0 tentativi di rilevamento con questo centro-colore (presenza dentro finestra 4.9%, fuori 0.0%)"
+          }
         },
         {
           "face": "B",
@@ -1577,13 +2002,25 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 3,
+            "detail": "2 tentativi, 0 hanno superato il gate >=6 celle (presenza dentro finestra 60.3%)"
+          }
         }
       ],
       "interval": {
         "start": 0,
         "end": 8.203333333333331
-      }
+      },
+      "videoDuration": 26.243333
     },
     {
       "id": "IMG_6299",
@@ -1608,7 +2045,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -1621,11 +2060,15 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
@@ -1652,7 +2095,15 @@
               "expected": "blue",
               "got": "yellow"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -1668,35 +2119,41 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
               "category": 7,
-              "note": "red->yellow, indice 2.277354176584781 sotto soglia"
+              "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 3,
               "category": 7,
-              "note": "green->red, indice 2.277354176584781 sotto soglia"
+              "note": "green->red, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
               "category": 7,
-              "note": "yellow->white, indice 2.277354176584781 sotto soglia"
+              "note": "yellow->white, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 7,
               "category": 7,
-              "note": "white->yellow, indice 2.277354176584781 sotto soglia"
+              "note": "white->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 8,
@@ -1704,7 +2161,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -1726,38 +2191,52 @@
             {
               "index": 1,
               "category": 7,
-              "note": "orange->green, indice 5.183510529793106 sotto soglia"
+              "note": "orange->green, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
               "category": 7,
-              "note": "red->green, indice 5.183510529793106 sotto soglia"
+              "note": "red->green, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 6,
               "category": 7,
-              "note": "red->yellow, indice 5.183510529793106 sotto soglia"
+              "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
               "category": 7,
-              "note": "green->blue, indice 5.183510529793106 sotto soglia"
+              "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             }
           ],
           "rotationTurns": 2,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -1805,7 +2284,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -1831,7 +2318,9 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -1873,7 +2362,15 @@
               "expected": "yellow",
               "got": "orange"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "B",
@@ -1894,7 +2391,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -1937,13 +2436,25 @@
               "expected": "white",
               "got": "orange"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=54>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 8.1%) - anomalia da investigare"
+          }
         }
       ],
       "interval": {
         "start": 0.42,
         "end": 8.443333333333332
-      }
+      },
+      "videoDuration": 21.558333
     },
     {
       "id": "IMG_6300",
@@ -1964,7 +2475,9 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
@@ -1980,7 +2493,9 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -1988,7 +2503,9 @@
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -1996,7 +2513,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -2012,7 +2537,9 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
@@ -2020,16 +2547,20 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
               "category": 7,
-              "note": "green->blue, indice 5.830589328948759 sotto soglia"
+              "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -2037,7 +2568,9 @@
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -2045,7 +2578,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -2065,7 +2606,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -2093,7 +2636,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -2137,11 +2688,21 @@
             },
             {
               "index": 8,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -2157,11 +2718,15 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -2189,7 +2754,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "B",
@@ -2205,15 +2778,21 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -2225,11 +2804,15 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "41 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -2237,13 +2820,22 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 1.2,
         "end": 10.003333333333332
-      }
+      },
+      "videoDuration": 28.038333
     },
     {
       "id": "IMG_6334",
@@ -2253,7 +2845,8 @@
       "interval": {
         "start": 0,
         "end": 8.090833333333332
-      }
+      },
+      "videoDuration": 23.5
     },
     {
       "id": "IMG_6336",
@@ -2294,7 +2887,9 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
@@ -2306,7 +2901,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=18>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 42.9%) - anomalia da investigare"
+          }
         },
         {
           "face": "R",
@@ -2330,7 +2936,9 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
@@ -2346,7 +2954,9 @@
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -2354,7 +2964,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -2374,7 +2992,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -2382,7 +3002,9 @@
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
@@ -2391,20 +3013,30 @@
             {
               "index": 6,
               "category": 7,
-              "note": "green->orange, indice 3.5029075373495635 sotto soglia"
+              "note": "green->orange, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
               "category": 7,
-              "note": "green->blue, indice 3.5029075373495635 sotto soglia"
+              "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -2454,7 +3086,9 @@
             },
             {
               "index": 8,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             }
           ],
           "rotationTurns": 3,
@@ -2463,7 +3097,15 @@
               "expected": "white",
               "got": "yellow"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -2487,12 +3129,14 @@
             },
             {
               "index": 2,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 3,
               "category": 7,
-              "note": "white->green, indice 2.8442489113797413 sotto soglia"
+              "note": "white->green, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 5,
@@ -2501,21 +3145,29 @@
             {
               "index": 6,
               "category": 7,
-              "note": "red->white, indice 2.8442489113797413 sotto soglia"
+              "note": "red->white, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 7,
               "category": 7,
-              "note": "yellow->orange, indice 2.8442489113797413 sotto soglia"
+              "note": "yellow->orange, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 8,
               "category": 7,
-              "note": "orange->white, indice 2.8442489113797413 sotto soglia"
+              "note": "orange->white, percorso: modello, salvaguardia (indice sotto soglia)"
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "B",
@@ -2531,11 +3183,15 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -2543,35 +3199,50 @@
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
               "category": 7,
-              "note": "orange->blue, indice 1.9842754433898029 sotto soglia"
+              "note": "orange->blue, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 8,
               "category": 7,
-              "note": "yellow->green, indice 1.9842754433898029 sotto soglia"
+              "note": "yellow->green, percorso: modello, salvaguardia (indice sotto soglia)"
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 0,
         "end": 7.563833333333333
-      }
+      },
+      "videoDuration": 25.268333
     },
     {
       "id": "IMG_6338",
@@ -2596,7 +3267,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "29 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -2616,7 +3289,9 @@
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "29 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
@@ -2624,7 +3299,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -2660,7 +3343,9 @@
             },
             {
               "index": 6,
-              "category": 4
+              "category": 4,
+              "note": "29 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 7,
@@ -2672,7 +3357,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -2688,7 +3381,9 @@
           "cells": [
             {
               "index": 0,
-              "category": 4
+              "category": 4,
+              "note": "29 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 1,
@@ -2700,11 +3395,15 @@
             },
             {
               "index": 3,
-              "category": 4
+              "category": 4,
+              "note": "29 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "29 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -2720,7 +3419,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -2768,7 +3475,15 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "L",
@@ -2816,7 +3531,18 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=1>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 1.7%) - anomalia da investigare"
+          }
         },
         {
           "face": "B",
@@ -2864,13 +3590,22 @@
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 0,
         "end": 8.888933333333332
-      }
+      },
+      "videoDuration": 28.271667
     },
     {
       "id": "IMG_6341",
@@ -2935,7 +3670,15 @@
               "expected": "white",
               "got": "red"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "R",
@@ -2956,7 +3699,9 @@
             },
             {
               "index": 1,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 2,
@@ -3006,7 +3751,15 @@
               "expected": "white",
               "got": "green"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "F",
@@ -3040,7 +3793,9 @@
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
@@ -3076,7 +3831,15 @@
               "expected": "yellow",
               "got": "green"
             }
-          ]
+          ],
+          "pathInfo": {
+            "label": "modello",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": false,
+            "why": "il filtro si applica normalmente (indice >= 6)"
+          },
+          "cCategoryInfo": null
         },
         {
           "face": "D",
@@ -3102,7 +3865,7 @@
             {
               "index": 2,
               "category": 7,
-              "note": "blue->yellow, indice di allineamento non disponibile"
+              "note": "blue->yellow, percorso: nessuna osservazione"
             },
             {
               "index": 3,
@@ -3111,7 +3874,7 @@
             {
               "index": 5,
               "category": 7,
-              "note": "orange->yellow, indice di allineamento non disponibile"
+              "note": "orange->yellow, percorso: nessuna osservazione"
             },
             {
               "index": 6,
@@ -3125,11 +3888,22 @@
             {
               "index": 8,
               "category": 7,
-              "note": "red->orange, indice di allineamento non disponibile"
+              "note": "red->orange, percorso: nessuna osservazione"
             }
           ],
           "rotationTurns": 3,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 0,
+            "detail": "gate.passed=31>0 ma la faccia e' comunque categoria 2 (presenza dentro finestra 5.3%) - anomalia da investigare"
+          }
         },
         {
           "face": "L",
@@ -3150,12 +3924,12 @@
             {
               "index": 1,
               "category": 7,
-              "note": "orange->white, indice di allineamento non disponibile"
+              "note": "orange->white, percorso: nessuna osservazione"
             },
             {
               "index": 2,
               "category": 7,
-              "note": "yellow->green, indice di allineamento non disponibile"
+              "note": "yellow->green, percorso: nessuna osservazione"
             },
             {
               "index": 3,
@@ -3168,7 +3942,7 @@
             {
               "index": 6,
               "category": 7,
-              "note": "green->blue, indice di allineamento non disponibile"
+              "note": "green->blue, percorso: nessuna osservazione"
             },
             {
               "index": 7,
@@ -3177,11 +3951,22 @@
             {
               "index": 8,
               "category": 7,
-              "note": "orange->blue, indice di allineamento non disponibile"
+              "note": "orange->blue, percorso: nessuna osservazione"
             }
           ],
           "rotationTurns": null,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "nessuna osservazione",
+            "fn": "-",
+            "skipsFilter": false,
+            "why": "-",
+            "modelSafeguarded": false
+          },
+          "cCategoryInfo": {
+            "bucket": 2,
+            "detail": "0 tentativi di rilevamento con questo centro-colore (presenza dentro finestra 4.6%, fuori 0.0%)"
+          }
         },
         {
           "face": "B",
@@ -3198,7 +3983,7 @@
             {
               "index": 0,
               "category": 7,
-              "note": "orange->yellow, indice 2.6294047738792248 sotto soglia"
+              "note": "orange->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 1,
@@ -3212,35 +3997,48 @@
             {
               "index": 3,
               "category": 7,
-              "note": "red->yellow, indice 2.6294047738792248 sotto soglia"
+              "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 5,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 6,
               "category": 7,
-              "note": "blue->yellow, indice 2.6294047738792248 sotto soglia"
+              "note": "blue->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             },
             {
               "index": 7,
-              "category": 4
+              "category": 4,
+              "note": "36 stati candidati in disaccordo su questa casella",
+              "bSubcause": 1
             },
             {
               "index": 8,
               "category": 7,
-              "note": "red->yellow, indice 2.6294047738792248 sotto soglia"
+              "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
             }
           ],
           "rotationTurns": 1,
-          "colorConfusions": []
+          "colorConfusions": [],
+          "pathInfo": {
+            "label": "modello, salvaguardia (indice sotto soglia)",
+            "fn": "fuseFaceObservations / selectSingleBestModelObservationPerFace (lib/video-decoder.ts)",
+            "skipsFilter": false,
+            "modelSafeguarded": true,
+            "why": "il filtro SI applica: tutte le osservazioni di questo colore erano sotto soglia 6, la salvaguardia ha tenuto la singola migliore per non perdere la faccia - voluto (esperimento #10)"
+          },
+          "cCategoryInfo": null
         }
       ],
       "interval": {
         "start": 0,
         "end": 3.4190333333333336
-      }
+      },
+      "videoDuration": 25.45
     }
   ]
 }

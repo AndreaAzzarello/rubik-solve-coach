@@ -230,6 +230,84 @@ altri no.
     già osservato per gli esperimenti #1-9, qui dentro al meccanismo di
     selezione invece che nel colore.
 
+12. **Diagnosi causale delle caselle non corrette a soglia 6** (non un
+    cambio di produzione: `bench/missing-cells-diagnosis.ts`, diagnosi
+    solamente). Classifica le 48 caselle non centrali di ogni video sotto
+    54/54 (10 dei 13 video) in 7 categorie, verificando che la somma per
+    video dia sempre 48.
+
+    | # | Categoria | Totale su 255 non corrette |
+    |---|---|---|
+    | 2 | vuote — nessuna osservazione/gate modello | 65 |
+    | 3 | vuote — salvaguardia filtro allineamento | 17 |
+    | 4 | vuote — non impegnate dalla ricostruzione (vincoli/beam) | 82 |
+    | 5 | sbagliate — colore su griglia ben allineata (indice≥6) | 26 |
+    | 6 | sbagliate — orientamento/rotazione faccia | 24 |
+    | 7 | sbagliate — altro | 41 |
+
+    225 caselle corrette su 480.
+
+    **Approfondimento A (categoria 7, 41 celle)**: percorso della lettura
+    usata. 28/41 da modello protetto dalla salvaguardia dell'esperimento #10
+    (indice sotto soglia, filtro applicato correttamente — voluto); 13/41 da
+    nessuna osservazione affatto, valore dedotto dai soli vincoli dei pezzi
+    (non una lettura fotometrica sbagliata, una DEDUZIONE sbagliata).
+    Controfattuale "soglia 6 anche sulla salvaguardia": le 28 diventerebbero
+    vuote invece di sbagliate, ma 14 caselle oggi CORRETTE sulle stesse
+    facce diventerebbero vuote anche loro — nessun guadagno netto, confirma
+    che la salvaguardia è già nella configurazione giusta. Le 13 non sono
+    simulabili (nessun indice geometrico per una deduzione pura).
+
+    **Approfondimento B (categoria 4, 82 celle)**: 77/82 per beam search con
+    più stati candidati ugualmente validi (nessuno unico — la cella resta
+    vuota per consenso mancante, non per troncamento né per confidenza
+    sotto soglia: queste ultime due sotto-cause sono 0/82). 5/82 "altro",
+    tutte su IMG_6108.
+
+    **Approfondimento C (categoria 2, 65 celle)**: per faccia, confronto tra
+    presenza del colore dentro/fuori la finestra di ispezione individuata e
+    tentativi di rilevamento modello (gate ≥6 celle). 30/65 mai rilevate dal
+    modello nella finestra pur essendo presenti; 11/65 rilevate ma scartate
+    dal gate; 24/65 un'anomalia misurata (il modello ha superato il gate in
+    qualche passata della pipeline — fino a 54 volte — ma la faccia resta
+    comunque vuota nello stato finale): il tally dei tentativi copre TUTTO
+    il run (scansione di confine + passate di fusione successive, intervalli
+    più larghi della finestra finale), quindi non distingue un successo
+    dentro la finestra finale da uno fuori — prossimo passo di misura, non
+    ancora un'causa isolata. Nessuna faccia è risultata "finestra sbagliata"
+    pura con la soglia di presenza-colore usata (4%), ma **IMG_6108
+    (26,94–28,70 s su 44,99 s di video) resta un caso a parte**: finestra di
+    soli 1,76 s, a oltre metà video, un netto outlier rispetto a tutti gli
+    altri video del bench (tutti con finestra 0–1,2 s); le facce U e L non
+    hanno nessun tentativo di rilevamento nella finestra, con presenza di
+    colore più alta PRIMA della finestra che dentro (U: 15,8% prima vs 5,8%
+    dentro). Plausibile che l'euristica di segmentazione
+    (`inferVideoSegmentation`/`inferInspectionEnd`) abbia scelto la finestra
+    sbagliata per questo video.
+
+    **Piste ordinate per caselle recuperabili stimate** (nessuna implementata,
+    solo diagnosi):
+    1. Beam search non univoco (B, ~77 celle) — scartata come prima pista:
+       stesso schema di rischio della variante A (#11), "riempire forzando
+       una scelta fra ambigui" ha già fatto collassare la precisione altrove.
+    2. Finestra di ispezione su IMG_6108 (~23 celle, U+L+B su un solo video)
+       — **prima pista da tentare**: non tocca fusione/colore (area di tutti
+       gli esperimenti #1-9 scartati), è isolata e ben evidenziata dai dati
+       (outlier netto su durata/posizione finestra). Piano: raccogliere
+       altri video con lo stesso pattern (finestra breve e tardiva rispetto
+       alla durata) prima di toccare l'euristica; se confermato, aggiustare
+       `inferInspectionEnd` solo per quel pattern. Criterio di successo:
+       totale sopra 447/702, nessun video test giù di più di 5, IMG_6108 sale
+       senza che nessun altro video peggiori.
+    3. Rilevamento modello mancante in finestra (C, 30 celle) e anomalia di
+       ambito boundary-scan/finestra finale (C, 24 celle) — richiedono prima
+       uno strumento di misura più preciso (tally del gate con timestamp,
+       filtrato alla finestra finale) prima di poter proporre un intervento.
+    4. Salvaguardia dell'esperimento #10 (A, 28 celle) — nessuna azione:
+       il controfattuale mostra che è già nella configurazione corretta.
+
+    Dati completi: `bench/results/missing-cells-diagnosis.json`.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
