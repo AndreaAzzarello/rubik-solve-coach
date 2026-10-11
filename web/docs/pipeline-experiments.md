@@ -4,12 +4,14 @@ Bench di riferimento: 13 video (`bench/cases.json`) — 3 "test" mai visti dal
 modello (IMG_6258/6260/6281, le sole decisive per cambi di MODELLO), 2
 "integration" (IMG_6107/6108), 8 "seen" usati in training. Baseline storica
 (esperimenti #1-9) = 359/702 (gruppo test 130/162: 6258=54, 6260=39,
-6281=37). **Baseline attuale (dopo l'adozione dell'esperimento #10, soglia
-6) = 447/702**, gruppo test 141/162 (6258=54, 6260=50, 6281=37).
+6281=37). Dopo l'adozione dell'esperimento #10 (soglia 6) = 447/702, gruppo
+test 141/162 (6258=54, 6260=50, 6281=37). **Baseline attuale (dopo
+l'adozione dell'esperimento #16, Passo 2 + Passo 3) = 462/702**, gruppo
+test 155/162 (6258=54, 6260=49, 6281=52).
 
 Ogni riga: cosa è stato provato → risultato sui 13 video → perché è stato
-scartato (o adottato). Solo l'esperimento #10 è in produzione; tutti gli
-altri no.
+scartato (o adottato). Gli esperimenti #10 e #16 sono in produzione; tutti
+gli altri no.
 
 1. **finetune-crops.onnx da solo** (checkpoint fine-tuned, sostituiva il
    modello di produzione) → PCK migliore ma bench 6281 crolla a 16/54 →
@@ -589,8 +591,8 @@ altri no.
     prevedeva solo nel ramo "il test 1 passa"; il test 1 fallisce, quindi
     per l'albero di decisione dichiarato la diagnosi si ferma qui.
 
-16. **Correzione del bug trovato nel #15** (branch `exp/beam-truncation-fix`,
-    non mersato su `main` — decisione da confermare, vedi Passo 4).
+16. **Correzione del bug trovato nel #15** → **ADOTTATO** (Passo 2 + Passo 3,
+    mersato su `main` dal branch `exp/beam-truncation-fix`).
 
     **Passo 1 (conferma della causa)**: rilanciata la variante 1c con i cap
     768/`enumeratePieceAssignments` e 96/`completePartialFacelets`
@@ -680,19 +682,68 @@ altri no.
     `bestPartial` su dati reali non sintetici, fuori dal controllo di
     questo esperimento). 6341 e 6260 scendono di 1 casella ciascuno.
 
-    **Non mersato su `main`: riportato, fermo qui, decide l'utente.** Il
-    criterio numerico dichiarato è soddisfatto e il miglioramento aggregato
-    e sul gruppo test è netto, ma la regressione isolata su 6299 merita una
-    decisione esplicita prima di toccare la produzione, specialmente dopo
-    la storia di questo documento (Conclusione: la ricostruzione è
-    sensibile in modo caotico, un singolo video può muoversi in modi non
-    previsti anche quando il totale aggregato migliora).
+    **Adottato su `main`** dopo revisione esplicita della regressione
+    isolata su 6299 (diagnosticata separatamente, vedi sotto): il criterio
+    numerico dichiarato è soddisfatto (462>447, nessun video test giù) e il
+    miglioramento aggregato e sul gruppo test è netto. 6299 resta un caso
+    peggiorato, accettato consapevolmente.
 
     Test 1c (esperimento #15) promossa da `{ todo }` ad assert pieno:
     dopo il Passo 3 passa stabilmente (13/13).
 
     Dati completi: `bench/results/exp16-passo2-only.json`,
     `bench/results/exp16-passo2-plus-passo3.json`.
+
+    **Perché 6299 peggiora (corrette 14→8, precisione 38,9%→32%)** — solo
+    diagnosi (`bench/img6299-regression-check.ts`), nessuna correzione
+    implementata.
+
+    17 caselle cambiano: 6 erano corrette e sono diventate vuote (U0, U3,
+    R8, B5, B6, B7 — il costo accettato del Passo 2, caselle presenti solo
+    via `candidateConsensus`/candidato singolo, non in `bestPartial`), 8
+    erano sbagliate e sono diventate vuote (miglioramento), 3 erano vuote e
+    sono diventate sbagliate (U6, F7, L2 — tutte da inferenza forzata dai
+    pezzi, nessuna da osservazione diretta).
+
+    **Ipotesi rotazione confermata per F e L**: ruotando le sole letture
+    dirette osservate (senza toccare nulla nel codice) il confronto con la
+    verità sale da 0 a 3/5 caselle per F (180°) e da 0 a 5/8 per L (180°).
+    Entrambe le facce risultano ruotate di 180° rispetto al vero
+    orientamento. Il builder delle rotazioni per faccia
+    (`lib/inspection-state.ts`, dentro `reconstructInspectionState`) mostra
+    **margine 0,0 fra la prima e la seconda rotazione per TUTTE le 6
+    facce** di questo video — non è un'anomalia isolata, è sistematico qui.
+
+    **Causa individuata (limite strutturale, non un errore di logica che
+    produce un risultato sbagliato rispetto alle specifiche — una scelta
+    "giusta" semplicemente non è definita quando manca il segnale)**:
+    `colorLayoutQuality` (riga ~447) dipende solo dall'insieme dei colori
+    visibili (un `Set`, indifferente alla posizione); `visibleCells`/
+    `confidence`/`sourceFrames` sono proprietà dell'osservazione,
+    indifferenti alla rotazione. Quando la confidenza per-cella è uniforme
+    (niente celle "più debole" da scartare: `removalPenalty` uguale per
+    ogni rotazione), **il punteggio delle 4 rotazioni è matematicamente
+    identico per costruzione**. Senza un `orientationConfidence`
+    indipendente, la scelta finale dipende dall'ordine di inserimento nella
+    `Map`, non dalla correttezza geometrica. Test che lo riproduce in
+    isolamento aggiunto in `lib/inspection-state.test.ts` (osservazione
+    sintetica a confidenza uniforme → le rotazioni trovate hanno lo stesso
+    punteggio).
+
+    Correzione proposta (non implementata): un termine di punteggio
+    sensibile alla rotazione calcolabile per singola faccia — per esempio
+    un bonus per quante triple d'angolo (faccia + i due vicini visibili
+    nella stessa osservazione) coincidono con un angolo reale di
+    `CUBIE_COLOR_SCHEMA` — così la preferenza non dipenderebbe più solo
+    dall'ordine di inserimento quando confidenza e colori sono uniformi. Da
+    validare con lo stesso bench completo prima di adottare (stesso rischio
+    delle piste già scartate: "riempire/scegliere in modo diverso" ha
+    sempre richiesto una verifica sui 13 video, mai un'intuizione isolata).
+
+    La faccia R, invece, non si spiega con una rotazione (nessuna delle 4
+    rotazioni delle letture dirette raggiunge un solo match con la verità):
+    è un limite dei dati di 6299, letture di colore sbagliate su R, non un
+    problema di orientamento.
 
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 

@@ -1443,6 +1443,31 @@ function recordCandidateStatesDiag(candidates: PartialFacelets[]): void {
   target.__benchCandidateStatesDiag = candidates;
 }
 
+// Strumentazione solo-bench per la diagnosi dell'esperimento #16 (regressione
+// 6299): le rotazioni per faccia considerate PRIMA del beam search, ordinate
+// per punteggio - per vedere se bestPartial ha scelto un orientamento diverso
+// da quello vero e con che margine sull'alternativa. Sovrascrive.
+export type BenchChoicesDiag = Record<Face, Array<{
+  grid: Array<CubeColor | null>;
+  score: number;
+}>>;
+function recordChoicesDiag(choices: Array<{ face: Face; rotations: Array<{ grid: Array<CubeColor | null>; score: number }> }>): void {
+  const target = globalThis as { __benchChoicesDiag?: BenchChoicesDiag };
+  if (!target.__benchChoicesDiag) return;
+  target.__benchChoicesDiag = Object.fromEntries(
+    choices.map(({ face, rotations }) => [face, rotations.slice(0, 5).map((r) => ({ grid: r.grid, score: r.score }))]),
+  ) as BenchChoicesDiag;
+}
+
+// Strumentazione solo-bench per la diagnosi dell'esperimento #16: bestObservedPartial
+// (solo osservazioni dirette) e bestPartial (+ inferenze forzate dai pezzi) - per
+// classificare da dove viene ogni casella mostrata (diretta/forzata/altro).
+function recordPartialDiag(bestObservedPartial: PartialFacelets, bestPartial: PartialFacelets): void {
+  const target = globalThis as { __benchPartialDiag?: { bestObservedPartial: PartialFacelets; bestPartial: PartialFacelets } };
+  if (!target.__benchPartialDiag) return;
+  target.__benchPartialDiag = { bestObservedPartial, bestPartial };
+}
+
 export function reconstructInspectionState(
   observations: FaceGridObservation[],
   balancedInfo: { observedCells: number; usable: boolean } = { observedCells: 0, usable: false },
@@ -1554,6 +1579,7 @@ export function reconstructInspectionState(
       rotations: [...rotationsByPattern.values()].sort((left, right) => right.score - left.score),
     };
   });
+  recordChoicesDiag(choices);
   type RankedCompleteState = {
     facelets: PartialFacelets;
     sourceScore: number;
@@ -1811,6 +1837,7 @@ export function reconstructInspectionState(
   if (rankedCandidates[0]?.relaxed) relaxedFacelets = rankedCandidates[0].relaxed;
   const candidates = rankedCandidates.map((candidate) => candidate.facelets);
   recordCandidateStatesDiag(candidates);
+  recordPartialDiag(bestObservedPartial, bestPartial);
   const candidateConsensus = consensusFacelets(candidates, withCanonicalCenters());
   // Il troncamento (beam/rotazioni/completion) segnala solo che la ricerca potrebbe aver
   // tagliato altri stati validi, non che li ha trovati. Se resta comunque un solo candidato

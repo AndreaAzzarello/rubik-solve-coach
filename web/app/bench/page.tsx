@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CubeColor, Face } from '../../lib/cube';
 import { reconstructInspectionFromVideo } from '../../lib/inspection-pipeline';
-import type { BenchBudgetTelemetry, BenchFaceObservationDiag, BenchStableRawDiag, FaceGridObservation, PartialFacelets } from '../../lib/inspection-state';
+import type { BenchBudgetTelemetry, BenchChoicesDiag, BenchFaceObservationDiag, BenchStableRawDiag, FaceGridObservation, PartialFacelets } from '../../lib/inspection-state';
 import type { MotionSample } from '../../lib/video-decoder';
 
 type ColorPresence = { maxInsideWindow: number; maxBeforeWindow: number; samplesBeforeWindow: number };
@@ -36,6 +36,8 @@ type BenchResult = {
   faceObservationDiag?: Record<Face, BenchFaceObservationDiag>;
   gridAlignmentSafeguardColors?: CubeColor[];
   stableRawDiag?: Record<Face, BenchStableRawDiag>;
+  choicesDiag?: BenchChoicesDiag;
+  partialDiag?: { bestObservedPartial: PartialFacelets; bestPartial: PartialFacelets };
   modelGateAttempts?: Record<string, { attempts: number; passed: number }>;
   candidateCount?: number;
   truncated?: boolean;
@@ -59,6 +61,8 @@ declare global {
     __benchFaceObservationDiag?: Record<Face, BenchFaceObservationDiag>;
     __benchGridAlignmentSafeguardColors?: CubeColor[];
     __benchStableRawDiag?: Record<Face, BenchStableRawDiag>;
+    __benchChoicesDiag?: BenchChoicesDiag;
+    __benchPartialDiag?: { bestObservedPartial: PartialFacelets; bestPartial: PartialFacelets };
     __benchModelGateAttempts?: Record<string, { attempts: number; passed: number }>;
     __benchCandidateStatesDiag?: PartialFacelets[];
     __benchAlignmentFilteredObservations?: FaceGridObservation[];
@@ -186,6 +190,8 @@ export default function BenchHarness() {
           faceObservationDiag: window.__benchFaceObservationDiag,
           gridAlignmentSafeguardColors: window.__benchGridAlignmentSafeguardColors,
           stableRawDiag: window.__benchStableRawDiag,
+          choicesDiag: window.__benchChoicesDiag,
+          partialDiag: window.__benchPartialDiag,
           modelGateAttempts: window.__benchModelGateAttempts,
           candidateCount: reconstruction.candidateCount,
           truncated: reconstruction.truncated,

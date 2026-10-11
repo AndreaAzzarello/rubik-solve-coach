@@ -456,3 +456,55 @@ test('esperimento #16 Passo 2: nessuna casella sbagliata-ma-certa quando la rice
   });
   assert.equal(failures.length, 0, `caselle sbagliate-ma-certe trovate:\n${failures.join('\n')}`);
 });
+
+// Diagnosi della regressione IMG_6299 (dopo l'adozione dell'esperimento #16,
+// vedi docs/pipeline-experiments.md): caratterizza un limite strutturale, non
+// una regressione nuova da correggere qui. colorLayoutQuality (riga ~447)
+// dipende solo dall'INSIEME dei colori visibili (un Set, indifferente
+// all'ordine), non dalla loro posizione; visibleCells/confidence/
+// sourceFrames sono proprietà dell'osservazione, anch'esse indifferenti alla
+// rotazione. Quando le 9 celle di un'osservazione hanno TUTTE la stessa
+// confidenza (nessuna "più debole" da scartare: removalPenalty uguale per
+// ogni rotazione), il punteggio delle 4 rotazioni nel builder di `choices`
+// (lib/inspection-state.ts, dentro reconstructInspectionState) risulta
+// IDENTICO per costruzione - non per coincidenza. Senza un segnale di
+// orientamento indipendente (orientationConfidence) o vincoli già risolti
+// su altre facce, il sistema non ha alcun modo di preferire la rotazione
+// geometricamente corretta: la scelta finale dipende dall'ordine di
+// inserimento nella Map, non dalla correttezza. Misurato dal vivo su
+// IMG_6299: le facce F e L risultano ruotate di 180° (il confronto diretto
+// con la verità sale da 0 a 3/5 e 5/8 caselle semplicemente ruotando le
+// stesse letture), con margine 0,0 fra le prime due rotazioni per OGNI
+// faccia della ricostruzione.
+//
+// Correzione proposta (non implementata): un termine di punteggio sensibile
+// alla rotazione e calcolabile per singola faccia, indipendente dalle altre
+// - per esempio un bonus per quante triple angolo (faccia + i due vicini
+// visibili nella stessa osservazione) coincidono con un angolo reale di
+// CUBIE_COLOR_SCHEMA, così la preferenza non dipenderebbe più solo
+// dall'ordine di inserimento quando confidenza e colori sono uniformi.
+test('diagnosi IMG_6299: le 4 rotazioni di una faccia hanno punteggio identico quando la confidenza è uniforme (limite strutturale, non una regressione)', () => {
+  // Scramble, non risolto: una faccia a un solo colore avrebbe lo stesso
+  // pattern (quindi la stessa chiave) a ogni rotazione, mascherando il
+  // pareggio che qui si vuole dimostrare.
+  const cube = CubeState.solved().applyMoves(parseAlgorithm("R U F2 L2 D B2 U2 R2"));
+  const face: Face = 'F';
+  const colors = cube.facelets(face); // 9 colori distinti per posizione-pezzo, confidenza tutta uguale
+  const observation: FaceGridObservation = {
+    time: 0,
+    centerColor: CANONICAL_FACE_COLOR[face],
+    colors,
+    confidence: 90,
+    visibleCells: 9,
+    sourceFrames: 1,
+    // orientationConfidence assente apposta: nessun segnale indipendente di orientamento.
+  };
+  (globalThis as unknown as Record<string, unknown>).__benchChoicesDiag = {};
+  reconstructInspectionState([observation], { observedCells: 0, usable: false });
+  const choicesDiag = (globalThis as unknown as Record<string, unknown>).__benchChoicesDiag as Record<Face, Array<{ score: number }>>;
+  delete (globalThis as unknown as Record<string, unknown>).__benchChoicesDiag;
+  const rotations = choicesDiag[face];
+  assert.ok(rotations.length >= 2, 'servono almeno 2 varianti di rotazione per verificare il pareggio');
+  const scores = new Set(rotations.map((r) => Math.round(r.score * 1000)));
+  assert.equal(scores.size, 1, `punteggi delle rotazioni non identici: ${rotations.map((r) => r.score).join(', ')}`);
+});
