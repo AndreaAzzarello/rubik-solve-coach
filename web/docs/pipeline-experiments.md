@@ -513,6 +513,82 @@ altri no.
 
     Dati completi: `bench/results/beam-budget-check.json`.
 
+15. **Test di sanità: con un input perfetto (nessun video, nessun errore di
+    lettura), la ricerca trova sempre lo stato vero?** (solo diagnosi;
+    aggiunge pero' un test automatico permanente, vedi sotto. Nessuna
+    modifica alla pipeline di produzione.)
+
+    Premessa logica verificata in questo esperimento: se l'input della
+    ricerca contiene SOLO letture compatibili con la verità, una ricerca
+    che esplora tutto lo spazio fisicamente valido deve sempre includere lo
+    stato vero. Nell'esperimento #14 questo non succede mai (nemmeno con
+    456.192 candidati su 6341): quindi o la rimozione delle letture
+    sbagliate era incompleta, o c'è un bug nella ricostruzione stessa.
+
+    **Test 1 (oracolo sintetico, nessun video)**: per i 13 scramble di
+    `bench/cases.json`, genera lo stato vero con `CubeState.facelets()` (le
+    stesse funzioni di produzione: `CANONICAL_FACE_COLOR`,
+    `reconstructInspectionState`) e costruisce osservazioni "perfette"
+    (confidenza 95, nessun errore):
+
+    | Variante | Copertura | Esito |
+    |---|---|---|
+    | 1a — tutte le 48 caselle | 9/9 per faccia | **13/13 passano**: ricostruzione identica alla verità (`complete`, 54/54) |
+    | 1b — 5 facce complete, 1 assente (a rotazione tra le 6) | 9/9 su 5 facce | **13/13 passano**: stato vero sempre fra i candidati (spesso `complete`) |
+    | 1c — 30/48 caselle casuali (seed dichiarato 20261012, ~5 celle/faccia in media) | sparsa | **FALLISCE in 6/13**: 6108, 6281, 6299, 6334, 6338, 6341 |
+
+    **Il test 1 fallisce (variante 1c): è un bug, non solo un problema di
+    dati reali.** Funzione e riga responsabili:
+    `enumeratePieceAssignments` (`lib/inspection-state.ts:796`, troncamento
+    a riga 825, cap 768 per corner/edge) e `completePartialFacelets`
+    (`lib/inspection-state.ts:995`, troncamenti a righe 1005 e 1010, cap
+    96 sul combinato corner×edge). Con copertura sparsa (variante 1c, media
+    ~5 celle/faccia) e `orientationConfidence` non impostata (ogni faccia
+    prova tutte le 4 rotazioni, per costruzione del test — scelta
+    deliberata: isolare l'effetto della sparsità, non della rotazione),
+    le combinazioni angolo/spigolo fisicamente valide superano spesso il
+    cap prima che venga raggiunto un qualsiasi limite di `beamWidth`
+    (1600) o `validStatesMainCap` (256) — confermato dalla telemetria budget
+    sui 6 casi falliti: `rotationCombinationsAtStop` è sempre minuscolo (1-
+    13), ben sotto 1600, mentre `completePartialFaceletsMainTruncatedCount`
+    e/o `edgesAssignments768TruncatedCount` sono quasi sempre ≥1. La
+    causa non è la mancanza di budget (esperimento #14 l'aveva già
+    escluso): è che `enumeratePieceAssignments`/`completePartialFacelets`
+    enumerano i completamenti in un ordine ARBITRARIO (depth-first,
+    posizioni ordinate per minor numero di opzioni — un'euristica di
+    efficienza del backtracking, non di correttezza) e si fermano al cap
+    SENZA alcuna preferenza per i completamenti coerenti con l'evidenza
+    disponibile. Con poca evidenza le combinazioni valide sono molte, e lo
+    stato vero (garantito compatibile per costruzione in questo test) può
+    restare semplicemente fuori dal campione arbitrario che il cap lascia
+    passare.
+
+    **Correzione proposta (non implementata)**: durante l'enumerazione in
+    `enumeratePieceAssignments`, ordinare le opzioni per posizione secondo
+    la loro coerenza con l'evidenza fotometrica NON ancora impegnata in
+    `partial` (le letture disponibili ma scartate/a bassa confidenza),
+    così che il campione tagliato dal cap sia quello più plausibile invece
+    che il primo trovato in ordine arbitrario; oppure, più semplice e meno
+    rischioso, rilassare SOLO il cap di `completePartialFacelets` (96→più
+    alto) quando il numero di caselle note è sotto una soglia (es. <40/48)
+    — la stessa famiglia di "piste pericolose" già viste (#1-9, #11):
+    aumentare la copertura senza un criterio di correttezza può introdurre
+    instabilità altrove, quindi qualunque correzione andrebbe validata con
+    lo stesso bench completo (totale sopra 447/702, nessun video test giù
+    di più di 5) prima di essere adottata.
+
+    **Test 1 aggiunto come test automatico permanente**
+    (`lib/inspection-state.test.ts`, `pnpm run test:inspection`): le
+    varianti 1a e 1b sono assert pieni (bloccano la build se regrediscono);
+    la variante 1c è marcata `{ todo: ... }` — gira a ogni esecuzione e
+    resta visibile nell'output, ma un suo fallimento non rompe la CI,
+    perché documenta un bug noto non ancora corretto, non una regressione
+    nuova.
+
+    **Test 2 (oracolo sui video reali) non eseguito**: la richiesta lo
+    prevedeva solo nel ramo "il test 1 passa"; il test 1 fallisce, quindi
+    per l'albero di decisione dichiarato la diagnosi si ferma qui.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
