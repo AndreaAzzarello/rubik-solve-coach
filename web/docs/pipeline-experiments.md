@@ -589,6 +589,111 @@ altri no.
     prevedeva solo nel ramo "il test 1 passa"; il test 1 fallisce, quindi
     per l'albero di decisione dichiarato la diagnosi si ferma qui.
 
+16. **Correzione del bug trovato nel #15** (branch `exp/beam-truncation-fix`,
+    non mersato su `main` — decisione da confermare, vedi Passo 4).
+
+    **Passo 1 (conferma della causa)**: rilanciata la variante 1c con i cap
+    768/`enumeratePieceAssignments` e 96/`completePartialFacelets`
+    rimossi davvero (`benchBudgetMultiplier=Infinity`, verificato nel
+    codice che sono quelli sul percorso: telemetria
+    `cornersAssignments768TruncatedCount`/`edgesAssignments768TruncatedCount`/
+    `completePartialFaceletsMainTruncatedCount` tutte a 0 col cap rimosso).
+    **13/13 passano** (peggior tempo 524ms, IMG_6108, 34.884 candidati) →
+    la causa è il troncamento, non un errore nei vincoli/potatura: nessun
+    bug di logica da isolare, si procede al Passo 2.
+
+    Perché nel #14 il budget "illimitato" non cambiava i candidati sui 6
+    video reali: lo stesso `benchBudgetMultiplier` moltiplica anche questi
+    due cap (erano quindi **inclusi**), ma la telemetria del #14 mostrava
+    già `completePartialFaceletsMainTruncatedCount≈0` sui video reali A
+    BUDGET NORMALE — il troncamento di questa funzione semplicemente non
+    era il collo di bottiglia *per quei 6 video*: la ricerca si esauriva
+    da sola perché le letture sbagliate committed eliminavano il ramo
+    giusto prima ancora di avvicinarsi a qualunque cap. Il bug del #15 e la
+    diagnosi del #14 convivono: due meccanismi diversi, il primo visibile
+    solo con evidenza sparsa ma internamente coerente (l'oracolo sintetico),
+    il secondo con letture reali contaminate.
+
+    **Passo 2 (correttezza prima delle prestazioni)**: in
+    `reconstructInspectionState`, quando la ricerca è troncata
+    (`sawTruncation`), una casella "unanime fra tutti i candidati TROVATI"
+    non è detto sia unanime fra tutti gli stati fisicamente validi — misurato
+    dal vivo: su IMG_6108 (oracolo 30/48), **20 caselle** risultavano unanimi
+    solo nel campione troncato (288 candidati) e non più rilanciando senza
+    cap (34.884 candidati). Corretto: quando `sawTruncation`, `facelets`
+    non usa più `candidateConsensus`/il candidato singolo, ma solo
+    `bestPartial` (osservazioni dirette + inferenze forzate dai pezzi,
+    esaustive per costruzione su un elenco fisso di 8 angoli/12 spigoli,
+    mai soggette al troncamento dell'enumerazione dei completamenti).
+    Nuovo test (`lib/inspection-state.test.ts`): nessuna casella
+    sbagliata-ma-certa sulle stesse 13 osservazioni sparse del test 1c.
+
+    **Passo 3 (il Passo 2 da solo non basta a far passare la 1c, come
+    previsto)**: soluzione più semplice che fa passare il test — cap di
+    `completePartialFacelets` (96) ed `enumeratePieceAssignments` (768)
+    alzati **256×** (trovato per tentativi: a 128× resta 1 caso su 13
+    sotto cap, a 256× tutti passano). Costo nel caso peggiore fra i 13
+    scramble: **241ms** di puro calcolo Node (IMG_6108) — una frazione
+    trascurabile dei ~100s di analisi video attuali, ben sotto il limite
+    di +50%. Il ramo di rilassamento (raro, mai attivo nei casi
+    diagnosticati) resta al cap originale 768, passato esplicitamente, per
+    non cambiarne il costo nel caso raro in cui scatta.
+
+    **Passo 4 (bench sui 13 video, branch `exp/beam-truncation-fix`)**:
+
+    | Run | Totale | Gruppo test | Tempo medio analisi |
+    |---|---|---|---|
+    | Baseline odierna (soglia 6) | 447/702 | 141/162 (6258=54,6260=50,6281=37) | ~100-120s |
+    | Passo 2 da solo | **462/702** | **155/162** (6258=54,6260=49,6281=52) | 112s |
+    | Passo 2 + Passo 3 | **462/702** (identico) | **155/162** (identico) | 109s |
+
+    Il Passo 3 non cambia NULLA sui 13 video reali (stesso totale, stesso
+    tempo nel rumore di misura): confermato che il suo effetto è specifico
+    all'evidenza sparsa dell'oracolo sintetico, non a questo dataset.
+
+    Delta per video (correct/sbagliate/vuote, oggi → dopo il Passo 2):
+
+    | Video | Gruppo | Oggi (corrette/sbagliate/vuote) | Dopo (corrette/sbagliate/vuote) | Δ corrette |
+    |---|---|---|---|---|
+    | 6107 | integration | 48/0/0 | 48/0/0 | 0 |
+    | 6108 | integration | 5/12/31 | 5/12/31 | 0 |
+    | 6258 | test | 48/0/0 | 48/0/0 | 0 |
+    | 6260 | test | 44/0/4 | 43/0/5 | −1 |
+    | 6281 | test | 31/0/17 | 46/0/2 | **+15** |
+    | 6297 | seen | 22/8/18 | 22/6/20 | 0 |
+    | 6298 | seen | 24/2/22 | 24/2/22 | 0 |
+    | 6299 | seen | 14/22/12 | 8/17/23 | **−6** |
+    | 6300 | seen | 26/1/21 | 31/4/13 | +5 |
+    | 6334 | integration/seen | 48/0/0 | 48/0/0 | 0 |
+    | 6336 | seen | 19/14/15 | 21/16/11 | +2 |
+    | 6338 | seen | 35/0/13 | 36/0/12 | +1 |
+    | 6341 | seen | 5/32/11 | 4/24/20 | −1 |
+
+    Criterio di adozione dichiarato (**totale sopra 447/702 e nessun video
+    test giù di più di 5**): **entrambe soddisfatte** (462>447; 6260 −1,
+    6281 +15, 6258 invariato — nessun video test scende). Il totale non è
+    sceso (la clausola "non scartare se il totale scende" non si applica),
+    ma **6299 (gruppo "seen") peggiora su entrambi gli assi**: correct
+    14→8 e precisione sulle caselle impegnate 38,9%→32% (14/36 → 8/25) —
+    non il pattern "precisione su, copertura giù" atteso dal Passo 2, un
+    effetto diverso (probabile ambiguità di rotazione nella sua
+    `bestPartial` su dati reali non sintetici, fuori dal controllo di
+    questo esperimento). 6341 e 6260 scendono di 1 casella ciascuno.
+
+    **Non mersato su `main`: riportato, fermo qui, decide l'utente.** Il
+    criterio numerico dichiarato è soddisfatto e il miglioramento aggregato
+    e sul gruppo test è netto, ma la regressione isolata su 6299 merita una
+    decisione esplicita prima di toccare la produzione, specialmente dopo
+    la storia di questo documento (Conclusione: la ricostruzione è
+    sensibile in modo caotico, un singolo video può muoversi in modi non
+    previsti anche quando il totale aggregato migliora).
+
+    Test 1c (esperimento #15) promossa da `{ todo }` ad assert pieno:
+    dopo il Passo 3 passa stabilmente (13/13).
+
+    Dati completi: `bench/results/exp16-passo2-only.json`,
+    `bench/results/exp16-passo2-plus-passo3.json`.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
