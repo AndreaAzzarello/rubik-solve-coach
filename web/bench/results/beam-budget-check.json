@@ -1,0 +1,1366 @@
+{
+  "generatedAt": "2026-10-11T16:04:35.937Z",
+  "baseline": [
+    {
+      "id": "IMG_6297",
+      "baselineTelemetry": {
+        "beamWidthHitCount": 0,
+        "beamMaxRankedSeen": 0,
+        "mainLoopStopReason": "esaurito-senza-limiti",
+        "rotationCombinationsAtStop": 148,
+        "validStatesAtStop": 0,
+        "completePartialFaceletsMainCalls": 20,
+        "completePartialFaceletsMainTruncatedCount": 0,
+        "cornersAssignments768TruncatedCount": 0,
+        "edgesAssignments768TruncatedCount": 0,
+        "seedPool72HitCount": 0,
+        "hypotheses18HitCount": 0
+      },
+      "baselineDurationMs": 110281,
+      "wrongCommittedCellCount": 8,
+      "wrongCommittedCells": [
+        {
+          "face": "U",
+          "index": 1,
+          "color": "white",
+          "cat12": {
+            "category": 7,
+            "note": "green->white, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "U",
+          "index": 7,
+          "color": "red",
+          "cat12": {
+            "category": 7,
+            "note": "white->red, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "U",
+          "index": 8,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "orange->blue, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "F",
+          "index": 1,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "green->yellow, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "F",
+          "index": 2,
+          "color": "orange",
+          "cat12": {
+            "category": 7,
+            "note": "green->orange, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "F",
+          "index": 5,
+          "color": "green",
+          "cat12": {
+            "category": 7,
+            "note": "orange->green, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "F",
+          "index": 6,
+          "color": "red",
+          "cat12": {
+            "category": 7,
+            "note": "blue->red, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "orange->blue, percorso: nessuna osservazione"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IMG_6298",
+      "baselineTelemetry": {
+        "beamWidthHitCount": 0,
+        "beamMaxRankedSeen": 0,
+        "mainLoopStopReason": "esaurito-senza-limiti",
+        "rotationCombinationsAtStop": 2,
+        "validStatesAtStop": 0,
+        "completePartialFaceletsMainCalls": 0,
+        "completePartialFaceletsMainTruncatedCount": 0,
+        "cornersAssignments768TruncatedCount": 0,
+        "edgesAssignments768TruncatedCount": 0,
+        "seedPool72HitCount": 0,
+        "hypotheses18HitCount": 0
+      },
+      "baselineDurationMs": 111830,
+      "wrongCommittedCellCount": 2,
+      "wrongCommittedCells": [
+        {
+          "face": "R",
+          "index": 1,
+          "color": "green",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "R",
+          "index": 7,
+          "color": "white",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IMG_6299",
+      "baselineTelemetry": {
+        "beamWidthHitCount": 0,
+        "beamMaxRankedSeen": 0,
+        "mainLoopStopReason": "esaurito-senza-limiti",
+        "rotationCombinationsAtStop": 0,
+        "validStatesAtStop": 0,
+        "completePartialFaceletsMainCalls": 0,
+        "completePartialFaceletsMainTruncatedCount": 0,
+        "cornersAssignments768TruncatedCount": 0,
+        "edgesAssignments768TruncatedCount": 0,
+        "seedPool72HitCount": 0,
+        "hypotheses18HitCount": 0
+      },
+      "baselineDurationMs": 96161,
+      "wrongCommittedCellCount": 22,
+      "wrongCommittedCells": [
+        {
+          "face": "U",
+          "index": 2,
+          "color": "red",
+          "cat12": {
+            "category": 5,
+            "note": "yellow->red"
+          }
+        },
+        {
+          "face": "U",
+          "index": 7,
+          "color": "white",
+          "cat12": {
+            "category": 5,
+            "note": "blue->white"
+          }
+        },
+        {
+          "face": "U",
+          "index": 8,
+          "color": "yellow",
+          "cat12": {
+            "category": 5,
+            "note": "blue->yellow"
+          }
+        },
+        {
+          "face": "R",
+          "index": 2,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "R",
+          "index": 3,
+          "color": "red",
+          "cat12": {
+            "category": 7,
+            "note": "green->red, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "R",
+          "index": 6,
+          "color": "white",
+          "cat12": {
+            "category": 7,
+            "note": "yellow->white, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "R",
+          "index": 7,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "white->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "F",
+          "index": 0,
+          "color": "yellow",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "F",
+          "index": 1,
+          "color": "green",
+          "cat12": {
+            "category": 7,
+            "note": "orange->green, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "F",
+          "index": 5,
+          "color": "green",
+          "cat12": {
+            "category": 7,
+            "note": "red->green, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "F",
+          "index": 6,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "F",
+          "index": 8,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "L",
+          "index": 0,
+          "color": "white",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "L",
+          "index": 1,
+          "color": "white",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "L",
+          "index": 3,
+          "color": "orange",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "L",
+          "index": 5,
+          "color": "red",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "L",
+          "index": 6,
+          "color": "white",
+          "cat12": {
+            "category": 5,
+            "note": "red->white"
+          }
+        },
+        {
+          "face": "L",
+          "index": 7,
+          "color": "blue",
+          "cat12": {
+            "category": 5,
+            "note": "green->blue"
+          }
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "color": "orange",
+          "cat12": {
+            "category": 5,
+            "note": "yellow->orange"
+          }
+        },
+        {
+          "face": "B",
+          "index": 0,
+          "color": "blue",
+          "cat12": {
+            "category": 5,
+            "note": "green->blue"
+          }
+        },
+        {
+          "face": "B",
+          "index": 2,
+          "color": "red",
+          "cat12": {
+            "category": 5,
+            "note": "white->red"
+          }
+        },
+        {
+          "face": "B",
+          "index": 8,
+          "color": "orange",
+          "cat12": {
+            "category": 5,
+            "note": "white->orange"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IMG_6300",
+      "baselineTelemetry": {
+        "beamWidthHitCount": 0,
+        "beamMaxRankedSeen": 0,
+        "mainLoopStopReason": "esaurito-senza-limiti",
+        "rotationCombinationsAtStop": 448,
+        "validStatesAtStop": 0,
+        "completePartialFaceletsMainCalls": 0,
+        "completePartialFaceletsMainTruncatedCount": 0,
+        "cornersAssignments768TruncatedCount": 0,
+        "edgesAssignments768TruncatedCount": 0,
+        "seedPool72HitCount": 0,
+        "hypotheses18HitCount": 0
+      },
+      "baselineDurationMs": 119260,
+      "wrongCommittedCellCount": 1,
+      "wrongCommittedCells": [
+        {
+          "face": "R",
+          "index": 3,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IMG_6336",
+      "baselineTelemetry": {
+        "beamWidthHitCount": 0,
+        "beamMaxRankedSeen": 0,
+        "mainLoopStopReason": "esaurito-senza-limiti",
+        "rotationCombinationsAtStop": 0,
+        "validStatesAtStop": 0,
+        "completePartialFaceletsMainCalls": 0,
+        "completePartialFaceletsMainTruncatedCount": 0,
+        "cornersAssignments768TruncatedCount": 0,
+        "edgesAssignments768TruncatedCount": 0,
+        "seedPool72HitCount": 0,
+        "hypotheses18HitCount": 0
+      },
+      "baselineDurationMs": 110153,
+      "wrongCommittedCellCount": 14,
+      "wrongCommittedCells": [
+        {
+          "face": "F",
+          "index": 6,
+          "color": "orange",
+          "cat12": {
+            "category": 7,
+            "note": "green->orange, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "F",
+          "index": 8,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "green->blue, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "D",
+          "index": 0,
+          "color": "blue",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "D",
+          "index": 1,
+          "color": "red",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "D",
+          "index": 2,
+          "color": "yellow",
+          "cat12": {
+            "category": 5,
+            "note": "white->yellow"
+          }
+        },
+        {
+          "face": "D",
+          "index": 3,
+          "color": "yellow",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "D",
+          "index": 5,
+          "color": "green",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "D",
+          "index": 6,
+          "color": "red",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "L",
+          "index": 3,
+          "color": "green",
+          "cat12": {
+            "category": 7,
+            "note": "white->green, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "L",
+          "index": 6,
+          "color": "white",
+          "cat12": {
+            "category": 7,
+            "note": "red->white, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "L",
+          "index": 7,
+          "color": "orange",
+          "cat12": {
+            "category": 7,
+            "note": "yellow->orange, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "color": "white",
+          "cat12": {
+            "category": 7,
+            "note": "orange->white, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "B",
+          "index": 7,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "orange->blue, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "B",
+          "index": 8,
+          "color": "green",
+          "cat12": {
+            "category": 7,
+            "note": "yellow->green, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        }
+      ]
+    },
+    {
+      "id": "IMG_6341",
+      "baselineTelemetry": {
+        "beamWidthHitCount": 0,
+        "beamMaxRankedSeen": 0,
+        "mainLoopStopReason": "esaurito-senza-limiti",
+        "rotationCombinationsAtStop": 0,
+        "validStatesAtStop": 0,
+        "completePartialFaceletsMainCalls": 0,
+        "completePartialFaceletsMainTruncatedCount": 0,
+        "cornersAssignments768TruncatedCount": 0,
+        "edgesAssignments768TruncatedCount": 0,
+        "seedPool72HitCount": 0,
+        "hypotheses18HitCount": 0
+      },
+      "baselineDurationMs": 99712,
+      "wrongCommittedCellCount": 32,
+      "wrongCommittedCells": [
+        {
+          "face": "U",
+          "index": 0,
+          "color": "green",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "U",
+          "index": 1,
+          "color": "red",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "U",
+          "index": 2,
+          "color": "blue",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "U",
+          "index": 3,
+          "color": "red",
+          "cat12": {
+            "category": 5,
+            "note": "white->red"
+          }
+        },
+        {
+          "face": "U",
+          "index": 5,
+          "color": "green",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "U",
+          "index": 6,
+          "color": "white",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "U",
+          "index": 7,
+          "color": "blue",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "R",
+          "index": 0,
+          "color": "orange",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "R",
+          "index": 2,
+          "color": "red",
+          "cat12": {
+            "category": 5,
+            "note": "blue->red"
+          }
+        },
+        {
+          "face": "R",
+          "index": 3,
+          "color": "red",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 180 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "R",
+          "index": 5,
+          "color": "green",
+          "cat12": {
+            "category": 5,
+            "note": "blue->green"
+          }
+        },
+        {
+          "face": "R",
+          "index": 7,
+          "color": "blue",
+          "cat12": {
+            "category": 5,
+            "note": "green->blue"
+          }
+        },
+        {
+          "face": "R",
+          "index": 8,
+          "color": "green",
+          "cat12": {
+            "category": 5,
+            "note": "white->green"
+          }
+        },
+        {
+          "face": "F",
+          "index": 2,
+          "color": "blue",
+          "cat12": {
+            "category": 5,
+            "note": "orange->blue"
+          }
+        },
+        {
+          "face": "F",
+          "index": 3,
+          "color": "white",
+          "cat12": {
+            "category": 5,
+            "note": "orange->white"
+          }
+        },
+        {
+          "face": "F",
+          "index": 6,
+          "color": "red",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 90 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "F",
+          "index": 7,
+          "color": "red",
+          "cat12": {
+            "category": 5,
+            "note": "yellow->red"
+          }
+        },
+        {
+          "face": "F",
+          "index": 8,
+          "color": "green",
+          "cat12": {
+            "category": 5,
+            "note": "yellow->green"
+          }
+        },
+        {
+          "face": "D",
+          "index": 0,
+          "color": "white",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "D",
+          "index": 2,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "blue->yellow, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "D",
+          "index": 5,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "orange->yellow, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "D",
+          "index": 6,
+          "color": "orange",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 270 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "D",
+          "index": 8,
+          "color": "orange",
+          "cat12": {
+            "category": 7,
+            "note": "red->orange, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "L",
+          "index": 1,
+          "color": "white",
+          "cat12": {
+            "category": 7,
+            "note": "orange->white, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "L",
+          "index": 2,
+          "color": "green",
+          "cat12": {
+            "category": 7,
+            "note": "yellow->green, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "L",
+          "index": 6,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "green->blue, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "color": "blue",
+          "cat12": {
+            "category": 7,
+            "note": "orange->blue, percorso: nessuna osservazione"
+          }
+        },
+        {
+          "face": "B",
+          "index": 0,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "orange->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "B",
+          "index": 2,
+          "color": "white",
+          "cat12": {
+            "category": 6,
+            "note": "ruotando di 90 gradi coincide con la verita'"
+          }
+        },
+        {
+          "face": "B",
+          "index": 3,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "B",
+          "index": 6,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "blue->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        },
+        {
+          "face": "B",
+          "index": 8,
+          "color": "yellow",
+          "cat12": {
+            "category": 7,
+            "note": "red->yellow, percorso: modello, salvaguardia (indice sotto soglia)"
+          }
+        }
+      ]
+    }
+  ],
+  "budgetReports": [
+    {
+      "video": "IMG_6297",
+      "variant": "produzione",
+      "budget": "x1",
+      "candidateCount": 60,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 379.6223999999929,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "produzione",
+      "budget": "x4",
+      "candidateCount": 60,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 467.98629999998957,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "produzione",
+      "budget": "x16",
+      "candidateCount": 60,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 619.8784999999916,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "produzione",
+      "budget": "illimitato",
+      "candidateCount": 60,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 659.9759000000777,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x1",
+      "candidateCount": 144,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 340.2948000000324,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x4",
+      "candidateCount": 144,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 525.7065000000875,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x16",
+      "candidateCount": 144,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 1107.9472000000533,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6297",
+      "variant": "senza-letture-sbagliate",
+      "budget": "illimitato",
+      "candidateCount": 144,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 1755.565100000007,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "produzione",
+      "budget": "x1",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 26.670399999944493,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "produzione",
+      "budget": "x4",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 37.22990000003483,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "produzione",
+      "budget": "x16",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 54.50439999997616,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "produzione",
+      "budget": "illimitato",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 57.584400000050664,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x1",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 29.21689999999944,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x4",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 40.20539999997709,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x16",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 83.93339999997988,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6298",
+      "variant": "senza-letture-sbagliate",
+      "budget": "illimitato",
+      "candidateCount": 48,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 994.2807999999495,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "produzione",
+      "budget": "x1",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 55.008799999952316,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "produzione",
+      "budget": "x4",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 64.30509999999776,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "produzione",
+      "budget": "x16",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 106.64379999996163,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "produzione",
+      "budget": "illimitato",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 159.70899999991525,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x1",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 54.706500000087544,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x4",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 67.52299999992829,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x16",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 104.47569999995176,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6299",
+      "variant": "senza-letture-sbagliate",
+      "budget": "illimitato",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 153.85640000004787,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "produzione",
+      "budget": "x1",
+      "candidateCount": 41,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 384.1382000000449,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "produzione",
+      "budget": "x4",
+      "candidateCount": 41,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 393.39079999993555,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "produzione",
+      "budget": "x16",
+      "candidateCount": 41,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 388.85959999996703,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "produzione",
+      "budget": "illimitato",
+      "candidateCount": 41,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 418.61739999998827,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x1",
+      "candidateCount": 52,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 269.7800999999745,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x4",
+      "candidateCount": 52,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 268.22340000001714,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x16",
+      "candidateCount": 52,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 267.47950000001583,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6300",
+      "variant": "senza-letture-sbagliate",
+      "budget": "illimitato",
+      "candidateCount": 52,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 271.7552999999607,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "produzione",
+      "budget": "x1",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 297.01639999996405,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "produzione",
+      "budget": "x4",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 298.68940000003204,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "produzione",
+      "budget": "x16",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 297.872599999886,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "produzione",
+      "budget": "illimitato",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 296.9827000000514,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x1",
+      "candidateCount": 30,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 50.589999999967404,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x4",
+      "candidateCount": 30,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 49.772400000016205,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x16",
+      "candidateCount": 30,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 49.24920000007842,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6336",
+      "variant": "senza-letture-sbagliate",
+      "budget": "illimitato",
+      "candidateCount": 30,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 49.82430000009481,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "produzione",
+      "budget": "x1",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 42.01540000003297,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "produzione",
+      "budget": "x4",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 49.10939999995753,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "produzione",
+      "budget": "x16",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 52.9427999999607,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "produzione",
+      "budget": "illimitato",
+      "candidateCount": 36,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 48.317600000067614,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x1",
+      "candidateCount": 264,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 160.39389999990817,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x4",
+      "candidateCount": 1056,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 188.109300000011,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "senza-letture-sbagliate",
+      "budget": "x16",
+      "candidateCount": 4720,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 262.06179999990854,
+      "timedOut": false
+    },
+    {
+      "video": "IMG_6341",
+      "variant": "senza-letture-sbagliate",
+      "budget": "illimitato",
+      "candidateCount": 456192,
+      "truncated": true,
+      "truePresent": false,
+      "trueRank": null,
+      "elapsedMs": 14032.765999999945,
+      "timedOut": false
+    }
+  ]
+}

@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CubeColor, Face } from '../../lib/cube';
 import { reconstructInspectionFromVideo } from '../../lib/inspection-pipeline';
-import type { BenchFaceObservationDiag, BenchStableRawDiag, FaceGridObservation, PartialFacelets } from '../../lib/inspection-state';
+import type { BenchBudgetTelemetry, BenchFaceObservationDiag, BenchStableRawDiag, FaceGridObservation, PartialFacelets } from '../../lib/inspection-state';
 import type { MotionSample } from '../../lib/video-decoder';
 
 type ColorPresence = { maxInsideWindow: number; maxBeforeWindow: number; samplesBeforeWindow: number };
@@ -46,8 +46,10 @@ type BenchResult = {
   // Diagnostica esperimento #13 (vedi bench/beam-ambiguity-photometric.ts).
   candidateStates?: PartialFacelets[];
   alignmentFilteredObservations?: FaceGridObservation[];
-  // Diagnostica esperimento #14 (vedi bench/beam-truncation-check.ts).
+  // Diagnostica approfondimento esperimento #13 (vedi bench/beam-truncation-check.ts).
   observationsDiag?: { observations: FaceGridObservation[]; balancedInfo: { observedCells: number; usable: boolean } };
+  // Diagnostica esperimento #14 (vedi bench/beam-budget-check.ts).
+  budgetTelemetry?: BenchBudgetTelemetry;
 };
 
 declare global {
@@ -61,6 +63,8 @@ declare global {
     __benchCandidateStatesDiag?: PartialFacelets[];
     __benchAlignmentFilteredObservations?: FaceGridObservation[];
     __benchObservationsDiag?: { observations: FaceGridObservation[]; balancedInfo: { observedCells: number; usable: boolean } };
+    __benchBudgetTelemetry?: BenchBudgetTelemetry;
+    __benchBudgetMultiplier?: number;
   }
 }
 
@@ -192,6 +196,7 @@ export default function BenchHarness() {
           candidateStates: window.__benchCandidateStatesDiag,
           alignmentFilteredObservations: window.__benchAlignmentFilteredObservations,
           observationsDiag: window.__benchObservationsDiag,
+          budgetTelemetry: window.__benchBudgetTelemetry,
         };
       } catch (caught) {
         const error = caught instanceof Error ? caught.message : String(caught);

@@ -454,6 +454,67 @@ function colorLayoutQuality(colors: Array<CubeColor | null>) {
   return 0.18;
 }
 
+// Strumentazione solo-bench per l'esperimento #14 (vedi
+// docs/pipeline-experiments.md, bench/beam-budget-check.ts): ogni limite di
+// budget della ricostruzione (beamWidth, i cap di completePartialFacelets/
+// enumeratePieceAssignments, il seedPool e le hypotheses di
+// fuseFaceObservationCandidates) che e' stato effettivamente raggiunto in
+// QUESTA chiamata. Accumula (+=) entro una stessa chiamata a
+// reconstructInspectionState, resettato a inizio funzione - diverso dagli
+// altri hook qui sopra (che sovrascrivono) perche' ogni limite puo' essere
+// toccato piu' volte in un solo run (es. una volta per stato del beam).
+export type BenchBudgetTelemetry = {
+  beamWidthHitCount: number;
+  beamMaxRankedSeen: number;
+  mainLoopStopReason: 'rotationCombinations1600' | 'validStates256' | 'entrambi' | 'esaurito-senza-limiti';
+  rotationCombinationsAtStop: number;
+  validStatesAtStop: number;
+  completePartialFaceletsMainCalls: number;
+  completePartialFaceletsMainTruncatedCount: number;
+  cornersAssignments768TruncatedCount: number;
+  edgesAssignments768TruncatedCount: number;
+  seedPool72HitCount: number;
+  hypotheses18HitCount: number;
+};
+function emptyBudgetTelemetry(): BenchBudgetTelemetry {
+  return {
+    beamWidthHitCount: 0,
+    beamMaxRankedSeen: 0,
+    mainLoopStopReason: 'esaurito-senza-limiti',
+    rotationCombinationsAtStop: 0,
+    validStatesAtStop: 0,
+    completePartialFaceletsMainCalls: 0,
+    completePartialFaceletsMainTruncatedCount: 0,
+    cornersAssignments768TruncatedCount: 0,
+    edgesAssignments768TruncatedCount: 0,
+    seedPool72HitCount: 0,
+    hypotheses18HitCount: 0,
+  };
+}
+function budgetTelemetryTarget(): BenchBudgetTelemetry | null {
+  const target = globalThis as { __benchBudgetTelemetry?: BenchBudgetTelemetry };
+  return target.__benchBudgetTelemetry ?? null;
+}
+function resetBudgetTelemetry(): void {
+  const target = globalThis as { __benchBudgetTelemetry?: BenchBudgetTelemetry };
+  if (!target.__benchBudgetTelemetry) return;
+  target.__benchBudgetTelemetry = emptyBudgetTelemetry();
+}
+
+// Strumentazione solo-bench per l'esperimento #14: moltiplica TUTTI i limiti
+// di budget della ricostruzione (beamWidth, i cap di
+// completePartialFacelets/enumeratePieceAssignments, il seedPool e le
+// hypotheses di fuseFaceObservationCandidates) per lo stesso fattore.
+// Assente (default 1) -> comportamento di produzione bit-identico. Un
+// moltiplicatore Infinity disattiva ogni limite (slice/confronti con
+// Infinity si comportano correttamente in JS senza bisogno di casi
+// speciali). Stesso schema lazy di benchGridAlignmentThreshold in
+// lib/video-decoder.ts.
+export function benchBudgetMultiplier(): number {
+  const value = (globalThis as { __benchBudgetMultiplier?: number }).__benchBudgetMultiplier;
+  return typeof value === 'number' && value > 0 ? value : 1;
+}
+
 export function fuseFaceObservationCandidates(
   observations: FaceGridObservation[],
   limit = 4,
@@ -484,12 +545,17 @@ export function fuseFaceObservationCandidates(
     if (existing) existing.sources.add(source);
     else seedsByPattern.set(key, { seed: observation, sources: new Set([source]) });
   });
+  const seedPoolLimit = Math.round(72 * benchBudgetMultiplier());
+  if (seedsByPattern.size > seedPoolLimit) {
+    const telemetry = budgetTelemetryTarget();
+    if (telemetry) telemetry.seedPool72HitCount += 1;
+  }
   const seedPool = [...seedsByPattern.values()]
     .sort((left, right) => (
       right.sources.size * 24 + observationWeight(right.seed)
       - (left.sources.size * 24 + observationWeight(left.seed))
     ))
-    .slice(0, 72)
+    .slice(0, seedPoolLimit)
     .map(({ seed }) => seed);
 
   const candidates: FusedCandidate[] = seedPool.map((seed) => {
@@ -671,13 +737,17 @@ export function fuseFaceObservationCandidates(
     ...fused.slice(Math.max(1, limit - rawLimit)),
   ];
   const seen = new Set<string>();
-  return preferred
-    .filter(({ observation }) => {
-      const key = rotationInvariantPattern(observation.colors);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
+  const deduped = preferred.filter(({ observation }) => {
+    const key = rotationInvariantPattern(observation.colors);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (deduped.length > Math.max(1, limit)) {
+    const telemetry = budgetTelemetryTarget();
+    if (telemetry) telemetry.hypotheses18HitCount += 1;
+  }
+  return deduped
     .slice(0, Math.max(1, limit))
     .map(({ observation }) => observation);
 }
@@ -922,9 +992,10 @@ function mergeFacelets(left: PartialFacelets, right: PartialFacelets) {
   return result;
 }
 
-function completePartialFacelets(partial: PartialFacelets, limit = 96) {
-  const corners = enumeratePieceAssignments(CORNERS, CORNERS, partial, 768);
-  const edges = enumeratePieceAssignments(EDGES, EDGES, partial, 768);
+function completePartialFacelets(partial: PartialFacelets, limit = Math.round(96 * benchBudgetMultiplier())) {
+  const pieceLimit = Math.round(768 * benchBudgetMultiplier());
+  const corners = enumeratePieceAssignments(CORNERS, CORNERS, partial, pieceLimit);
+  const edges = enumeratePieceAssignments(EDGES, EDGES, partial, pieceLimit);
   const complete: PartialFacelets[] = [];
   let truncated = corners.truncated || edges.truncated;
   for (const corner of corners.candidates) {
@@ -937,6 +1008,19 @@ function completePartialFacelets(partial: PartialFacelets, limit = 96) {
       }
     }
     if (complete.length >= limit) break;
+  }
+  // La chiamata di rilassamento passa sempre il letterale 12 (vedi sotto),
+  // mai moltiplicato: fuori scopo per l'esperimento #14 (il ramo di
+  // rilassamento non si attiva mai quando validStates.size > 0, come nei 6
+  // casi diagnosticati). Qui si registra solo la chiamata "principale".
+  if (limit !== 12) {
+    const telemetry = budgetTelemetryTarget();
+    if (telemetry) {
+      telemetry.completePartialFaceletsMainCalls += 1;
+      if (complete.length >= limit) telemetry.completePartialFaceletsMainTruncatedCount += 1;
+      if (corners.truncated) telemetry.cornersAssignments768TruncatedCount += 1;
+      if (edges.truncated) telemetry.edgesAssignments768TruncatedCount += 1;
+    }
   }
   return {
     complete,
@@ -1347,6 +1431,7 @@ export function reconstructInspectionState(
   balancedInfo: { observedCells: number; usable: boolean } = { observedCells: 0, usable: false },
 ): InspectionReconstruction {
   resetStableRawDiag();
+  resetBudgetTelemetry();
   const orientedObservations = normalizeObservationOrientations(observations);
   const observationsByFace = new Map<Face, FaceGridObservation[]>();
   orientedObservations.forEach((observation) => {
@@ -1357,7 +1442,7 @@ export function reconstructInspectionState(
   const hypothesesByFace = new Map<Face, FaceGridObservation[]>();
   const bestByFace = new Map<Face, FaceGridObservation>();
   observationsByFace.forEach((faceObservations, face) => {
-    const hypotheses = fuseFaceObservationCandidates(faceObservations, 18);
+    const hypotheses = fuseFaceObservationCandidates(faceObservations, Math.round(18 * benchBudgetMultiplier()));
     hypothesesByFace.set(face, hypotheses);
     if (hypotheses[0]) bestByFace.set(face, hypotheses[0]);
   });
@@ -1469,8 +1554,9 @@ export function reconstructInspectionState(
   let bestObserved = 0;
   let bestPartialQuality = Number.NEGATIVE_INFINITY;
   let bestPieceInference: ForcedPieceInference | null = null;
-  const beamWidth = 1600;
+  const beamWidth = Math.round(1600 * benchBudgetMultiplier());
   const maximumRotationCombinations = beamWidth;
+  const validStatesMainCap = Math.round(256 * benchBudgetMultiplier());
   let rotationCombinations = 0;
 
   function storeCompleteState(
@@ -1549,15 +1635,31 @@ export function reconstructInspectionState(
       if (!existing || candidate.score > existing.score) nextByState.set(key, candidate);
     }));
     const ranked = [...nextByState.values()].sort((left, right) => right.score - left.score);
-    if (ranked.length > beamWidth) markTruncation();
+    if (ranked.length > beamWidth) {
+      markTruncation();
+      const telemetry = budgetTelemetryTarget();
+      if (telemetry) {
+        telemetry.beamWidthHitCount += 1;
+        telemetry.beamMaxRankedSeen = Math.max(telemetry.beamMaxRankedSeen, ranked.length);
+      }
+    }
     beam = ranked.slice(0, beamWidth);
     beam.forEach((state) => considerPartial(state.facelets, state.reliability, state.score));
   });
 
   let relaxedFacelets = 0;
   for (const state of beam) {
-    if (rotationCombinations >= maximumRotationCombinations || validStates.size >= 256) {
+    if (rotationCombinations >= maximumRotationCombinations || validStates.size >= validStatesMainCap) {
       markTruncation();
+      const telemetry = budgetTelemetryTarget();
+      if (telemetry) {
+        const hitRotation = rotationCombinations >= maximumRotationCombinations;
+        const hitValidStates = validStates.size >= validStatesMainCap;
+        telemetry.mainLoopStopReason = hitRotation && hitValidStates ? 'entrambi'
+          : hitRotation ? 'rotationCombinations1600' : 'validStates256';
+        telemetry.rotationCombinationsAtStop = rotationCombinations;
+        telemetry.validStatesAtStop = validStates.size;
+      }
       break;
     }
     rotationCombinations += 1;
@@ -1574,6 +1676,13 @@ export function reconstructInspectionState(
       candidate, state.score, state.relaxed,
       reliabilityForCandidate(candidate, state.facelets, state.reliability),
     ));
+  }
+  {
+    const telemetry = budgetTelemetryTarget();
+    if (telemetry && telemetry.mainLoopStopReason === 'esaurito-senza-limiti') {
+      telemetry.rotationCombinationsAtStop = rotationCombinations;
+      telemetry.validStatesAtStop = validStates.size;
+    }
   }
 
   // Se ogni faccia contiene anche una sola casella classificata male, nessuna

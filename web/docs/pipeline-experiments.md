@@ -437,6 +437,82 @@ altri no.
     Dati completi: `bench/results/beam-ambiguity-photometric.json` e
     `bench/results/beam-truncation-check.json`.
 
+14. **La ricerca si ferma prima di trovare lo stato vero per mancanza di
+    budget?** (solo diagnosi, `bench/beam-budget-check.ts` +
+    `bench/beam-budget-worker.ts`, nessuna modifica alla pipeline di
+    produzione — il moltiplicatore di budget è letto da un global assente
+    in produzione, default 1, comportamento bit-identico.)
+
+    **Catalogo dei limiti di budget** (`lib/inspection-state.ts`):
+
+    | Limite | Riga | Valore base |
+    |---|---|---|
+    | seedPool (`fuseFaceObservationCandidates`) | 552-557 | 72 |
+    | hypotheses per faccia (chiamata con `limit=18`) | 1445 | 18 |
+    | `beamWidth` / `maximumRotationCombinations` | 1557-1558 | 1600 |
+    | `validStatesMainCap` nel loop principale | 1652 | 256 |
+    | `enumeratePieceAssignments` corners/edges (via `completePartialFacelets`) | 995 | 768 |
+    | `completePartialFacelets` limit principale (default) | 980 | 96 |
+    | ramo di rilassamento (non attivo nei 6 casi: `validStates.size` è sempre >0) | 1598, 1616, 1637, 1667-1669 | 14 / 18 / 520 / 3+36+320 |
+
+    **Quali limiti sono stati raggiunti nei 6 casi, a budget di produzione
+    (x1)**: **nessuno**. In tutti e 6 `mainLoopStopReason` è
+    `esaurito-senza-limiti` — la ricerca esaurisce da sola gli stati
+    fisicamente validi raggiungibili (da 0 a 448 combinazioni esplorate)
+    ben prima di toccare `beamWidth` (1600) o `validStatesMainCap` (256).
+    `completePartialFaceletsMainCalls` e i cap di `enumeratePieceAssignments`
+    non vengono mai raggiunti. Il ramo di rilassamento non si attiva mai
+    (richiede `validStates.size===0`, qui sempre >0).
+
+    **Parti 2 e 3 — rilancio a budget ×1/×4/×16/illimitato**, sia sulla
+    produzione reale sia dopo aver tolto le caselle impegnate sbagliate
+    (nessun timeout: il più lento è stato 14 secondi, IMG_6341 a budget
+    illimitato senza le letture sbagliate, 456.192 stati validi esplorati):
+
+    | Video | Produzione, candidati (x1→illimitato) | Senza letture sbagliate, candidati (x1→illimitato) | Vero presente, in NESSUN caso |
+    |---|---|---|---|
+    | 6297 | 60 → 60 | 144 → 144 | no |
+    | 6298 | 48 → 48 | 48 → 48 | no |
+    | 6299 | 36 → 36 | 36 → 36 | no |
+    | 6300 | 41 → 41 | 52 → 52 | no |
+    | 6336 | 36 → 36 | 30 → 30 | no |
+    | 6341 | 36 → 36 | 264 → 456.192 | no |
+
+    Alzare il budget **non cambia mai** il numero di candidati sulla
+    produzione reale (il collo di bottiglia non è lì): la ricerca ha già
+    esplorato tutto lo spazio raggiungibile a budget x1. Anche dopo aver
+    rimosso le letture sbagliate, il budget più alto fa crescere di molto i
+    candidati su IMG_6341 (264→456.192) ma **mai** fa apparire lo stato
+    vero, in nessuno dei 6 casi, in nessuna delle due varianti.
+
+    **Esito: lo stato vero non compare mai.** Nessuna delle due condizioni
+    di adozione si applica (non "alza il budget", non "sono solo le
+    letture sbagliate note").
+
+    **Ipotesi, con dato a supporto**: rimuovere solo le caselle impegnate
+    sbagliate *identificate in un round* (quelle unanimi fra TUTTI i
+    candidati trovati nella produzione reale) è una correzione di primo
+    ordine. Il dato che la esclude come causa completa: a budget
+    illimitato e letture rimosse, la ricerca esplora comunque centinaia o
+    decine di migliaia di stati fisicamente validi (fino a 456.192 per
+    6341) senza mai incontrare quello vero — non è un problema di tempo di
+    ricerca (sempre sotto i 15 secondi), è che il vero stato non è
+    raggiungibile dai vincoli dei pezzi applicati alle letture RESIDUE.
+    Ipotesi più probabile: ci sono letture sbagliate ULTERIORI, non unanimi
+    nella produzione reale (quindi non rilevate dal metodo "unanimi fra i
+    candidati trovati"), che diventano un ostacolo solo DOPO che il primo
+    round di correzioni ha aperto nuovi rami di ricerca — un effetto a
+    cascata che un solo round di rimozione non cattura. Cross-riferimento
+    con le categorie della diagnosi #12 per le celle rimosse in questo
+    esperimento: IMG_6297 100% categoria 7 (altro), IMG_6298 100% categoria
+    6 (rotazione), IMG_6299 41% cat.5/23% cat.6/36% cat.7, IMG_6300 100%
+    cat.7, IMG_6336 7% cat.5/36% cat.6/57% cat.7, IMG_6341 28% cat.5/37%
+    cat.6/34% cat.7 — nessuna categoria dominante univoca, coerente con
+    l'ipotesi di errori sparsi e concatenati piuttosto che un singolo
+    meccanismo isolabile.
+
+    Dati completi: `bench/results/beam-budget-check.json`.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
