@@ -300,6 +300,11 @@ function fullFaceObservation(cube: CubeState, face: Face): FaceGridObservation {
     confidence: 95,
     visibleCells: 9,
     sourceFrames: 3,
+    // Una lettura "perfetta" costruita direttamente dallo stato vero conosce
+    // anche il proprio orientamento (non è una posa reale da disambiguare):
+    // lasciarlo assente farebbe provare al motore le 4 rotazioni per ogni
+    // faccia, un'ambiguità che questo oracolo non intende introdurre.
+    orientationConfidence: 100,
   };
 }
 
@@ -313,6 +318,7 @@ function partialFaceObservation(cube: CubeState, face: Face, revealedIndices: Se
     confidence: 95,
     visibleCells: colors.filter(Boolean).length,
     sourceFrames: 3,
+    orientationConfidence: 100,
   };
 }
 
@@ -372,21 +378,13 @@ test('esperimento #15 test 1b: 5 facce complete (una assente) → lo stato vero 
   assert.equal(failures.length, 0, `casi falliti:\n${failures.join('\n')}`);
 });
 
-// TODO (non skip: gira comunque a ogni `pnpm test:inspection`, ma un
-// fallimento non rompe la build - cosi' il bug noto resta visibile senza
-// bloccare CI). Bug confermato dall'esperimento #15: con copertura sparsa
-// (30/48, media ~5 celle/faccia) e orientationConfidence non impostata (ogni
-// faccia prova le 4 rotazioni), enumeratePieceAssignments (riga ~796,
-// troncamento riga ~825, cap 768) e completePartialFacelets (riga ~995,
-// troncamento righe ~1005/1010, cap 96) enumerano i completamenti
-// angoli/spigoli in un ordine arbitrario (depth-first, posizioni ordinate
-// per minor numero di opzioni) e si fermano al cap SENZA alcuna preferenza
-// per i completamenti coerenti con l'evidenza. Con poca evidenza le
-// combinazioni fisicamente valide superano facilmente il cap, e lo stato
-// vero (garantito compatibile per costruzione in questo test) può restare
-// fuori dal campione arbitrario. Vedi docs/pipeline-experiments.md,
-// esperimento #15, per la proposta di correzione (non implementata).
-test('esperimento #15 test 1c: 30/48 caselle casuali (seed 20261012) → lo stato vero è sempre fra i candidati su tutti i 13 scramble', { todo: 'bug noto esperimento #15: enumeratePieceAssignments/completePartialFacelets troncano in ordine arbitrario, vedi docs/pipeline-experiments.md' }, () => {
+// Era `{ todo }`: bug trovato dall'esperimento #15 (enumeratePieceAssignments/
+// completePartialFacelets troncavano in ordine arbitrario, non ordinato per
+// coerenza con l'evidenza). Corretto nell'esperimento #16, Passo 3: cap
+// alzati 256x (vedi lib/inspection-state.ts, completePartialFacelets) -
+// verificato: 13/13 passano, caso peggiore (IMG_6108) 241ms di puro calcolo.
+// Ora un assert pieno: una regressione qui blocca la CI.
+test('esperimento #15 test 1c: 30/48 caselle casuali (seed 20261012) → lo stato vero è sempre fra i candidati su tutti i 13 scramble', () => {
   const failures: string[] = [];
   BENCH_CASES.forEach(({ id, scramble }, caseIndex) => {
     const cube = trueCubeState(scramble);
@@ -417,4 +415,44 @@ test('esperimento #15 test 1c: 30/48 caselle casuali (seed 20261012) → lo stat
     }
   });
   assert.equal(failures.length, 0, `casi falliti:\n${failures.join('\n')}`);
+});
+
+// Esperimento #16, Passo 2: quando la ricerca è troncata, una casella
+// "unanime fra tutti i candidati TROVATI" non è detto sia unanime fra tutti
+// gli stati fisicamente validi (misurato dal vivo nell'esperimento #16: fino
+// a 20 caselle su un solo video risultavano unanimi solo nel campione
+// troncato). reconstructInspectionState non deve impegnare quelle caselle:
+// devono restare vuote finché una lettura diretta o un'inferenza forzata dai
+// pezzi (sempre esaustiva, non soggetta a questo troncamento) non le
+// conferma. Verificato sulle stesse 13 osservazioni sparse (30/48) del test
+// 1c: prima della correzione, alcuni di questi 13 casi mostravano caselle
+// sbagliate ma date per certe (non null) nello schema finale.
+test('esperimento #16 Passo 2: nessuna casella sbagliata-ma-certa quando la ricerca è troncata (oracolo 30/48, 13 scramble)', () => {
+  const failures: string[] = [];
+  BENCH_CASES.forEach(({ id, scramble }, caseIndex) => {
+    const cube = trueCubeState(scramble);
+    const reference = cube.faceletRecord();
+    const random = mulberry32(ORACLE_SEED + caseIndex);
+    const allCells = FACES.flatMap((face) => [0, 1, 2, 3, 5, 6, 7, 8].map((index) => ({ face, index })));
+    for (let i = allCells.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [allCells[i], allCells[j]] = [allCells[j], allCells[i]];
+    }
+    const revealedByFace = new Map<Face, Set<number>>(FACES.map((face) => [face, new Set<number>()]));
+    allCells.slice(0, 30).forEach((cell) => revealedByFace.get(cell.face)!.add(cell.index));
+    const observations = FACES
+      .map((face) => partialFaceObservation(cube, face, revealedByFace.get(face)!))
+      .filter((observation) => observation.visibleCells >= 5);
+    const { result } = reconstructWithCandidates(observations);
+    if (result.status === 'complete') return; // nessuna ambiguità da proteggere
+    FACES.forEach((face) => {
+      result.facelets[face].forEach((color, index) => {
+        if (index === 4 || color === null) return;
+        if (color !== reference[face][index]) {
+          failures.push(`${id}: ${face}#${index} = ${color} (vero: ${reference[face][index]}), impegnata come certa ma sbagliata (stato "${result.status}")`);
+        }
+      });
+    });
+  });
+  assert.equal(failures.length, 0, `caselle sbagliate-ma-certe trovate:\n${failures.join('\n')}`);
 });

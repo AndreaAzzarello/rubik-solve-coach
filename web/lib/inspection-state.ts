@@ -992,8 +992,25 @@ function mergeFacelets(left: PartialFacelets, right: PartialFacelets) {
   return result;
 }
 
-function completePartialFacelets(partial: PartialFacelets, limit = Math.round(96 * benchBudgetMultiplier())) {
-  const pieceLimit = Math.round(768 * benchBudgetMultiplier());
+// Esperimento #16 (vedi docs/pipeline-experiments.md, Passo 3): base
+// alzata da 96/768 a 96*256/768*256. Misurato con l'oracolo sintetico
+// dell'esperimento #15 (30/48 caselle corrette, nessun errore): sotto 256x
+// il completamento IMG_6108 restava troncato e lo stato vero - garantito
+// compatibile per costruzione - non compariva (causa confermata: ordine di
+// enumerazione arbitrario in enumeratePieceAssignments, non i vincoli).
+// A 256x tutti i 13 scramble passano, nel caso peggiore (IMG_6108) in
+// 241ms di puro calcolo Node - una frazione trascurabile dei ~100s di
+// analisi video in produzione. beamWidth/validStatesMainCap/seedPool/
+// hypotheses NON sono stati toccati: la telemetria dell'esperimento #14
+// mostra che su tutti i video reali diagnosticati il troncamento di questa
+// funzione (completePartialFaceletsMainTruncatedCount) era già a 0 prima
+// di questo cambio, quindi alzare qui non ha alcun costo aggiuntivo atteso
+// sui video reali - va verificato comunque con il bench completo (Passo 4).
+function completePartialFacelets(
+  partial: PartialFacelets,
+  limit = Math.round(96 * 256 * benchBudgetMultiplier()),
+  pieceLimit = Math.round(768 * 256 * benchBudgetMultiplier()),
+) {
   const corners = enumeratePieceAssignments(CORNERS, CORNERS, partial, pieceLimit);
   const edges = enumeratePieceAssignments(EDGES, EDGES, partial, pieceLimit);
   const complete: PartialFacelets[] = [];
@@ -1753,7 +1770,11 @@ export function reconstructInspectionState(
         if (!pieceEvidenceValid(partial)) continue;
         const inference = inferForcedPieceFacelets(partial);
         if (inference.invalid) continue;
-        const completion = completePartialFacelets(inference.facelets, 12);
+        // Ramo di rilassamento: fuori scopo dell'esperimento #16 (si attiva solo
+        // quando validStates.size===0, mai nei casi diagnosticati). pieceLimit
+        // resta il valore originale (768, non moltiplicato) per non cambiarne il
+        // costo nel caso raro in cui scatta.
+        const completion = completePartialFacelets(inference.facelets, 12, 768);
         if (!completion.complete.length) continue;
         sourceRelaxedFacelets = relaxation.indexes.length;
         if (!relaxedFacelets || sourceRelaxedFacelets < relaxedFacelets) {
@@ -1808,22 +1829,41 @@ export function reconstructInspectionState(
   // mostriamo la migliore ricostruzione fisicamente valida. Lo stato resta
   // "partial" finché il video non rende quella scelta univoca, quindi non viene
   // usato silenziosamente come scramble certificato.
+  //
+  // Esperimento #16 (vedi docs/pipeline-experiments.md): se la ricerca è
+  // stata troncata (sawTruncation), "candidates" è un campione arbitrario
+  // dello spazio fisicamente valido (esperimento #15: enumeratePieceAssignments/
+  // completePartialFacelets si fermano al cap in un ordine qualsiasi, non
+  // ordinato per correttezza). Una casella "unanime fra TUTTI i candidati
+  // trovati" non è detto sia unanime fra TUTTI gli stati fisicamente validi:
+  // misurato dal vivo, fino a 20 caselle su un solo video risultano unanimi
+  // solo nel campione troncato e NON più quando la ricerca viene rifatta senza
+  // cap. Mostrarle come certe sarebbe peggio che lasciarle vuote (una casella
+  // sbagliata ma data per certa costa più di una vuota). Il candidato singolo
+  // (quando candidates.length===1) ha lo stesso problema: può essere unico
+  // solo perché il cap ha impedito di trovarne un secondo. L'unica base
+  // sicura quando si è troncato è bestPartial: le caselle osservate
+  // direttamente più le deduzioni forzate dai vincoli dei pezzi (esaustive
+  // per costruzione su un elenco fisso di 8 angoli/12 spigoli, non soggette
+  // al troncamento dell'enumerazione dei completamenti).
   const provisionalDisplay = completeFacelets
-    ?? (candidates.length > 1 ? candidateConsensus : candidates[0])
+    ?? (sawTruncation ? null : (candidates.length > 1 ? candidateConsensus : candidates[0]))
     ?? bestPartial;
   const displayFacelets = cloneFacelets(provisionalDisplay);
   // Rispecchia esattamente i rami di `provisionalDisplay` sopra, ma per la
   // confidenza invece che per il colore: stesso candidato singolo -> stessa
-  // affidabilita' gia' calcolata per lui; consenso fra piu' candidati o
-  // fallback su bestPartial -> nessuna singola lettura fotometrica a cui
-  // attribuire la casella, quindi 0 (vedi reliabilityForCandidate).
+  // affidabilita' gia' calcolata per lui; consenso fra piu' candidati, ricerca
+  // troncata, o fallback su bestPartial -> nessuna singola lettura fotometrica
+  // a cui attribuire la casella, quindi 0 (vedi reliabilityForCandidate).
   const displayConfidenceSource: Record<Face, number[]> = completeFacelets
     ? (rankedCandidates[0]?.reliability ?? emptyCellConfidence())
-    : candidates.length > 1
-      ? emptyCellConfidence()
-      : candidates.length === 1
-        ? (rankedCandidates[0]?.reliability ?? emptyCellConfidence())
-        : reliabilityForCandidate(bestPartial, bestObservedPartial, bestObservedReliability);
+    : sawTruncation
+      ? reliabilityForCandidate(bestPartial, bestObservedPartial, bestObservedReliability)
+      : candidates.length > 1
+        ? emptyCellConfidence()
+        : candidates.length === 1
+          ? (rankedCandidates[0]?.reliability ?? emptyCellConfidence())
+          : reliabilityForCandidate(bestPartial, bestObservedPartial, bestObservedReliability);
   const displayConfidence: Record<Face, number[]> = Object.fromEntries(
     FACES.map((face) => [face, [...displayConfidenceSource[face]]]),
   ) as Record<Face, number[]>;
