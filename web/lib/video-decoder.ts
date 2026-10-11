@@ -1452,7 +1452,20 @@ export function applyGridAlignmentFilter(observations: FaceGridObservation[], th
   });
   recordGridAlignmentTally(modelBefore, filteredModel.length, safeguards);
   recordGridAlignmentSafeguardColors(safeguardColors);
+  recordAlignmentFilteredObservations(filteredModel);
   return [...nonModel, ...filteredModel];
+}
+
+// Strumentazione solo-bench per la diagnosi #13 (vedi
+// bench/beam-ambiguity-photometric.ts): le osservazioni-modello grezze,
+// per fotogramma, SOPRAVVISSUTE al filtro di allineamento (comprese quelle
+// tenute dalla salvaguardia sotto soglia, distinguibili dal proprio
+// gridAlignmentIndex). Sovrascrive (non accumula), stesso schema lazy
+// usato altrove.
+function recordAlignmentFilteredObservations(observations: FaceGridObservation[]): void {
+  const target = globalThis as { __benchAlignmentFilteredObservations?: FaceGridObservation[] };
+  if (!target.__benchAlignmentFilteredObservations) return;
+  target.__benchAlignmentFilteredObservations = observations;
 }
 
 function selectSingleBestModelObservationPerFace(observations: FaceGridObservation[]): FaceGridObservation[] {

@@ -1331,6 +1331,17 @@ function resetStableRawDiag(): void {
   target.__benchStableRawDiag = Object.fromEntries(FACES.map((face) => [face, null])) as Record<Face, BenchStableRawDiag>;
 }
 
+// Strumentazione solo-bench per la diagnosi #13 (vedi
+// bench/beam-ambiguity-photometric.ts): TUTTI gli stati-cubo completi e
+// fisicamente validi trovati dal beam search (non solo il primo in
+// classifica), per valutare se le letture fotometriche grezze possano
+// scegliere tra loro quando sono più di uno. Sovrascrive (non accumula).
+function recordCandidateStatesDiag(candidates: PartialFacelets[]): void {
+  const target = globalThis as { __benchCandidateStatesDiag?: PartialFacelets[] };
+  if (!target.__benchCandidateStatesDiag) return;
+  target.__benchCandidateStatesDiag = candidates;
+}
+
 export function reconstructInspectionState(
   observations: FaceGridObservation[],
   balancedInfo: { observedCells: number; usable: boolean } = { observedCells: 0, usable: false },
@@ -1669,6 +1680,7 @@ export function reconstructInspectionState(
     ));
   if (rankedCandidates[0]?.relaxed) relaxedFacelets = rankedCandidates[0].relaxed;
   const candidates = rankedCandidates.map((candidate) => candidate.facelets);
+  recordCandidateStatesDiag(candidates);
   const candidateConsensus = consensusFacelets(candidates, withCanonicalCenters());
   // Il troncamento (beam/rotazioni/completion) segnala solo che la ricerca potrebbe aver
   // tagliato altri stati validi, non che li ha trovati. Se resta comunque un solo candidato

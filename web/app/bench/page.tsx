@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CubeColor, Face } from '../../lib/cube';
 import { reconstructInspectionFromVideo } from '../../lib/inspection-pipeline';
-import type { BenchFaceObservationDiag, BenchStableRawDiag } from '../../lib/inspection-state';
+import type { BenchFaceObservationDiag, BenchStableRawDiag, FaceGridObservation, PartialFacelets } from '../../lib/inspection-state';
 import type { MotionSample } from '../../lib/video-decoder';
 
 type ColorPresence = { maxInsideWindow: number; maxBeforeWindow: number; samplesBeforeWindow: number };
@@ -43,6 +43,9 @@ type BenchResult = {
   detectedColors?: CubeColor[];
   videoDuration?: number;
   colorPresence?: Record<CubeColor, ColorPresence>;
+  // Diagnostica esperimento #13 (vedi bench/beam-ambiguity-photometric.ts).
+  candidateStates?: PartialFacelets[];
+  alignmentFilteredObservations?: FaceGridObservation[];
 };
 
 declare global {
@@ -53,6 +56,8 @@ declare global {
     __benchGridAlignmentSafeguardColors?: CubeColor[];
     __benchStableRawDiag?: Record<Face, BenchStableRawDiag>;
     __benchModelGateAttempts?: Record<string, { attempts: number; passed: number }>;
+    __benchCandidateStatesDiag?: PartialFacelets[];
+    __benchAlignmentFilteredObservations?: FaceGridObservation[];
   }
 }
 
@@ -181,6 +186,8 @@ export default function BenchHarness() {
           detectedColors: result.summary.detectedColors,
           videoDuration: video.duration,
           colorPresence: computeColorPresence(result.motionSamples, result.interval),
+          candidateStates: window.__benchCandidateStatesDiag,
+          alignmentFilteredObservations: window.__benchAlignmentFilteredObservations,
         };
       } catch (caught) {
         const error = caught instanceof Error ? caught.message : String(caught);

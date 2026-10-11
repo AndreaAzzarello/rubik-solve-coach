@@ -290,6 +290,8 @@ altri no.
     1. Beam search non univoco (B, ~77 celle) — scartata come prima pista:
        stesso schema di rischio della variante A (#11), "riempire forzando
        una scelta fra ambigui" ha già fatto collassare la precisione altrove.
+       **Verificato direttamente con le letture fotometriche nell'esperimento
+       #13: confermato, non recuperabile in modo automatico.**
     2. Finestra di ispezione su IMG_6108 (~23 celle, U+L+B su un solo video)
        — **prima pista da tentare**: non tocca fusione/colore (area di tutti
        gli esperimenti #1-9 scartati), è isolata e ben evidenziata dai dati
@@ -307,6 +309,62 @@ altri no.
        il controfattuale mostra che è già nella configurazione corretta.
 
     Dati completi: `bench/results/missing-cells-diagnosis.json`.
+
+13. **Le celle ambigue del beam search si possono risolvere con le letture
+    fotometriche?** (non la variante A #11: qui gli stati candidati sono
+    GIÀ tutti fisicamente validi, non si forza l'uso di un singolo
+    fotogramma — si tratta solo di scegliere fra candidati validi con
+    l'evidenza fotometrica. Diagnosi solamente,
+    `bench/beam-ambiguity-photometric.ts`, nessuna modifica alla pipeline.)
+
+    Punteggio per candidato, sulle sole celle dove i candidati completi
+    trovati dal beam search differiscono: per ogni osservazione-modello che
+    ha superato il filtro di allineamento con indice ≥ 6 (non la
+    salvaguardia) e per ogni cella ambigua che quell'osservazione ha letto,
+    +confidenza (0-100, CIEDE2000) se il colore dell'osservazione coincide
+    con quello del candidato, -la stessa confidenza se non coincide; somma
+    su tutte le osservazioni e tutte le celle ambigue.
+
+    9/13 video hanno almeno un caso ambiguo, 133 celle ambigue totali (un
+    soprainsieme delle 77 di sotto-causa 1 dell'esperimento #12: qui si
+    contano tutti i disaccordi fra candidati completi, anche dove nessuna
+    singola osservazione aveva mai letto la cella).
+
+    | Video | Candidati | Troncato | Rango stato vero | Margine 1°-2° | Recuperate | Sbagliate |
+    |---|---|---|---|---|---|---|
+    | 6260 (test) | 2 | sì | 1° | 1080,0 | 4 | 0 |
+    | 6281 (test) | 100 | sì | 23° | 0,0 | 13 | 4 |
+    | 6297 | 60 | sì | non presente | 428,0 | 3 | 15 |
+    | 6298 | 48 | sì | non presente | 0,0 | 7 | 15 |
+    | 6299 | 36 | sì | non presente | 514,0 | 3 | 9 |
+    | 6300 | 41 | sì | non presente | 0,0 | 12 | 9 |
+    | 6336 | 36 | sì | non presente | 0,0 | 3 | 12 |
+    | 6338 | 29 | sì | 10° | 0,0 | 7 | 6 |
+    | 6341 | 36 | sì | non presente | 0,0 | 2 | 9 |
+    | **TOTALE** | | | **1/9 al 1°** | | **54** | **79** |
+
+    Scegliendo sempre il 1° candidato: **54 celle recuperate ma 79
+    diventerebbero sbagliate — netto negativo**. Lo stato vero è 1° in
+    1/9 casi, non è nemmeno fra i candidati trovati in 5/9 (il beam search
+    ha troncato la ricerca prima di raggiungerlo). Margine 1°-2° correlato
+    con la correttezza ma inutilizzabile: accuratezza 100% solo sopra
+    margine 1080 (**1 solo caso, 4 celle** — ben sotto la soglia di 20
+    richiesta), già 50% sopra margine 514, 11% su tutti i 9 casi.
+
+    **Esito: pista chiusa per la parte automatica** (nessuna soglia di
+    margine raggiunge insieme ≥95% di accuratezza e ≥20 celle
+    recuperabili senza nuovi errori — il criterio di adozione dichiarato in
+    partenza non è soddisfatto, non si propone nessun bench di produzione).
+
+    Punto 3 (quale casella chiedere all'utente): per ogni caso, la casella
+    singola che massimizza la riduzione dei candidati (simulazione greedy,
+    rispondendo sempre con il colore vero). **Media 1,56 domande per
+    arrivare a un candidato unico** (min 1, max 3). La faccia F (verde),
+    cella #5, è la prima domanda migliore in 4/9 casi (6260, 6281, 6338,
+    6341) — un segnale per un'eventuale interfaccia di disambiguazione
+    interattiva (non implementata, fuori scopo di questa diagnosi).
+
+    Dati completi: `bench/results/beam-ambiguity-photometric.json`.
 
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
