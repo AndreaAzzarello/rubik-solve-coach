@@ -1,0 +1,675 @@
+{
+  "generatedAt": "2026-10-11T19:55:37.061Z",
+  "reports": [
+    {
+      "video": "IMG_6107",
+      "group": "integration",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6107",
+      "group": "integration",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6107",
+      "group": "integration",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6107",
+      "group": "integration",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6107",
+      "group": "integration",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6107",
+      "group": "integration",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6108",
+      "group": "integration",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 3,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6108",
+      "group": "integration",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 2,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6108",
+      "group": "integration",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 1,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6258",
+      "group": "test",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6258",
+      "group": "test",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6258",
+      "group": "test",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6258",
+      "group": "test",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6258",
+      "group": "test",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 5,
+      "maxMatches": 5,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6258",
+      "group": "test",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6260",
+      "group": "test",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 7,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6260",
+      "group": "test",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6260",
+      "group": "test",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 5,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6260",
+      "group": "test",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6260",
+      "group": "test",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 1,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6260",
+      "group": "test",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6281",
+      "group": "test",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 5,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6281",
+      "group": "test",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 7,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6281",
+      "group": "test",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6281",
+      "group": "test",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 2,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6281",
+      "group": "test",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6297",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 2,
+      "maxMatches": 2,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6297",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6297",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 7,
+      "maxMatches": 7,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6297",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 4,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6298",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 5,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6298",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 6,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6298",
+      "group": "seen",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 2,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6298",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6299",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6299",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 3,
+      "maxMatches": 3,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6299",
+      "group": "seen",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 5,
+      "maxMatches": 5,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6299",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6299",
+      "group": "seen",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 5,
+      "maxMatches": 5,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6299",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 5,
+      "maxMatches": 5,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6300",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 5,
+      "maxMatches": 5,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6300",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 2,
+      "maxMatches": 4,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6300",
+      "group": "seen",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6300",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6300",
+      "group": "seen",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 2,
+      "maxMatches": 7,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6300",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 4,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6334",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6334",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 7,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6334",
+      "group": "seen",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 5,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6334",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6334",
+      "group": "seen",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 5,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6334",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 7,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6336",
+      "group": "seen",
+      "face": "U",
+      "margin": null,
+      "tie": false,
+      "chosenMatches": 7,
+      "maxMatches": 7,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6336",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6336",
+      "group": "seen",
+      "face": "F",
+      "margin": null,
+      "tie": false,
+      "chosenMatches": 5,
+      "maxMatches": 5,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6336",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6336",
+      "group": "seen",
+      "face": "L",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 4,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6336",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 5,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6338",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 2,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6338",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 8,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6338",
+      "group": "seen",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 4,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6338",
+      "group": "seen",
+      "face": "D",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 6,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6338",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 8,
+      "maxMatches": 8,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6341",
+      "group": "seen",
+      "face": "U",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 7,
+      "maxMatches": 7,
+      "wrongChoice": false
+    },
+    {
+      "video": "IMG_6341",
+      "group": "seen",
+      "face": "R",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 3,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6341",
+      "group": "seen",
+      "face": "F",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 0,
+      "maxMatches": 6,
+      "wrongChoice": true
+    },
+    {
+      "video": "IMG_6341",
+      "group": "seen",
+      "face": "B",
+      "margin": 0,
+      "tie": true,
+      "chosenMatches": 1,
+      "maxMatches": 5,
+      "wrongChoice": true
+    }
+  ]
+}
