@@ -745,6 +745,73 @@ gli altri no.
     è un limite dei dati di 6299, letture di colore sbagliate su R, non un
     problema di orientamento.
 
+17. **Pareggi nella scelta della rotazione delle facce** → **non adottata**
+    (codice su branch `exp/rotation-tie-break`, non mersato — solo l'esito
+    registrato qui, stesso schema dell'esperimento #11).
+
+    **Passo 1 (misura, 13 video)**: su 67 facce, **65 in pareggio**
+    (margine ≤1e-9 fra 1ª e 2ª rotazione candidata) — quasi sempre, non
+    l'eccezione. Di queste, **39 con la scelta sbagliata** (non il massimo
+    disponibile fra le rotazioni candidate). 0 facce sbagliate senza
+    pareggio. Confirma che il problema di #16/6299 è sistemico.
+
+    **Passo 2 (test sintetico permanente)**: oracolo a copertura piena
+    (48/48) con ogni faccia ruotata di un multiplo diverso di 90°,
+    confidenza uniforme. **Passa già oggi, 0/13 falliscono**, anche senza
+    alcuna correzione — con copertura completa i vincoli dei pezzi
+    bastano a scartare le combinazioni di rotazione sbagliate. Non
+    riproduce il problema reale: il fallimento del #16 (6299) richiede
+    copertura PARZIALE, non testata da questo scenario a copertura piena
+    (come richiesto esplicitamente dal Passo 2). Test aggiunto
+    permanentemente in `lib/inspection-state.test.ts`.
+
+    **Passo 3 (variante A, dietro flag `benchRotationTieBreakVariantA`,
+    default false)**: in `considerPartial`
+    (`lib/inspection-state.ts`), quando una nuova soluzione pareggia
+    (entro 1e-9) la qualità della migliore trovata finora, non si scarta
+    né si sostituisce: le caselle in disaccordo vengono erose a null.
+    Oltre 64 pareggi fusi si smette (si tiene il consenso eroso, non si
+    indovina). Non rompe il test del Passo 2 (13/13 anche attiva).
+
+    **Passo 4 (variante B)**: non implementata — la condizione dichiarata
+    ("solo se A non basta a far passare il test sintetico") non si
+    applica, il test passa già senza alcuna variante.
+
+    **Passo 5 (bench sui 13 video, variante A)**:
+
+    | Run | Totale | Gruppo test | Tempo medio |
+    |---|---|---|---|
+    | Baseline (#16) | 462/702 | 155/162 | ~109-112s |
+    | Variante A | 462/702 (**identico**) | 155/162 (**identico**) | 111s |
+
+    Confronto cella-per-cella su tutti i 702: **1 sola differenza**,
+    IMG_6298/R#1 e R#7 (entrambe da sbagliate a vuote — precisione su,
+    nessun costo). Tutti gli altri 12 video, **6299 e 6338 compresi, bit-
+    identici**: la variante A non li tocca affatto.
+
+    **Perché non cambia nulla su 6299/6338**: la variante A agisce sul
+    pareggio di qualità dell'intero stato a 54 caselle in
+    `considerPartial` — un pareggio a quel livello (dopo aver combinato
+    tutte le 6 facce) è raro, perché combinazioni diverse di rotazioni
+    per faccia producono quasi sempre `sourceScore` complessivi diversi,
+    anche quando le rotazioni di UNA faccia pareggiano fra loro al
+    Passo 1. **I due pareggi non sono allo stesso livello**: il Passo 1
+    misura il pareggio per-faccia (nel builder `choices`, già passato
+    inalterato al beam search — tutte le rotazioni pareggiate vengono già
+    provate, non scartate), la variante A intercetta solo il pareggio
+    dell'intero stato combinato, molto più raro (è scattato una sola
+    volta su 13 video). Per intervenire davvero su 6299 servirebbe un
+    meccanismo al livello del Passo 1 (per-faccia), non implementato qui.
+
+    **Esito: criterio "totale sopra 462/702" non soddisfatto** (è pari,
+    non sopra) e il caso che ha motivato l'esperimento (6299) resta
+    invariato. Nessuna regressione su nessun video. **Non adottata**:
+    nessun beneficio misurabile a fronte della complessità aggiunta;
+    riportato, fermo qui.
+
+    Dati completi: `bench/results/rotation-tie-check.json`,
+    `bench/results/exp17-variantA.json` (branch `exp/rotation-tie-break`).
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
