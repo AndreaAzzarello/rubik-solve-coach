@@ -345,26 +345,97 @@ altri no.
 
     Scegliendo sempre il 1° candidato: **54 celle recuperate ma 79
     diventerebbero sbagliate — netto negativo**. Lo stato vero è 1° in
-    1/9 casi, non è nemmeno fra i candidati trovati in 5/9 (il beam search
-    ha troncato la ricerca prima di raggiungerlo). Margine 1°-2° correlato
-    con la correttezza ma inutilizzabile: accuratezza 100% solo sopra
-    margine 1080 (**1 solo caso, 4 celle** — ben sotto la soglia di 20
-    richiesta), già 50% sopra margine 514, 11% su tutti i 9 casi.
+    1/9 casi, non è fra i candidati trovati in **6/9** (correzione: non
+    5 come scritto nella prima stesura — 6297, 6298, 6299, 6300, 6336,
+    6341). Margine 1°-2° correlato con la correttezza ma inutilizzabile:
+    accuratezza 100% solo sopra margine 1080 (**1 solo caso, 4 celle** —
+    ben sotto la soglia di 20 richiesta), già 50% sopra margine 514, 11%
+    su tutti i 9 casi.
 
     **Esito: pista chiusa per la parte automatica** (nessuna soglia di
     margine raggiunge insieme ≥95% di accuratezza e ≥20 celle
     recuperabili senza nuovi errori — il criterio di adozione dichiarato in
     partenza non è soddisfatto, non si propone nessun bench di produzione).
 
-    Punto 3 (quale casella chiedere all'utente): per ogni caso, la casella
-    singola che massimizza la riduzione dei candidati (simulazione greedy,
-    rispondendo sempre con il colore vero). **Media 1,56 domande per
-    arrivare a un candidato unico** (min 1, max 3). La faccia F (verde),
-    cella #5, è la prima domanda migliore in 4/9 casi (6260, 6281, 6338,
-    6341) — un segnale per un'eventuale interfaccia di disambiguazione
-    interattiva (non implementata, fuori scopo di questa diagnosi).
+    **Approfondimento (`bench/beam-truncation-check.ts`): perché lo stato
+    vero manca in 6/9 casi — troncamento o caselle impegnate sbagliate?**
+    Per ciascuno dei 6 casi: il troncamento (`sawTruncation`) è risultato
+    **true in tutti e 6**; le caselle impegnate (unanimi fra tutti i
+    candidati trovati) che contraddicono la verità variano da 1 (6300) a
+    32 (6341):
 
-    Dati completi: `bench/results/beam-ambiguity-photometric.json`.
+    | Video | Troncato | Caselle impegnate sbagliate | Dopo rimozione: candidati | Stato vero presente dopo? |
+    |---|---|---|---|---|
+    | 6297 | sì | 8 | 144 | no |
+    | 6298 | sì | 2 | 48 | no |
+    | 6299 | sì | 22 | 36 | no |
+    | 6300 | sì | 1 | 52 | no |
+    | 6336 | sì | 14 | 30 | no |
+    | 6341 | sì | 32 | 264 | no |
+
+    **Conclusione per ciascuno dei 6: entrambi** (troncamento + caselle
+    impegnate sbagliate), non uno dei due isolatamente. Anche rimuovendo
+    SOLO le letture impegnate sbagliate identificate e rilanciando la
+    ricerca, lo stato vero resta assente in tutti i 6 casi: il troncamento
+    non è un dettaglio accessorio del run originale, gioca un ruolo reale
+    (la ricerca, anche depurata da quegli errori, non raggiunge comunque lo
+    stato vero entro i limiti di `beamWidth`/numero di candidati). La
+    diagnosi #12 ("troncamento 0/82") e questo risultato non si
+    contraddicono: #12 classificava la causa dell'assenza di una singola
+    CASELLA già trovata come candidata ambigua (disaccordo fra gli stati
+    TROVATI), mentre qui la domanda è diversa — perché lo STATO VERO non è
+    fra quelli trovati. Sono due livelli diversi: il primo non richiedeva
+    mai il troncamento perché operava dentro l'insieme già trovato; il
+    secondo mostra che quell'insieme stesso, anche corretto delle letture
+    sbagliate note, non include la verità per limiti di ricerca.
+
+    **Disambiguazione interattiva valutata su tutti i 9 casi** (correzione
+    della metrica "1,56 domande medie" della prima stesura di questo
+    esperimento: quella simulazione non distingueva "arriva allo stato
+    vero" da "le risposte vere azzerano l'insieme dei candidati trovati" —
+    i due esiti hanno lo stesso aspetto, pochi passi, ma significati opposti):
+
+    | Video | Esito | Domande | Celle ambigue |
+    |---|---|---|---|
+    | 6260 (test) | successo | 1 | 4 |
+    | 6281 (test) | successo | 2 | 17 |
+    | 6338 | successo | 3 | 13 |
+    | 6298 | convergenza-errata | 3 | 22 |
+    | 6297 | contraddizione | 1 | 18 |
+    | 6299 | contraddizione | 1 | 12 |
+    | 6300 | contraddizione | 1 | 21 |
+    | 6336 | contraddizione | 1 | 15 |
+    | 6341 | contraddizione | 1 | 11 |
+
+    **Così com'è oggi, porterebbe allo stato vero in 3/9 casi** (6260,
+    6281, 6338 — esattamente i 3 dove lo stato vero era già presente fra i
+    candidati trovati). Negli altri 6: **5/9 vanno in contraddizione** (la
+    prima risposta vera dell'utente è già incompatibile con OGNI candidato
+    trovato dal beam search) e **1/9 (6298) converge a un unico candidato
+    che non è quello vero** — l'esito più insidioso, perché un'interfaccia
+    naive lo presenterebbe come "risolto" con falsa sicurezza.
+
+    **Proposta per rilevare e gestire la contraddizione (solo proposta, non
+    implementata)**: dopo ogni risposta dell'utente, filtrare i candidati
+    trovati dal beam search per quella risposta; se l'insieme risultante è
+    vuoto, non proseguire con altre domande (il problema non è nella
+    cella appena chiesta, ma in una o più caselle GIÀ impegnate prima
+    dell'interazione). Mostrare all'utente esattamente quali caselle già
+    impegnate sono in conflitto: per ciascuna delle caselle unanimi fra i
+    candidati pre-esistenti, verificare se è compatibile con la risposta
+    appena data (stesso controllo di `pieceEvidenceValid`/vincoli dei pezzi
+    usato internamente dal beam search) e segnalare quelle incompatibili
+    come "da riverificare" invece di incolpare la domanda corrente. Questo
+    richiede comunque la stessa cautela di #11/#13: non proporre di
+    "forzare" una correzione automatica di quelle caselle, solo di
+    segnalarle con una richiesta di verifica umana. Criterio di successo
+    per un'eventuale implementazione futura (non proposta qui, serve prima
+    capire quali caselle impegnate tendono a essere quelle sbagliate - vedi
+    pista aperta sotto): l'interfaccia non deve mai mostrare un singolo
+    stato come "risolto" quando è il caso 6298 (convergenza-errata).
+
+    Dati completi: `bench/results/beam-ambiguity-photometric.json` e
+    `bench/results/beam-truncation-check.json`.
 
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 

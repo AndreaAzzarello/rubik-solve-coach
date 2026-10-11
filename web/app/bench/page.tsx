@@ -46,6 +46,8 @@ type BenchResult = {
   // Diagnostica esperimento #13 (vedi bench/beam-ambiguity-photometric.ts).
   candidateStates?: PartialFacelets[];
   alignmentFilteredObservations?: FaceGridObservation[];
+  // Diagnostica esperimento #14 (vedi bench/beam-truncation-check.ts).
+  observationsDiag?: { observations: FaceGridObservation[]; balancedInfo: { observedCells: number; usable: boolean } };
 };
 
 declare global {
@@ -58,6 +60,7 @@ declare global {
     __benchModelGateAttempts?: Record<string, { attempts: number; passed: number }>;
     __benchCandidateStatesDiag?: PartialFacelets[];
     __benchAlignmentFilteredObservations?: FaceGridObservation[];
+    __benchObservationsDiag?: { observations: FaceGridObservation[]; balancedInfo: { observedCells: number; usable: boolean } };
   }
 }
 
@@ -188,6 +191,7 @@ export default function BenchHarness() {
           colorPresence: computeColorPresence(result.motionSamples, result.interval),
           candidateStates: window.__benchCandidateStatesDiag,
           alignmentFilteredObservations: window.__benchAlignmentFilteredObservations,
+          observationsDiag: window.__benchObservationsDiag,
         };
       } catch (caught) {
         const error = caught instanceof Error ? caught.message : String(caught);

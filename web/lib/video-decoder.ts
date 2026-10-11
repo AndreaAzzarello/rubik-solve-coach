@@ -1468,6 +1468,24 @@ function recordAlignmentFilteredObservations(observations: FaceGridObservation[]
   target.__benchAlignmentFilteredObservations = observations;
 }
 
+// Strumentazione solo-bench per l'approfondimento dell'esperimento #13 (vedi
+// bench/beam-truncation-check.ts): l'INTERO input (osservazioni fuse +
+// sintetiche di bilanciamento, con le info di bilanciamento) a
+// reconstructInspectionState - essendo una funzione pura, questo basta a
+// rigiocare la ricerca altrove (anche in Node puro, senza browser) con
+// input modificati, per isolare troncamento da letture impegnate
+// sbagliate. Sovrascrive (non accumula).
+function recordObservationsDiag(
+  observations: FaceGridObservation[],
+  balancedInfo: { observedCells: number; usable: boolean },
+): void {
+  const target = globalThis as {
+    __benchObservationsDiag?: { observations: FaceGridObservation[]; balancedInfo: { observedCells: number; usable: boolean } };
+  };
+  if (!target.__benchObservationsDiag) return;
+  target.__benchObservationsDiag = { observations, balancedInfo };
+}
+
 function selectSingleBestModelObservationPerFace(observations: FaceGridObservation[]): FaceGridObservation[] {
   const modelByColor = new Map<CubeColor, FaceGridObservation[]>();
   const nonModel: FaceGridObservation[] = [];
@@ -1599,10 +1617,9 @@ export function summarizeCubeObservation(
     : [];
   const allObservations = [...calibratedObservations, ...balancedObservations];
   const multiFaceObservations = allObservations.filter((observation) => (observation.bundleSize ?? 1) >= 2);
-  const reconstruction = reconstructInspectionState(allObservations, {
-    observedCells: balanced?.observedCells ?? 0,
-    usable: balancedUsable,
-  });
+  const balancedInfoForReconstruction = { observedCells: balanced?.observedCells ?? 0, usable: balancedUsable };
+  recordObservationsDiag(allObservations, balancedInfoForReconstruction);
+  const reconstruction = reconstructInspectionState(allObservations, balancedInfoForReconstruction);
   const keyframes = selectInspectionKeyframes(selected);
   const coverage = emptyColorCoverage();
   useful.forEach((sample) => {

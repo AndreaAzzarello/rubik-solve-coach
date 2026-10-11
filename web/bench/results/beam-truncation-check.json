@@ -1,0 +1,701 @@
+{
+  "generatedAt": "2026-10-11T14:57:59.743Z",
+  "truncationReports": [
+    {
+      "id": "IMG_6297",
+      "truncated": true,
+      "candidateCount": 60,
+      "wrongCommittedCells": [
+        {
+          "face": "U",
+          "index": 1,
+          "got": "white",
+          "truth": "green"
+        },
+        {
+          "face": "U",
+          "index": 7,
+          "got": "red",
+          "truth": "white"
+        },
+        {
+          "face": "U",
+          "index": 8,
+          "got": "blue",
+          "truth": "orange"
+        },
+        {
+          "face": "F",
+          "index": 1,
+          "got": "yellow",
+          "truth": "green"
+        },
+        {
+          "face": "F",
+          "index": 2,
+          "got": "orange",
+          "truth": "green"
+        },
+        {
+          "face": "F",
+          "index": 5,
+          "got": "green",
+          "truth": "orange"
+        },
+        {
+          "face": "F",
+          "index": 6,
+          "got": "red",
+          "truth": "blue"
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "got": "blue",
+          "truth": "orange"
+        }
+      ],
+      "afterRemoval": {
+        "candidateCount": 144,
+        "truePresent": false,
+        "trueRank": null
+      },
+      "conclusion": "entrambi (troncamento + caselle impegnate sbagliate)"
+    },
+    {
+      "id": "IMG_6298",
+      "truncated": true,
+      "candidateCount": 48,
+      "wrongCommittedCells": [
+        {
+          "face": "R",
+          "index": 1,
+          "got": "green",
+          "truth": "white"
+        },
+        {
+          "face": "R",
+          "index": 7,
+          "got": "white",
+          "truth": "green"
+        }
+      ],
+      "afterRemoval": {
+        "candidateCount": 48,
+        "truePresent": false,
+        "trueRank": null
+      },
+      "conclusion": "entrambi (troncamento + caselle impegnate sbagliate)"
+    },
+    {
+      "id": "IMG_6299",
+      "truncated": true,
+      "candidateCount": 36,
+      "wrongCommittedCells": [
+        {
+          "face": "U",
+          "index": 2,
+          "got": "red",
+          "truth": "yellow"
+        },
+        {
+          "face": "U",
+          "index": 7,
+          "got": "white",
+          "truth": "blue"
+        },
+        {
+          "face": "U",
+          "index": 8,
+          "got": "yellow",
+          "truth": "blue"
+        },
+        {
+          "face": "R",
+          "index": 2,
+          "got": "yellow",
+          "truth": "red"
+        },
+        {
+          "face": "R",
+          "index": 3,
+          "got": "red",
+          "truth": "green"
+        },
+        {
+          "face": "R",
+          "index": 6,
+          "got": "white",
+          "truth": "yellow"
+        },
+        {
+          "face": "R",
+          "index": 7,
+          "got": "yellow",
+          "truth": "white"
+        },
+        {
+          "face": "F",
+          "index": 0,
+          "got": "yellow",
+          "truth": "blue"
+        },
+        {
+          "face": "F",
+          "index": 1,
+          "got": "green",
+          "truth": "orange"
+        },
+        {
+          "face": "F",
+          "index": 5,
+          "got": "green",
+          "truth": "red"
+        },
+        {
+          "face": "F",
+          "index": 6,
+          "got": "yellow",
+          "truth": "red"
+        },
+        {
+          "face": "F",
+          "index": 8,
+          "got": "blue",
+          "truth": "green"
+        },
+        {
+          "face": "L",
+          "index": 0,
+          "got": "white",
+          "truth": "orange"
+        },
+        {
+          "face": "L",
+          "index": 1,
+          "got": "white",
+          "truth": "blue"
+        },
+        {
+          "face": "L",
+          "index": 3,
+          "got": "orange",
+          "truth": "red"
+        },
+        {
+          "face": "L",
+          "index": 5,
+          "got": "red",
+          "truth": "orange"
+        },
+        {
+          "face": "L",
+          "index": 6,
+          "got": "white",
+          "truth": "red"
+        },
+        {
+          "face": "L",
+          "index": 7,
+          "got": "blue",
+          "truth": "green"
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "got": "orange",
+          "truth": "yellow"
+        },
+        {
+          "face": "B",
+          "index": 0,
+          "got": "blue",
+          "truth": "green"
+        },
+        {
+          "face": "B",
+          "index": 2,
+          "got": "red",
+          "truth": "white"
+        },
+        {
+          "face": "B",
+          "index": 8,
+          "got": "orange",
+          "truth": "white"
+        }
+      ],
+      "afterRemoval": {
+        "candidateCount": 36,
+        "truePresent": false,
+        "trueRank": null
+      },
+      "conclusion": "entrambi (troncamento + caselle impegnate sbagliate)"
+    },
+    {
+      "id": "IMG_6300",
+      "truncated": true,
+      "candidateCount": 41,
+      "wrongCommittedCells": [
+        {
+          "face": "R",
+          "index": 3,
+          "got": "blue",
+          "truth": "green"
+        }
+      ],
+      "afterRemoval": {
+        "candidateCount": 52,
+        "truePresent": false,
+        "trueRank": null
+      },
+      "conclusion": "entrambi (troncamento + caselle impegnate sbagliate)"
+    },
+    {
+      "id": "IMG_6336",
+      "truncated": true,
+      "candidateCount": 36,
+      "wrongCommittedCells": [
+        {
+          "face": "F",
+          "index": 6,
+          "got": "orange",
+          "truth": "green"
+        },
+        {
+          "face": "F",
+          "index": 8,
+          "got": "blue",
+          "truth": "green"
+        },
+        {
+          "face": "D",
+          "index": 0,
+          "got": "blue",
+          "truth": "yellow"
+        },
+        {
+          "face": "D",
+          "index": 1,
+          "got": "red",
+          "truth": "green"
+        },
+        {
+          "face": "D",
+          "index": 2,
+          "got": "yellow",
+          "truth": "white"
+        },
+        {
+          "face": "D",
+          "index": 3,
+          "got": "yellow",
+          "truth": "red"
+        },
+        {
+          "face": "D",
+          "index": 5,
+          "got": "green",
+          "truth": "yellow"
+        },
+        {
+          "face": "D",
+          "index": 6,
+          "got": "red",
+          "truth": "blue"
+        },
+        {
+          "face": "L",
+          "index": 3,
+          "got": "green",
+          "truth": "white"
+        },
+        {
+          "face": "L",
+          "index": 6,
+          "got": "white",
+          "truth": "red"
+        },
+        {
+          "face": "L",
+          "index": 7,
+          "got": "orange",
+          "truth": "yellow"
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "got": "white",
+          "truth": "orange"
+        },
+        {
+          "face": "B",
+          "index": 7,
+          "got": "blue",
+          "truth": "orange"
+        },
+        {
+          "face": "B",
+          "index": 8,
+          "got": "green",
+          "truth": "yellow"
+        }
+      ],
+      "afterRemoval": {
+        "candidateCount": 30,
+        "truePresent": false,
+        "trueRank": null
+      },
+      "conclusion": "entrambi (troncamento + caselle impegnate sbagliate)"
+    },
+    {
+      "id": "IMG_6341",
+      "truncated": true,
+      "candidateCount": 36,
+      "wrongCommittedCells": [
+        {
+          "face": "U",
+          "index": 0,
+          "got": "green",
+          "truth": "blue"
+        },
+        {
+          "face": "U",
+          "index": 1,
+          "got": "red",
+          "truth": "green"
+        },
+        {
+          "face": "U",
+          "index": 2,
+          "got": "blue",
+          "truth": "white"
+        },
+        {
+          "face": "U",
+          "index": 3,
+          "got": "red",
+          "truth": "white"
+        },
+        {
+          "face": "U",
+          "index": 5,
+          "got": "green",
+          "truth": "blue"
+        },
+        {
+          "face": "U",
+          "index": 6,
+          "got": "white",
+          "truth": "green"
+        },
+        {
+          "face": "U",
+          "index": 7,
+          "got": "blue",
+          "truth": "red"
+        },
+        {
+          "face": "R",
+          "index": 0,
+          "got": "orange",
+          "truth": "green"
+        },
+        {
+          "face": "R",
+          "index": 2,
+          "got": "red",
+          "truth": "blue"
+        },
+        {
+          "face": "R",
+          "index": 3,
+          "got": "red",
+          "truth": "green"
+        },
+        {
+          "face": "R",
+          "index": 5,
+          "got": "green",
+          "truth": "blue"
+        },
+        {
+          "face": "R",
+          "index": 7,
+          "got": "blue",
+          "truth": "green"
+        },
+        {
+          "face": "R",
+          "index": 8,
+          "got": "green",
+          "truth": "white"
+        },
+        {
+          "face": "F",
+          "index": 2,
+          "got": "blue",
+          "truth": "orange"
+        },
+        {
+          "face": "F",
+          "index": 3,
+          "got": "white",
+          "truth": "orange"
+        },
+        {
+          "face": "F",
+          "index": 6,
+          "got": "red",
+          "truth": "green"
+        },
+        {
+          "face": "F",
+          "index": 7,
+          "got": "red",
+          "truth": "yellow"
+        },
+        {
+          "face": "F",
+          "index": 8,
+          "got": "green",
+          "truth": "yellow"
+        },
+        {
+          "face": "D",
+          "index": 0,
+          "got": "white",
+          "truth": "yellow"
+        },
+        {
+          "face": "D",
+          "index": 2,
+          "got": "yellow",
+          "truth": "blue"
+        },
+        {
+          "face": "D",
+          "index": 5,
+          "got": "yellow",
+          "truth": "orange"
+        },
+        {
+          "face": "D",
+          "index": 6,
+          "got": "orange",
+          "truth": "white"
+        },
+        {
+          "face": "D",
+          "index": 8,
+          "got": "orange",
+          "truth": "red"
+        },
+        {
+          "face": "L",
+          "index": 1,
+          "got": "white",
+          "truth": "orange"
+        },
+        {
+          "face": "L",
+          "index": 2,
+          "got": "green",
+          "truth": "yellow"
+        },
+        {
+          "face": "L",
+          "index": 6,
+          "got": "blue",
+          "truth": "green"
+        },
+        {
+          "face": "L",
+          "index": 8,
+          "got": "blue",
+          "truth": "orange"
+        },
+        {
+          "face": "B",
+          "index": 0,
+          "got": "yellow",
+          "truth": "orange"
+        },
+        {
+          "face": "B",
+          "index": 2,
+          "got": "white",
+          "truth": "yellow"
+        },
+        {
+          "face": "B",
+          "index": 3,
+          "got": "yellow",
+          "truth": "red"
+        },
+        {
+          "face": "B",
+          "index": 6,
+          "got": "yellow",
+          "truth": "blue"
+        },
+        {
+          "face": "B",
+          "index": 8,
+          "got": "yellow",
+          "truth": "red"
+        }
+      ],
+      "afterRemoval": {
+        "candidateCount": 264,
+        "truePresent": false,
+        "trueRank": null
+      },
+      "conclusion": "entrambi (troncamento + caselle impegnate sbagliate)"
+    }
+  ],
+  "interactiveReports": [
+    {
+      "id": "IMG_6260",
+      "ambiguousCellCount": 4,
+      "outcome": "successo",
+      "questions": 1,
+      "remainingCount": 1,
+      "trace": [
+        {
+          "face": "F",
+          "index": 5
+        }
+      ]
+    },
+    {
+      "id": "IMG_6281",
+      "ambiguousCellCount": 17,
+      "outcome": "successo",
+      "questions": 2,
+      "remainingCount": 1,
+      "trace": [
+        {
+          "face": "F",
+          "index": 5
+        },
+        {
+          "face": "R",
+          "index": 1
+        }
+      ]
+    },
+    {
+      "id": "IMG_6297",
+      "ambiguousCellCount": 18,
+      "outcome": "contraddizione",
+      "questions": 1,
+      "remainingCount": 0,
+      "trace": [
+        {
+          "face": "U",
+          "index": 0
+        }
+      ]
+    },
+    {
+      "id": "IMG_6298",
+      "ambiguousCellCount": 22,
+      "outcome": "convergenza-errata",
+      "questions": 3,
+      "remainingCount": 1,
+      "trace": [
+        {
+          "face": "L",
+          "index": 7
+        },
+        {
+          "face": "U",
+          "index": 6
+        },
+        {
+          "face": "L",
+          "index": 1
+        }
+      ]
+    },
+    {
+      "id": "IMG_6299",
+      "ambiguousCellCount": 12,
+      "outcome": "contraddizione",
+      "questions": 1,
+      "remainingCount": 0,
+      "trace": [
+        {
+          "face": "U",
+          "index": 5
+        }
+      ]
+    },
+    {
+      "id": "IMG_6300",
+      "ambiguousCellCount": 21,
+      "outcome": "contraddizione",
+      "questions": 1,
+      "remainingCount": 0,
+      "trace": [
+        {
+          "face": "R",
+          "index": 5
+        }
+      ]
+    },
+    {
+      "id": "IMG_6336",
+      "ambiguousCellCount": 15,
+      "outcome": "contraddizione",
+      "questions": 1,
+      "remainingCount": 0,
+      "trace": [
+        {
+          "face": "U",
+          "index": 2
+        }
+      ]
+    },
+    {
+      "id": "IMG_6338",
+      "ambiguousCellCount": 13,
+      "outcome": "successo",
+      "questions": 3,
+      "remainingCount": 1,
+      "trace": [
+        {
+          "face": "F",
+          "index": 5
+        },
+        {
+          "face": "L",
+          "index": 5
+        },
+        {
+          "face": "R",
+          "index": 6
+        }
+      ]
+    },
+    {
+      "id": "IMG_6341",
+      "ambiguousCellCount": 11,
+      "outcome": "contraddizione",
+      "questions": 1,
+      "remainingCount": 0,
+      "trace": [
+        {
+          "face": "F",
+          "index": 5
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "successCount": 3,
+    "contradictionCount": 5,
+    "total": 9
+  }
+}
