@@ -515,6 +515,18 @@ export function benchBudgetMultiplier(): number {
   return typeof value === 'number' && value > 0 ? value : 1;
 }
 
+// Esperimento #17 (vedi docs/pipeline-experiments.md), Variante A: assente
+// in produzione (default false) -> comportamento bit-identico. Quando
+// attiva, i pareggi di qualita' in considerPartial sotto (stesso
+// bestPartialQuality a meno di TIE_EPSILON) non vengono scartati né
+// scelgono arbitrariamente: le caselle su cui i pareggi non sono
+// d'accordo vengono erose a null invece di restare quelle del primo
+// trovato - "non sceglierne una, lascia decidere i vincoli fisici", e se
+// nessun vincolo le disambigua la casella resta vuota.
+export function benchRotationTieBreakVariantA(): boolean {
+  return (globalThis as { __benchRotationTieBreakVariantA?: boolean }).__benchRotationTieBreakVariantA === true;
+}
+
 export function fuseFaceObservationCandidates(
   observations: FaceGridObservation[],
   limit = 4,
@@ -1597,6 +1609,15 @@ export function reconstructInspectionState(
   let bestObserved = 0;
   let bestPartialQuality = Number.NEGATIVE_INFINITY;
   let bestPieceInference: ForcedPieceInference | null = null;
+  // Variante A (esperimento #17): quante alternative a pareggio di qualita'
+  // sono state fuse per erosione finora, e il tetto oltre il quale si
+  // smette di fonderle (si tiene il consenso eroso raggiunto, mai si
+  // sceglie a caso). TIE_EPSILON identico a quello usato per misurare i
+  // pareggi nella diagnosi (bench/rotation-tie-check.ts).
+  const rotationTieBreakVariantA = benchRotationTieBreakVariantA();
+  const TIE_EPSILON = 1e-9;
+  const MAX_TIE_MERGES = 64;
+  let bestPartialTieCount = 0;
   const beamWidth = Math.round(1600 * benchBudgetMultiplier());
   const maximumRotationCombinations = beamWidth;
   const validStatesMainCap = Math.round(256 * benchBudgetMultiplier());
@@ -1627,6 +1648,31 @@ export function reconstructInspectionState(
     const inferredKnownCount = countKnownFacelets(pieceInference.facelets) - 6;
     const bestKnownCount = countKnownFacelets(bestPartial) - 6;
     const quality = observedCount * 42 + inferredKnownCount * 7 + sourceScore;
+    if (
+      rotationTieBreakVariantA
+      && Number.isFinite(bestPartialQuality)
+      && Math.abs(quality - bestPartialQuality) <= TIE_EPSILON
+      && bestPartialTieCount < MAX_TIE_MERGES
+    ) {
+      // Pareggio di qualita': non si sceglie, si erode a null dove questa
+      // alternativa non e' d'accordo con quella tenuta finora. Oltre
+      // MAX_TIE_MERGES si smette di fondere (si tiene il consenso eroso
+      // raggiunto finora, non si continua a indovinare all'infinito).
+      bestPartialTieCount += 1;
+      FACES.forEach((face) => {
+        for (let index = 0; index < 9; index += 1) {
+          if (index === 4) continue;
+          if (bestPartial[face][index] !== null && bestPartial[face][index] !== pieceInference.facelets[face][index]) {
+            bestPartial[face][index] = null;
+          }
+          if (bestObservedPartial[face][index] !== null && bestObservedPartial[face][index] !== partial[face][index]) {
+            bestObservedPartial[face][index] = null;
+            bestObservedReliability[face][index] = 0;
+          }
+        }
+      });
+      return pieceInference;
+    }
     if (quality > bestPartialQuality || (
       quality === bestPartialQuality
       && (observedCount > bestObserved || (observedCount === bestObserved && inferredKnownCount > bestKnownCount))
@@ -1637,6 +1683,7 @@ export function reconstructInspectionState(
       bestObservedReliability = Object.fromEntries(FACES.map((face) => [face, [...reliability[face]]])) as Record<Face, number[]>;
       bestPartial = cloneFacelets(pieceInference.facelets);
       bestPieceInference = pieceInference;
+      bestPartialTieCount = 0;
     }
     return pieceInference;
   }

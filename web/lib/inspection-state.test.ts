@@ -508,3 +508,44 @@ test('diagnosi IMG_6299: le 4 rotazioni di una faccia hanno punteggio identico q
   const scores = new Set(rotations.map((r) => Math.round(r.score * 1000)));
   assert.equal(scores.size, 1, `punteggi delle rotazioni non identici: ${rotations.map((r) => r.score).join(', ')}`);
 });
+
+// Esperimento #17, Passo 2: oracolo sintetico con copertura piena (48/48,
+// come il test 1a dell'esperimento #15) ma ogni faccia ruotata di un
+// multiplo diverso di 90 gradi, confidenza uniforme, nessun
+// orientationConfidence - lo scenario esatto che produce i pareggi del
+// Passo 1. Atteso: la ricostruzione trova comunque l'orientamento vero
+// (i vincoli dei pezzi dovrebbero scartare ogni combinazione di rotazioni
+// sbagliate, essendo la copertura completa). Rotazione per faccia =
+// (indiceFaccia + indiceScramble) % 4, per variare la combinazione su ogni
+// scramble pur restando deterministica.
+function rotatedFullFaceObservation(cube: CubeState, face: Face, turns: number): FaceGridObservation {
+  return {
+    time: 0,
+    centerColor: CANONICAL_FACE_COLOR[face],
+    colors: rotate(cube.facelets(face), turns),
+    confidence: 95,
+    visibleCells: 9,
+    sourceFrames: 3,
+  };
+}
+
+test('esperimento #17 Passo 2: oracolo con facce ruotate (0/90/180/270°), confidenza uniforme → la ricostruzione trova l\'orientamento vero su tutti i 13 scramble', () => {
+  const failures: string[] = [];
+  BENCH_CASES.forEach(({ id, scramble }, caseIndex) => {
+    const cube = trueCubeState(scramble);
+    const reference = cube.faceletRecord();
+    const observations = FACES.map((face, faceIndex) => (
+      rotatedFullFaceObservation(cube, face, (faceIndex + caseIndex) % 4)
+    ));
+    const { result } = reconstructWithCandidates(observations);
+    const complete = result.status === 'complete'
+      && !!result.completeFacelets
+      && FACES.every((face) => (
+        result.completeFacelets![face].every((color, index) => color === reference[face][index])
+      ));
+    if (!complete) {
+      failures.push(`${id}: stato "${result.status}" (atteso "complete" identico alla verità)`);
+    }
+  });
+  assert.equal(failures.length, 0, `casi falliti:\n${failures.join('\n')}`);
+});
