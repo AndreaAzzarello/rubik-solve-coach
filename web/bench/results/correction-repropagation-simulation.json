@@ -1,0 +1,555 @@
+{
+  "generatedAt": "2026-10-12T17:09:38.634Z",
+  "rows": [
+    {
+      "id": "IMG_6107",
+      "group": "integration",
+      "a": 0,
+      "bOptimal": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "steps": 0
+      },
+      "bRandom": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "steps": 0
+      },
+      "c": {
+        "taps": 6,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {}
+      },
+      "dRandom": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {}
+      }
+    },
+    {
+      "id": "IMG_6108",
+      "group": "integration",
+      "a": 86,
+      "bOptimal": {
+        "taps": 56,
+        "conflicts": 62,
+        "success": true,
+        "steps": 28
+      },
+      "bRandom": {
+        "taps": 64,
+        "conflicts": 29,
+        "success": true,
+        "steps": 32
+      },
+      "c": {
+        "taps": 68,
+        "conflicts": 12,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 52,
+        "conflicts": 62,
+        "success": true,
+        "paletteHistogram": {
+          "1": 4,
+          "2": 6,
+          "3": 6,
+          "4": 4,
+          "5": 7,
+          "6": 1
+        }
+      },
+      "dRandom": {
+        "taps": 64,
+        "conflicts": 29,
+        "success": true,
+        "paletteHistogram": {
+          "0": 1,
+          "2": 7,
+          "3": 5,
+          "4": 5,
+          "5": 6,
+          "6": 8
+        }
+      }
+    },
+    {
+      "id": "IMG_6258",
+      "group": "test",
+      "a": 0,
+      "bOptimal": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "steps": 0
+      },
+      "bRandom": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "steps": 0
+      },
+      "c": {
+        "taps": 6,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {}
+      },
+      "dRandom": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {}
+      }
+    },
+    {
+      "id": "IMG_6260",
+      "group": "test",
+      "a": 10,
+      "bOptimal": {
+        "taps": 4,
+        "conflicts": 0,
+        "success": true,
+        "steps": 2
+      },
+      "bRandom": {
+        "taps": 4,
+        "conflicts": 0,
+        "success": true,
+        "steps": 2
+      },
+      "c": {
+        "taps": 12,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 4,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 1,
+          "3": 1
+        }
+      },
+      "dRandom": {
+        "taps": 4,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 1,
+          "3": 1
+        }
+      }
+    },
+    {
+      "id": "IMG_6281",
+      "group": "test",
+      "a": 4,
+      "bOptimal": {
+        "taps": 2,
+        "conflicts": 0,
+        "success": true,
+        "steps": 1
+      },
+      "bRandom": {
+        "taps": 2,
+        "conflicts": 0,
+        "success": true,
+        "steps": 1
+      },
+      "c": {
+        "taps": 10,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 2,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 1
+        }
+      },
+      "dRandom": {
+        "taps": 2,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 1
+        }
+      }
+    },
+    {
+      "id": "IMG_6297",
+      "group": "seen",
+      "a": 52,
+      "bOptimal": {
+        "taps": 32,
+        "conflicts": 28,
+        "success": true,
+        "steps": 16
+      },
+      "bRandom": {
+        "taps": 40,
+        "conflicts": 25,
+        "success": true,
+        "steps": 20
+      },
+      "c": {
+        "taps": 42,
+        "conflicts": 9,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 31,
+        "conflicts": 28,
+        "success": true,
+        "paletteHistogram": {
+          "0": 2,
+          "1": 1,
+          "2": 7,
+          "3": 3,
+          "4": 1,
+          "6": 2
+        }
+      },
+      "dRandom": {
+        "taps": 40,
+        "conflicts": 25,
+        "success": true,
+        "paletteHistogram": {
+          "0": 2,
+          "2": 5,
+          "3": 7,
+          "5": 1,
+          "6": 5
+        }
+      }
+    },
+    {
+      "id": "IMG_6298",
+      "group": "seen",
+      "a": 48,
+      "bOptimal": {
+        "taps": 40,
+        "conflicts": 26,
+        "success": true,
+        "steps": 20
+      },
+      "bRandom": {
+        "taps": 24,
+        "conflicts": 0,
+        "success": true,
+        "steps": 12
+      },
+      "c": {
+        "taps": 34,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 39,
+        "conflicts": 26,
+        "success": true,
+        "paletteHistogram": {
+          "1": 1,
+          "2": 9,
+          "3": 4,
+          "4": 4,
+          "5": 1,
+          "6": 1
+        }
+      },
+      "dRandom": {
+        "taps": 24,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 1,
+          "3": 3,
+          "4": 3,
+          "5": 2,
+          "6": 3
+        }
+      }
+    },
+    {
+      "id": "IMG_6299",
+      "group": "seen",
+      "a": 80,
+      "bOptimal": {
+        "taps": 58,
+        "conflicts": 92,
+        "success": true,
+        "steps": 29
+      },
+      "bRandom": {
+        "taps": 66,
+        "conflicts": 25,
+        "success": true,
+        "steps": 33
+      },
+      "c": {
+        "taps": 80,
+        "conflicts": 33,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 53,
+        "conflicts": 92,
+        "success": true,
+        "paletteHistogram": {
+          "1": 5,
+          "2": 7,
+          "3": 8,
+          "4": 4,
+          "6": 5
+        }
+      },
+      "dRandom": {
+        "taps": 64,
+        "conflicts": 25,
+        "success": true,
+        "paletteHistogram": {
+          "1": 2,
+          "2": 3,
+          "3": 8,
+          "4": 4,
+          "5": 5,
+          "6": 11
+        }
+      }
+    },
+    {
+      "id": "IMG_6300",
+      "group": "seen",
+      "a": 34,
+      "bOptimal": {
+        "taps": 14,
+        "conflicts": 23,
+        "success": true,
+        "steps": 7
+      },
+      "bRandom": {
+        "taps": 18,
+        "conflicts": 8,
+        "success": true,
+        "steps": 9
+      },
+      "c": {
+        "taps": 24,
+        "conflicts": 3,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 13,
+        "conflicts": 23,
+        "success": true,
+        "paletteHistogram": {
+          "1": 1,
+          "2": 3,
+          "3": 1,
+          "5": 1,
+          "6": 1
+        }
+      },
+      "dRandom": {
+        "taps": 17,
+        "conflicts": 8,
+        "success": true,
+        "paletteHistogram": {
+          "1": 1,
+          "2": 2,
+          "3": 4,
+          "4": 1,
+          "6": 1
+        }
+      }
+    },
+    {
+      "id": "IMG_6334",
+      "group": "seen",
+      "a": 0,
+      "bOptimal": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "steps": 0
+      },
+      "bRandom": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "steps": 0
+      },
+      "c": {
+        "taps": 6,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {}
+      },
+      "dRandom": {
+        "taps": 0,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {}
+      }
+    },
+    {
+      "id": "IMG_6336",
+      "group": "seen",
+      "a": 54,
+      "bOptimal": {
+        "taps": 44,
+        "conflicts": 131,
+        "success": true,
+        "steps": 22
+      },
+      "bRandom": {
+        "taps": 58,
+        "conflicts": 49,
+        "success": true,
+        "steps": 29
+      },
+      "c": {
+        "taps": 52,
+        "conflicts": 28,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 35,
+        "conflicts": 131,
+        "success": true,
+        "paletteHistogram": {
+          "1": 9,
+          "2": 8,
+          "3": 3,
+          "4": 2
+        }
+      },
+      "dRandom": {
+        "taps": 57,
+        "conflicts": 49,
+        "success": true,
+        "paletteHistogram": {
+          "1": 1,
+          "2": 4,
+          "3": 6,
+          "4": 5,
+          "6": 13
+        }
+      }
+    },
+    {
+      "id": "IMG_6338",
+      "group": "seen",
+      "a": 24,
+      "bOptimal": {
+        "taps": 10,
+        "conflicts": 0,
+        "success": true,
+        "steps": 5
+      },
+      "bRandom": {
+        "taps": 12,
+        "conflicts": 0,
+        "success": true,
+        "steps": 6
+      },
+      "c": {
+        "taps": 20,
+        "conflicts": 0,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 10,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 2,
+          "3": 1,
+          "4": 2
+        }
+      },
+      "dRandom": {
+        "taps": 12,
+        "conflicts": 0,
+        "success": true,
+        "paletteHistogram": {
+          "2": 3,
+          "3": 2,
+          "4": 1
+        }
+      }
+    },
+    {
+      "id": "IMG_6341",
+      "group": "seen",
+      "a": 88,
+      "bOptimal": {
+        "taps": 56,
+        "conflicts": 61,
+        "success": true,
+        "steps": 28
+      },
+      "bRandom": {
+        "taps": 64,
+        "conflicts": 52,
+        "success": true,
+        "steps": 32
+      },
+      "c": {
+        "taps": 70,
+        "conflicts": 14,
+        "success": true
+      },
+      "dOptimal": {
+        "taps": 49,
+        "conflicts": 61,
+        "success": true,
+        "paletteHistogram": {
+          "1": 7,
+          "2": 2,
+          "3": 3,
+          "4": 6,
+          "5": 7,
+          "6": 3
+        }
+      },
+      "dRandom": {
+        "taps": 62,
+        "conflicts": 52,
+        "success": true,
+        "paletteHistogram": {
+          "1": 2,
+          "2": 10,
+          "3": 6,
+          "4": 2,
+          "5": 3,
+          "6": 9
+        }
+      }
+    }
+  ]
+}

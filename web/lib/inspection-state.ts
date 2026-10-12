@@ -953,7 +953,7 @@ function inferForcedPieceGroup(
   return { facelets, invalid, resolvedPieces };
 }
 
-function inferForcedPieceFacelets(partial: PartialFacelets): ForcedPieceInference {
+export function inferForcedPieceFacelets(partial: PartialFacelets): ForcedPieceInference {
   const startingFacelets = countKnownFacelets(partial);
   const edges = inferForcedPieceGroup(EDGES, EDGES, partial);
   if (edges.invalid) {
