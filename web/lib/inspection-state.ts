@@ -515,6 +515,19 @@ export function benchBudgetMultiplier(): number {
   return typeof value === 'number' && value > 0 ? value : 1;
 }
 
+// Strumentazione solo-bench per l'esperimento #19 (vedi docs/pipeline-experiments.md):
+// due regole, dietro lo stesso flag. (1) displayFacelets usa il consenso fra
+// candidati completi anche quando sawTruncation è vero (oggi quel ramo salta
+// dritto a bestPartial senza controllarlo contro i candidati). (2) in
+// considerPartial, un pareggio di qualità (entro QUALITY_TIE_EPSILON) non fa
+// vincere il primo trovato: erode bestPartial/bestObservedPartial a sole le
+// caselle uguali in TUTTE le combinazioni pari merito viste. Assente (default
+// false) -> comportamento di produzione bit-identico. Stesso schema lazy di
+// benchGridAlignmentThreshold in lib/video-decoder.ts.
+export function benchCandidateConsensusVariant(): boolean {
+  return (globalThis as { __benchCandidateConsensusVariant?: boolean }).__benchCandidateConsensusVariant === true;
+}
+
 export function fuseFaceObservationCandidates(
   observations: FaceGridObservation[],
   limit = 4,
@@ -1345,6 +1358,120 @@ function consensusFacelets(candidates: PartialFacelets[], observed: PartialFacel
   return consensus;
 }
 
+const FACE_ROTATION_TIE_EPSILON = 1e-9;
+const FACE_ROTATION_MAX_COMBINATIONS = 4096; // 4^6: al massimo le 4 rotazioni di tutte e 6 le facce
+const FACE_ROTATION_TIME_BUDGET_MS = 200;
+
+// Esperimento #19, regola 2, forma definitiva (vedi docs/pipeline-experiments.md):
+// cambiare una faccia alla volta (le due varianti precedenti, mai adottate)
+// non vede un'ambiguità condivisa da più facce insieme - misurato dal vivo
+// su IMG_6299, dove 4-5 facce sono in pareggio simultaneamente e tenerne
+// fissa una mentre si cambia l'altra produce quasi sempre una combinazione
+// incoerente, anche quando la VERA ambiguità è congiunta. Questa versione
+// enumera il PRODOTTO di tutte le rotazioni pari merito delle facce
+// ambigue insieme (T), lasciando fisse le facce senza pareggio.
+//
+// T = facce con pareggio di punteggio in choices (differenza sotto
+// FACE_ROTATION_TIE_EPSILON) + facce senza osservazione propria (dipendono
+// solo dall'inferenza forzata dalle altre, es. B in IMG_6299). Le prime
+// sono "enumerabili" (hanno rotazioni alternative da provare); le seconde
+// non enumerano nulla di proprio, ma le loro caselle dedotte vengono
+// comunque ricontrollate per coerenza (punto 4).
+//
+// Nessun uso di inferredKnownCount o sourceScore come prova
+// dell'orientamento: solo validità fisica sì/no (colorCountValid +
+// inferForcedPieceFacelets, gli stessi vincoli usati dal resto della
+// ricerca). Ordine deterministico: FACES fisso per l'elenco delle facce
+// enumerabili, rotazioni già ordinate per punteggio in ciascuna, indice
+// combinazione decodificato a base mista nello stesso ordine fisso.
+export function faceRotationAmbiguityGuard(
+  choices: Array<{ face: Face; rotations: Array<{ grid: Array<CubeColor | null>; score: number }> }>,
+  observed: PartialFacelets,
+  inferred: PartialFacelets,
+): { observed: PartialFacelets; inferred: PartialFacelets } {
+  const tiedByFace = new Map<Face, Array<{ grid: Array<CubeColor | null>; score: number }>>();
+  choices.forEach(({ face, rotations }) => {
+    if (rotations.length < 2) return;
+    const topScore = rotations[0].score;
+    const tied = rotations.filter((rotation) => topScore - rotation.score <= FACE_ROTATION_TIE_EPSILON);
+    if (tied.length >= 2) tiedByFace.set(face, tied);
+  });
+  if (!tiedByFace.size) return { observed, inferred }; // nessun pareggio per-faccia: niente da fare
+
+  const rotatableFaces = FACES.filter((face) => tiedByFace.has(face));
+  const observedFaceSet = new Set(choices.map((choice) => choice.face));
+  const affectedFaces = FACES.filter((face) => tiedByFace.has(face) || !observedFaceSet.has(face));
+
+  const emptyAffected = (source: PartialFacelets) => {
+    const result = cloneFacelets(source);
+    affectedFaces.forEach((face) => {
+      for (let index = 0; index < 9; index += 1) {
+        if (index !== 4) result[face][index] = null;
+      }
+    });
+    return result;
+  };
+
+  const optionsPerFace = rotatableFaces.map((face) => tiedByFace.get(face)!);
+  const combinationCount = optionsPerFace.reduce((total, options) => total * options.length, 1);
+  if (combinationCount > FACE_ROTATION_MAX_COMBINATIONS) {
+    // Budget di combinazioni superato: le letture sono in conflitto fra
+    // troppe ipotesi per deciderle, meglio lasciarle vuote che indovinare.
+    return { observed: emptyAffected(observed), inferred: emptyAffected(inferred) };
+  }
+
+  const startedAt = Date.now();
+  const validStates: Array<{ observed: PartialFacelets; inferred: PartialFacelets }> = [];
+  let timeBudgetExceeded = false;
+  for (let combinationIndex = 0; combinationIndex < combinationCount; combinationIndex += 1) {
+    if ((combinationIndex & 63) === 0 && Date.now() - startedAt > FACE_ROTATION_TIME_BUDGET_MS) {
+      timeBudgetExceeded = true;
+      break;
+    }
+    let remainder = combinationIndex;
+    const current = cloneFacelets(observed);
+    for (let faceIndex = 0; faceIndex < rotatableFaces.length; faceIndex += 1) {
+      const options = optionsPerFace[faceIndex];
+      const optionIndex = remainder % options.length;
+      remainder = Math.floor(remainder / options.length);
+      current[rotatableFaces[faceIndex]] = [...options[optionIndex].grid];
+    }
+    if (!colorCountValid(current)) continue;
+    const inference = inferForcedPieceFacelets(current);
+    if (inference.invalid) continue;
+    validStates.push({ observed: current, inferred: inference.facelets });
+  }
+
+  if (timeBudgetExceeded) {
+    // Stesso trattamento del budget di combinazioni: tempo scaduto, non si
+    // sceglie una combinazione a caso, si svuota.
+    return { observed: emptyAffected(observed), inferred: emptyAffected(inferred) };
+  }
+  if (!validStates.length) {
+    // Nessuna combinazione fisicamente valida: le letture delle facce
+    // ambigue sono in conflitto con i vincoli dei pezzi, non solo fra loro.
+    return { observed: emptyAffected(observed), inferred: emptyAffected(inferred) };
+  }
+  if (validStates.length === 1) return { observed, inferred }; // unica combinazione valida: non ambiguo
+
+  const resultObserved = cloneFacelets(observed);
+  const resultInferred = cloneFacelets(inferred);
+  FACES.forEach((face) => {
+    for (let index = 0; index < 9; index += 1) {
+      if (index === 4) continue;
+      const firstObserved = validStates[0].observed[face][index];
+      if (resultObserved[face][index] !== null && !validStates.every((state) => state.observed[face][index] === firstObserved)) {
+        resultObserved[face][index] = null;
+      }
+      const firstInferred = validStates[0].inferred[face][index];
+      if (resultInferred[face][index] !== null && !validStates.every((state) => state.inferred[face][index] === firstInferred)) {
+        resultInferred[face][index] = null;
+      }
+    }
+  });
+  return { observed: resultObserved, inferred: resultInferred };
+}
+
 function asComplete(facelets: PartialFacelets): Record<Face, CubeColor[]> | null {
   if (FACES.some((face) => facelets[face].some((color) => color === null))) return null;
   const complete = Object.fromEntries(
@@ -1836,6 +1963,12 @@ export function reconstructInspectionState(
     ));
   if (rankedCandidates[0]?.relaxed) relaxedFacelets = rankedCandidates[0].relaxed;
   const candidates = rankedCandidates.map((candidate) => candidate.facelets);
+  if (benchCandidateConsensusVariant()) {
+    const guarded = faceRotationAmbiguityGuard(choices, bestObservedPartial, bestPartial);
+    bestObservedPartial = guarded.observed;
+    bestPartial = guarded.inferred;
+    bestObserved = countKnownFacelets(bestObservedPartial) - 6;
+  }
   recordCandidateStatesDiag(candidates);
   recordPartialDiag(bestObservedPartial, bestPartial);
   const candidateConsensus = consensusFacelets(candidates, withCanonicalCenters());
@@ -1873,6 +2006,18 @@ export function reconstructInspectionState(
   // direttamente più le deduzioni forzate dai vincoli dei pezzi (esaustive
   // per costruzione su un elenco fisso di 8 angoli/12 spigoli, non soggette
   // al troncamento dell'enumerazione dei completamenti).
+  // Esperimento #19 (vedi docs/pipeline-experiments.md): questa costruzione
+  // resta esattamente quella dell'esperimento #16, flag o non flag. Il #16 ha
+  // stabilito che con sawTruncation=true il consenso fra candidati non si
+  // impegna MAI (può essere unanime solo nel campione troncato, non nello
+  // spazio fisicamente valido completo - vedi IMG_6108/L più sotto in
+  // docs/pipeline-experiments.md: 3696 candidati unanimi, troncato, e
+  // comunque sbagliato). La "regola 1" della proposta #18 non significa
+  // sostituire questa cautela: significa che bestPartial stesso - l'UNICA
+  // base usata quando sawTruncation è vero - non deve più vincere i pareggi
+  // di qualità per primo-trovato. Quel cambio vive tutto dentro
+  // considerPartial (regola 2, sopra): bestPartial arriva già eroso qui,
+  // senza bisogno di toccare questo ramo.
   const provisionalDisplay = completeFacelets
     ?? (sawTruncation ? null : (candidates.length > 1 ? candidateConsensus : candidates[0]))
     ?? bestPartial;

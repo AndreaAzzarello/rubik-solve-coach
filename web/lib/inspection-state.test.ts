@@ -11,6 +11,7 @@ import {
   CUBE_ORIENTATIONS,
   cubeOrientationFromFrontAndUp,
   faceletsToSolverString,
+  faceRotationAmbiguityGuard,
   normalizeObservationOrientations,
   reconstructInspectionState,
   type FaceGridObservation,
@@ -548,4 +549,205 @@ test('esperimento #17 Passo 2: oracolo con facce ruotate (0/90/180/270°), confi
     }
   });
   assert.equal(failures.length, 0, `casi falliti:\n${failures.join('\n')}`);
+});
+
+// Esperimento #19 (vedi docs/pipeline-experiments.md): implementa la
+// proposta diagnosticata nell'esperimento #18, dietro il flag
+// benchCandidateConsensusVariant. Stesso oracolo di #18 Parte 2 - facce
+// ruotate (0/90/180/270°, come il Passo 2 dell'esperimento #17) E copertura
+// parziale (30/48 caselle casuali, seed 20261012, come il test 1c) - reso
+// permanente. A flag spento riproduce esattamente gli 8 orientamenti
+// sbagliati-e-impegnati misurati dal vivo nell'esperimento #18
+// (bench/rotation-partial-oracle-check.ts): bit-identico a oggi, una
+// regressione qui blocca la CI. A flag acceso devono scendere a 0.
+function rotatedPartialFaceObservation(
+  cube: CubeState,
+  face: Face,
+  turns: number,
+  revealedTrueIndices: Set<number>,
+): FaceGridObservation {
+  const trueFace = cube.facelets(face);
+  // Le caselle rivelate si scelgono negli indici VERI (come il test 1c), poi
+  // si ruota l'intera griglia (null compresi): niente da ricalcolare a mano.
+  const partialTrue = trueFace.map((color, index) => (
+    index === 4 || revealedTrueIndices.has(index) ? color : null
+  ));
+  return {
+    time: 0,
+    centerColor: CANONICAL_FACE_COLOR[face],
+    colors: rotate(partialTrue, turns),
+    confidence: 95,
+    visibleCells: partialTrue.filter(Boolean).length,
+    sourceFrames: 3,
+  };
+}
+
+function countWrongCommittedOrientations(variantOn: boolean): { wrongCommitted: number; details: string[] } {
+  const target = globalThis as { __benchCandidateConsensusVariant?: boolean };
+  if (variantOn) target.__benchCandidateConsensusVariant = true;
+  else delete target.__benchCandidateConsensusVariant;
+  const details: string[] = [];
+  let wrongCommitted = 0;
+  try {
+    BENCH_CASES.forEach(({ id, scramble }, caseIndex) => {
+      const cube = trueCubeState(scramble);
+      const reference = cube.faceletRecord();
+      const random = mulberry32(ORACLE_SEED + caseIndex);
+      const allCells = FACES.flatMap((face) => [0, 1, 2, 3, 5, 6, 7, 8].map((index) => ({ face, index })));
+      for (let i = allCells.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(random() * (i + 1));
+        [allCells[i], allCells[j]] = [allCells[j], allCells[i]];
+      }
+      const revealedByFace = new Map<Face, Set<number>>(FACES.map((face) => [face, new Set<number>()]));
+      allCells.slice(0, 30).forEach((cell) => revealedByFace.get(cell.face)!.add(cell.index));
+      const observations = FACES
+        .map((face, faceIndex) => rotatedPartialFaceObservation(cube, face, (faceIndex + caseIndex) % 4, revealedByFace.get(face)!))
+        .filter((observation) => observation.visibleCells >= 5);
+      const { result } = reconstructWithCandidates(observations);
+      const facelets = result.completeFacelets ?? result.facelets;
+      FACES.forEach((face) => {
+        const committed = facelets[face];
+        const committedNonNull = committed.filter((color, index) => index !== 4 && color !== null).length;
+        if (committedNonNull === 0) return; // lasciata aperta, niente da giudicare
+        const countMatches = (grid: Array<CubeColor | null>) => grid.filter((color, index) => (
+          index !== 4 && color !== null && color === reference[face][index]
+        )).length;
+        const actualMatches = countMatches(committed);
+        const bestPossible = Math.max(...[0, 1, 2, 3].map((turns) => countMatches(rotate(committed, turns))));
+        const wrong = actualMatches < committedNonNull;
+        const orientationExplainsIt = bestPossible > actualMatches;
+        if (wrong && orientationExplainsIt) {
+          wrongCommitted += 1;
+          details.push(`${id}/${face}: committed ${actualMatches}/${committedNonNull}, ruotando ${bestPossible} (variant=${variantOn})`);
+        }
+      });
+    });
+  } finally {
+    delete target.__benchCandidateConsensusVariant;
+  }
+  return { wrongCommitted, details };
+}
+
+test('esperimento #19: oracolo ruotato a copertura parziale (30/48, seed 20261012) - a flag spento riproduce gli 8 orientamenti sbagliati-impegnati di oggi (bit-identico), a flag acceso scendono a 0', () => {
+  const off = countWrongCommittedOrientations(false);
+  assert.equal(off.wrongCommitted, 8, `flag spento: atteso bit-identico a oggi (8), trovato ${off.wrongCommitted}\n${off.details.join('\n')}`);
+  const on = countWrongCommittedOrientations(true);
+  assert.equal(on.wrongCommitted, 0, `flag acceso: atteso 0, trovato ${on.wrongCommitted}\n${on.details.join('\n')}`);
+});
+
+// Esperimento #19, regola 2, forma definitiva: due test "unitari" sui due
+// scenari reali trovati durante la diagnosi (stesso oracolo ruotato+parziale,
+// stesse funzioni di produzione), isolati dal conteggio aggregato sopra.
+function committedWrongCells(facelets: PartialFacelets, reference: Record<Face, CubeColor[]>, faces: Face[]): string[] {
+  const wrong: string[] = [];
+  faces.forEach((face) => {
+    facelets[face].forEach((color, index) => {
+      if (index === 4 || color === null) return;
+      if (color !== reference[face][index]) wrong.push(`${face}#${index}=${color} (vero ${reference[face][index]})`);
+    });
+  });
+  return wrong;
+}
+
+test('esperimento #19 regola 2: ambiguità su una sola faccia (IMG_6108, caso reale della diagnosi) - U/L/B non più sbagliate-impegnate', () => {
+  const caseIndex = 1;
+  const { id, scramble } = BENCH_CASES[caseIndex];
+  assert.equal(id, 'IMG_6108');
+  const cube = trueCubeState(scramble);
+  const reference = cube.faceletRecord();
+  const random = mulberry32(ORACLE_SEED + caseIndex);
+  const allCells = FACES.flatMap((face) => [0, 1, 2, 3, 5, 6, 7, 8].map((index) => ({ face, index })));
+  for (let i = allCells.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [allCells[i], allCells[j]] = [allCells[j], allCells[i]];
+  }
+  const revealedByFace = new Map<Face, Set<number>>(FACES.map((face) => [face, new Set<number>()]));
+  allCells.slice(0, 30).forEach((cell) => revealedByFace.get(cell.face)!.add(cell.index));
+  const observations = FACES
+    .map((face, faceIndex) => rotatedPartialFaceObservation(cube, face, (faceIndex + caseIndex) % 4, revealedByFace.get(face)!))
+    .filter((observation) => observation.visibleCells >= 5);
+
+  const target = globalThis as { __benchCandidateConsensusVariant?: boolean };
+  target.__benchCandidateConsensusVariant = true;
+  let result;
+  try {
+    ({ result } = reconstructWithCandidates(observations));
+  } finally {
+    delete target.__benchCandidateConsensusVariant;
+  }
+  const facelets = result.completeFacelets ?? result.facelets;
+  const wrong = committedWrongCells(facelets, reference, ['U', 'L', 'B']);
+  assert.equal(wrong.length, 0, `caselle ancora sbagliate-impegnate: ${wrong.join(', ')}`);
+});
+
+test('esperimento #19 regola 2: ambiguità condivisa da più facce insieme (IMG_6299, caso reale della diagnosi) - R/F/D/L/B non più sbagliate-impegnate', () => {
+  const caseIndex = 7;
+  const { id, scramble } = BENCH_CASES[caseIndex];
+  assert.equal(id, 'IMG_6299');
+  const cube = trueCubeState(scramble);
+  const reference = cube.faceletRecord();
+  const random = mulberry32(ORACLE_SEED + caseIndex);
+  const allCells = FACES.flatMap((face) => [0, 1, 2, 3, 5, 6, 7, 8].map((index) => ({ face, index })));
+  for (let i = allCells.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [allCells[i], allCells[j]] = [allCells[j], allCells[i]];
+  }
+  const revealedByFace = new Map<Face, Set<number>>(FACES.map((face) => [face, new Set<number>()]));
+  allCells.slice(0, 30).forEach((cell) => revealedByFace.get(cell.face)!.add(cell.index));
+  const observations = FACES
+    .map((face, faceIndex) => rotatedPartialFaceObservation(cube, face, (faceIndex + caseIndex) % 4, revealedByFace.get(face)!))
+    .filter((observation) => observation.visibleCells >= 5);
+
+  const target = globalThis as { __benchCandidateConsensusVariant?: boolean };
+  target.__benchCandidateConsensusVariant = true;
+  let result;
+  const startedAt = Date.now();
+  try {
+    ({ result } = reconstructWithCandidates(observations));
+  } finally {
+    delete target.__benchCandidateConsensusVariant;
+  }
+  const elapsed = Date.now() - startedAt;
+  const facelets = result.completeFacelets ?? result.facelets;
+  const wrong = committedWrongCells(facelets, reference, ['R', 'F', 'D', 'L', 'B']);
+  assert.equal(wrong.length, 0, `caselle ancora sbagliate-impegnate: ${wrong.join(', ')}`);
+  assert.ok(elapsed < 5000, `caso con più facce in pareggio insieme (il più costoso dell'oracolo): ${elapsed}ms`);
+});
+
+function fullFaceletsFromCube(cube: CubeState): PartialFacelets {
+  return Object.fromEntries(FACES.map((face) => [face, [...cube.facelets(face)]])) as PartialFacelets;
+}
+
+test('faceRotationAmbiguityGuard: nessuna combinazione valida -> svuota le caselle della faccia coinvolta', () => {
+  const cube = trueCubeState('R U F2 L2 D B2 U2 R2');
+  const observed = fullFaceletsFromCube(cube);
+  const inferred = fullFaceletsFromCube(cube);
+  // Le uniche due alternative offerte per R (90° e 270°) sono entrambe
+  // incompatibili con le altre 5 facce ferme nel loro orientamento vero
+  // (0° non è nemmeno offerta): nessuna combinazione completa è valida.
+  const choices = FACES.map((face) => (
+    face === 'R'
+      ? { face, rotations: [1, 3].map((turns) => ({ grid: rotate(observed.R, turns), score: 100 })) }
+      : { face, rotations: [{ grid: observed[face], score: 100 }] }
+  ));
+  const guarded = faceRotationAmbiguityGuard(choices, observed, inferred);
+  guarded.observed.R.forEach((color, index) => { if (index !== 4) assert.equal(color, null); });
+  guarded.inferred.R.forEach((color, index) => { if (index !== 4) assert.equal(color, null); });
+});
+
+test('faceRotationAmbiguityGuard: budget di combinazioni superato (>4096) -> svuota senza enumerare, costo immediato', () => {
+  const cube = trueCubeState('R U F2 L2 D B2 U2 R2');
+  const observed = fullFaceletsFromCube(cube);
+  const inferred = fullFaceletsFromCube(cube);
+  const manyTiedOptions = Array.from({ length: 4097 }, () => ({ grid: observed.R, score: 100 }));
+  const choices = FACES.map((face) => (
+    face === 'R'
+      ? { face, rotations: manyTiedOptions }
+      : { face, rotations: [{ grid: observed[face], score: 100 }] }
+  ));
+  const startedAt = Date.now();
+  const guarded = faceRotationAmbiguityGuard(choices, observed, inferred);
+  const elapsed = Date.now() - startedAt;
+  assert.ok(elapsed < 50, `il controllo del budget deve bloccare PRIMA di enumerare: ${elapsed}ms`);
+  guarded.observed.R.forEach((color, index) => { if (index !== 4) assert.equal(color, null); });
 });
