@@ -236,6 +236,17 @@ async function main() {
       }, gridAlignmentThreshold);
       log(`filtro indice griglia attivo, soglia: ${gridAlignmentThreshold}`);
     }
+    // Esperimento #19 (vedi docs/pipeline-experiments.md,
+    // lib/inspection-state.ts): BENCH_CANDIDATE_CONSENSUS_VARIANT=1 svuota le
+    // caselle delle facce con pareggio di rotazione (singolo o condiviso fra
+    // più facce) quando nessuna combinazione fisicamente valida le decide
+    // univocamente, invece di impegnarle in base all'ordine di ricerca.
+    if (process.env.BENCH_CANDIDATE_CONSENSUS_VARIANT === '1') {
+      await page.addInitScript(() => {
+        (window as unknown as { __benchCandidateConsensusVariant?: boolean }).__benchCandidateConsensusVariant = true;
+      });
+      log('variante consenso-candidati attiva (esperimento #19)');
+    }
     const sourceFramesTally = process.env.BENCH_SOURCE_FRAMES_TALLY === '1';
     if (sourceFramesTally) {
       await page.addInitScript(() => {
