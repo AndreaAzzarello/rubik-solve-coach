@@ -1,0 +1,3423 @@
+{
+ "startedAt": "2026-10-12T13:59:19.034Z",
+ "cases": [
+  {
+   "id": "IMG_6107",
+   "group": "integration",
+   "scramble": "F L2 B2 D F2 D' U' B2 D' F2 L2 D2 R2 B' D' F R U' F2 U",
+   "repeats": 3,
+   "headline": [
+    54,
+    54,
+    54
+   ],
+   "status": [
+    "complete",
+    "complete",
+    "complete"
+   ],
+   "representative": {
+    "correct": 54,
+    "committed": 54,
+    "total": 54,
+    "correctNonCenter": 48,
+    "committedNonCenter": 48,
+    "accuracyOnCommitted": 1,
+    "status": "complete",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramDelta": {
+     "unknown": 0,
+     "white": 0,
+     "red": 0,
+     "green": 0,
+     "yellow": 0,
+     "orange": 0,
+     "blue": 0
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 54,
+     "bestCorrect": 54,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 48,
+     "highConfidenceCorrect": 48,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 1,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": [
+      {
+       "from": 80,
+       "to": 90,
+       "count": 1
+      },
+      {
+       "from": 90,
+       "to": 100,
+       "count": 47
+      }
+     ]
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      "red",
+      "orange",
+      "blue",
+      "red",
+      "white",
+      "red",
+      "green",
+      "yellow",
+      "green"
+     ],
+     "R": [
+      "red",
+      "yellow",
+      "yellow",
+      "white",
+      "red",
+      "blue",
+      "red",
+      "white",
+      "white"
+     ],
+     "F": [
+      "yellow",
+      "green",
+      "yellow",
+      "white",
+      "green",
+      "orange",
+      "orange",
+      "green",
+      "yellow"
+     ],
+     "D": [
+      "white",
+      "red",
+      "blue",
+      "orange",
+      "yellow",
+      "blue",
+      "white",
+      "white",
+      "blue"
+     ],
+     "L": [
+      "green",
+      "blue",
+      "orange",
+      "yellow",
+      "orange",
+      "green",
+      "red",
+      "green",
+      "green"
+     ],
+     "B": [
+      "orange",
+      "blue",
+      "white",
+      "yellow",
+      "blue",
+      "orange",
+      "orange",
+      "red",
+      "blue"
+     ]
+    },
+    "completeFacelets": {
+     "U": [
+      "red",
+      "orange",
+      "blue",
+      "red",
+      "white",
+      "red",
+      "green",
+      "yellow",
+      "green"
+     ],
+     "R": [
+      "red",
+      "yellow",
+      "yellow",
+      "white",
+      "red",
+      "blue",
+      "red",
+      "white",
+      "white"
+     ],
+     "F": [
+      "yellow",
+      "green",
+      "yellow",
+      "white",
+      "green",
+      "orange",
+      "orange",
+      "green",
+      "yellow"
+     ],
+     "D": [
+      "white",
+      "red",
+      "blue",
+      "orange",
+      "yellow",
+      "blue",
+      "white",
+      "white",
+      "blue"
+     ],
+     "L": [
+      "green",
+      "blue",
+      "orange",
+      "yellow",
+      "orange",
+      "green",
+      "red",
+      "green",
+      "green"
+     ],
+     "B": [
+      "orange",
+      "blue",
+      "white",
+      "yellow",
+      "blue",
+      "orange",
+      "orange",
+      "red",
+      "blue"
+     ]
+    },
+    "cellConfidence": {
+     "U": [
+      94,
+      94,
+      94,
+      94,
+      89,
+      94,
+      94,
+      94,
+      94
+     ],
+     "R": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "F": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "D": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "L": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "B": [
+      94,
+      94,
+      88,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6108",
+   "group": "integration",
+   "scramble": "B' R2 B2 F2 U F2 D B2 U2 B2 F2 R2 B' R B L' D2 B D' F'",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6258",
+   "group": "test",
+   "scramble": "U2 R U' D' F' R2 F L F' R' L2 D2 R B2 U2 D2 R U2 B2 L2 U2",
+   "repeats": 3,
+   "headline": [
+    54,
+    54,
+    54
+   ],
+   "status": [
+    "partial",
+    "partial",
+    "partial"
+   ],
+   "representative": {
+    "correct": 54,
+    "committed": 54,
+    "total": 54,
+    "correctNonCenter": 48,
+    "committedNonCenter": 48,
+    "accuracyOnCommitted": 1,
+    "status": "partial",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramDelta": {
+     "unknown": 0,
+     "white": 0,
+     "red": 0,
+     "green": 0,
+     "yellow": 0,
+     "orange": 0,
+     "blue": 0
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 54,
+     "bestCorrect": 54,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 41,
+     "highConfidenceCorrect": 41,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 1,
+     "lowConfidenceTotal": 7,
+     "lowConfidenceCorrect": 7,
+     "lowConfidenceWrong": 0,
+     "histogram": [
+      {
+       "from": 0,
+       "to": 10,
+       "count": 3
+      },
+      {
+       "from": 50,
+       "to": 60,
+       "count": 3
+      },
+      {
+       "from": 60,
+       "to": 70,
+       "count": 3
+      },
+      {
+       "from": 70,
+       "to": 80,
+       "count": 1
+      },
+      {
+       "from": 80,
+       "to": 90,
+       "count": 2
+      },
+      {
+       "from": 90,
+       "to": 100,
+       "count": 36
+      }
+     ]
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      "red",
+      "red",
+      "orange",
+      "yellow",
+      "white",
+      "white",
+      "yellow",
+      "yellow",
+      "white"
+     ],
+     "R": [
+      "orange",
+      "blue",
+      "blue",
+      "orange",
+      "red",
+      "blue",
+      "red",
+      "white",
+      "blue"
+     ],
+     "F": [
+      "orange",
+      "orange",
+      "blue",
+      "green",
+      "green",
+      "white",
+      "red",
+      "red",
+      "white"
+     ],
+     "D": [
+      "yellow",
+      "green",
+      "green",
+      "blue",
+      "yellow",
+      "red",
+      "orange",
+      "green",
+      "red"
+     ],
+     "L": [
+      "white",
+      "blue",
+      "green",
+      "green",
+      "orange",
+      "orange",
+      "green",
+      "orange",
+      "green"
+     ],
+     "B": [
+      "yellow",
+      "yellow",
+      "blue",
+      "red",
+      "blue",
+      "yellow",
+      "yellow",
+      "white",
+      "white"
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      53,
+      94,
+      88,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "R": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      63,
+      94
+     ],
+     "F": [
+      84,
+      92,
+      94,
+      94,
+      90,
+      68,
+      94,
+      94,
+      58
+     ],
+     "D": [
+      90,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "L": [
+      59,
+      94,
+      94,
+      94,
+      90,
+      94,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      66,
+      71
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6260",
+   "group": "test",
+   "scramble": "R D' L B2 U' R' D B F2 D L2 D L2 F2 L2 D2 F2 D' R' U",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6281",
+   "group": "test",
+   "scramble": "B2 L2 D B' U2 L D R D F2 U' L2 D L2 U' R2 D' L2 B2 D R",
+   "repeats": 3,
+   "headline": [
+    52,
+    52,
+    52
+   ],
+   "status": [
+    "partial",
+    "partial",
+    "partial"
+   ],
+   "representative": {
+    "correct": 52,
+    "committed": 52,
+    "total": 54,
+    "correctNonCenter": 46,
+    "committedNonCenter": 46,
+    "accuracyOnCommitted": 1,
+    "status": "partial",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 7,
+      "committed": 7,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 2,
+     "white": 8,
+     "red": 9,
+     "green": 9,
+     "yellow": 8,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramDelta": {
+     "unknown": 2,
+     "white": -1,
+     "red": 0,
+     "green": 0,
+     "yellow": -1,
+     "orange": 0,
+     "blue": 0
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 52,
+     "bestCorrect": 52,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 31,
+     "highConfidenceCorrect": 31,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 1,
+     "lowConfidenceTotal": 15,
+     "lowConfidenceCorrect": 15,
+     "lowConfidenceWrong": 0,
+     "histogram": [
+      {
+       "from": 0,
+       "to": 10,
+       "count": 10
+      },
+      {
+       "from": 50,
+       "to": 60,
+       "count": 4
+      },
+      {
+       "from": 60,
+       "to": 70,
+       "count": 2
+      },
+      {
+       "from": 70,
+       "to": 80,
+       "count": 5
+      },
+      {
+       "from": 80,
+       "to": 90,
+       "count": 1
+      },
+      {
+       "from": 90,
+       "to": 100,
+       "count": 24
+      }
+     ]
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      "blue",
+      null,
+      "red",
+      null,
+      "white",
+      "yellow",
+      "yellow",
+      "blue",
+      "yellow"
+     ],
+     "R": [
+      "blue",
+      "orange",
+      "white",
+      "yellow",
+      "red",
+      "green",
+      "yellow",
+      "orange",
+      "green"
+     ],
+     "F": [
+      "orange",
+      "yellow",
+      "orange",
+      "white",
+      "green",
+      "red",
+      "white",
+      "red",
+      "blue"
+     ],
+     "D": [
+      "orange",
+      "green",
+      "red",
+      "orange",
+      "yellow",
+      "white",
+      "orange",
+      "blue",
+      "yellow"
+     ],
+     "L": [
+      "red",
+      "green",
+      "green",
+      "red",
+      "orange",
+      "blue",
+      "green",
+      "blue",
+      "blue"
+     ],
+     "B": [
+      "green",
+      "green",
+      "white",
+      "orange",
+      "blue",
+      "white",
+      "red",
+      "red",
+      "white"
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      94,
+      60,
+      0,
+      0,
+      90,
+      94,
+      0,
+      78,
+      94
+     ],
+     "F": [
+      94,
+      94,
+      0,
+      94,
+      90,
+      52,
+      94,
+      94,
+      94
+     ],
+     "D": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      93,
+      90,
+      91
+     ],
+     "L": [
+      74,
+      72,
+      81,
+      72,
+      83,
+      94,
+      68,
+      94,
+      94
+     ],
+     "B": [
+      50,
+      52,
+      94,
+      94,
+      90,
+      94,
+      54,
+      74,
+      94
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6297",
+   "group": "seen",
+   "scramble": "D' B D B D R' B L' U' L2 U' F2 U R2 L2 D' F2 D2 R2 B2 R'",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6298",
+   "group": "seen",
+   "scramble": "F2 U L2 B2 L B' D' F' R2 F2 L F2 D2 R F2 R2 U2 R' B2 L' F",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6299",
+   "group": "seen",
+   "scramble": "D2 F2 L2 D2 B' L' F2 R' D B2 D' F2 D B2 R2 U' B2 L2 D2 R D'",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6300",
+   "group": "seen",
+   "scramble": "L' B2 U2 R' D' L' U B2 D' F2 R2 F2 D2 B' U2 D2 R2 B R2 F' L'",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6334",
+   "group": "seen",
+   "scramble": "U' B2 U D' R' F2 B U2 B' U F2 L2 D2 F2 R2 U' L2 D R2",
+   "repeats": 3,
+   "headline": [
+    54,
+    54,
+    54
+   ],
+   "status": [
+    "partial",
+    "partial",
+    "partial"
+   ],
+   "representative": {
+    "correct": 54,
+    "committed": 54,
+    "total": 54,
+    "correctNonCenter": 48,
+    "committedNonCenter": 48,
+    "accuracyOnCommitted": 1,
+    "status": "partial",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 9,
+      "committed": 9,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramDelta": {
+     "unknown": 0,
+     "white": 0,
+     "red": 0,
+     "green": 0,
+     "yellow": 0,
+     "orange": 0,
+     "blue": 0
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 54,
+     "bestCorrect": 54,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 39,
+     "highConfidenceCorrect": 39,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 1,
+     "lowConfidenceTotal": 9,
+     "lowConfidenceCorrect": 9,
+     "lowConfidenceWrong": 0,
+     "histogram": [
+      {
+       "from": 0,
+       "to": 10,
+       "count": 8
+      },
+      {
+       "from": 40,
+       "to": 50,
+       "count": 1
+      },
+      {
+       "from": 80,
+       "to": 90,
+       "count": 2
+      },
+      {
+       "from": 90,
+       "to": 100,
+       "count": 37
+      }
+     ]
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      "red",
+      "red",
+      "yellow",
+      "green",
+      "white",
+      "white",
+      "red",
+      "yellow",
+      "white"
+     ],
+     "R": [
+      "orange",
+      "green",
+      "green",
+      "red",
+      "red",
+      "yellow",
+      "blue",
+      "orange",
+      "green"
+     ],
+     "F": [
+      "green",
+      "green",
+      "blue",
+      "green",
+      "green",
+      "blue",
+      "yellow",
+      "orange",
+      "white"
+     ],
+     "D": [
+      "green",
+      "blue",
+      "red",
+      "white",
+      "yellow",
+      "yellow",
+      "blue",
+      "white",
+      "white"
+     ],
+     "L": [
+      "blue",
+      "red",
+      "white",
+      "blue",
+      "orange",
+      "orange",
+      "yellow",
+      "orange",
+      "red"
+     ],
+     "B": [
+      "orange",
+      "white",
+      "yellow",
+      "red",
+      "blue",
+      "yellow",
+      "orange",
+      "blue",
+      "orange"
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      85,
+      94,
+      94,
+      91
+     ],
+     "R": [
+      94,
+      94,
+      49,
+      94,
+      90,
+      0,
+      94,
+      94,
+      94
+     ],
+     "F": [
+      94,
+      94,
+      94,
+      94,
+      90,
+      94,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      86,
+      94,
+      94,
+      94,
+      90,
+      94,
+      94,
+      94,
+      94
+     ],
+     "L": [
+      93,
+      94,
+      0,
+      0,
+      83,
+      0,
+      94,
+      94,
+      92
+     ],
+     "B": [
+      94,
+      92,
+      94,
+      94,
+      90,
+      94,
+      90,
+      94,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6336",
+   "group": "seen",
+   "scramble": "U L' B D' B' U2 F' U' D L2 F2 L2 B2 U' D2 L2 B2 L' B",
+   "repeats": 3,
+   "headline": [
+    15,
+    15,
+    15
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 15,
+    "committed": 18,
+    "total": 54,
+    "correctNonCenter": 9,
+    "committedNonCenter": 12,
+    "accuracyOnCommitted": 0.75,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 8,
+      "committed": 9,
+      "mismatches": [
+       {
+        "index": 2,
+        "expected": "orange",
+        "got": "yellow"
+       }
+      ]
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 3,
+      "committed": 5,
+      "mismatches": [
+       {
+        "index": 6,
+        "expected": "green",
+        "got": "orange"
+       },
+       {
+        "index": 8,
+        "expected": "green",
+        "got": "blue"
+       }
+      ]
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 36,
+     "white": 4,
+     "red": 2,
+     "green": 1,
+     "yellow": 4,
+     "orange": 4,
+     "blue": 3
+    },
+    "histogramDelta": {
+     "unknown": 36,
+     "white": -5,
+     "red": -7,
+     "green": -8,
+     "yellow": -5,
+     "orange": -5,
+     "blue": -6
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 15,
+     "bestCorrect": 15,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 7,
+     "highConfidenceCorrect": 7,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 1,
+     "lowConfidenceTotal": 5,
+     "lowConfidenceCorrect": 2,
+     "lowConfidenceWrong": 3,
+     "histogram": [
+      {
+       "from": 0,
+       "to": 10,
+       "count": 5
+      },
+      {
+       "from": 80,
+       "to": 90,
+       "count": 3
+      },
+      {
+       "from": 90,
+       "to": 100,
+       "count": 4
+      }
+     ]
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      "yellow",
+      "white",
+      "yellow",
+      "blue",
+      "white",
+      "yellow",
+      "orange",
+      "white",
+      "white"
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      "red",
+      null,
+      "green",
+      "orange",
+      "orange",
+      null,
+      "blue"
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      94,
+      93,
+      0,
+      94,
+      90,
+      94,
+      82,
+      89,
+      83
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      88,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6338",
+   "group": "seen",
+   "scramble": "U' F' D2 R D2 L2 D2 B2 D2 F2 L' D2 L' F2 D' L U' F' R' B U",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  },
+  {
+   "id": "IMG_6341",
+   "group": "seen",
+   "scramble": "R2 B2 F' L2 D2 U2 F' U2 B D2 L2 D2 U' B L' D' R' U R2 F",
+   "repeats": 3,
+   "headline": [
+    6,
+    6,
+    6
+   ],
+   "status": [
+    "insufficient",
+    "insufficient",
+    "insufficient"
+   ],
+   "representative": {
+    "correct": 6,
+    "committed": 6,
+    "total": 54,
+    "correctNonCenter": 0,
+    "committedNonCenter": 0,
+    "accuracyOnCommitted": 0,
+    "status": "insufficient",
+    "perFace": [
+     {
+      "face": "U",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "R",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "F",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "D",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "L",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     },
+     {
+      "face": "B",
+      "correct": 1,
+      "committed": 1,
+      "mismatches": []
+     }
+    ],
+    "histogramExpected": {
+     "unknown": 0,
+     "white": 9,
+     "red": 9,
+     "green": 9,
+     "yellow": 9,
+     "orange": 9,
+     "blue": 9
+    },
+    "histogramGot": {
+     "unknown": 48,
+     "white": 1,
+     "red": 1,
+     "green": 1,
+     "yellow": 1,
+     "orange": 1,
+     "blue": 1
+    },
+    "histogramDelta": {
+     "unknown": 48,
+     "white": -8,
+     "red": -8,
+     "green": -8,
+     "yellow": -8,
+     "orange": -8,
+     "blue": -8
+    },
+    "orientation": {
+     "available": true,
+     "identityCorrect": 6,
+     "bestCorrect": 6,
+     "bestRotation": "(identita)",
+     "systematicOffsetSuspected": false
+    },
+    "confidence": {
+     "threshold": 66,
+     "highConfidenceTotal": 0,
+     "highConfidenceCorrect": 0,
+     "highConfidenceWrong": 0,
+     "highConfidencePrecision": 0,
+     "lowConfidenceTotal": 0,
+     "lowConfidenceCorrect": 0,
+     "lowConfidenceWrong": 0,
+     "histogram": []
+    }
+   },
+   "reconstructed": {
+    "facelets": {
+     "U": [
+      null,
+      null,
+      null,
+      null,
+      "white",
+      null,
+      null,
+      null,
+      null
+     ],
+     "R": [
+      null,
+      null,
+      null,
+      null,
+      "red",
+      null,
+      null,
+      null,
+      null
+     ],
+     "F": [
+      null,
+      null,
+      null,
+      null,
+      "green",
+      null,
+      null,
+      null,
+      null
+     ],
+     "D": [
+      null,
+      null,
+      null,
+      null,
+      "yellow",
+      null,
+      null,
+      null,
+      null
+     ],
+     "L": [
+      null,
+      null,
+      null,
+      null,
+      "orange",
+      null,
+      null,
+      null,
+      null
+     ],
+     "B": [
+      null,
+      null,
+      null,
+      null,
+      "blue",
+      null,
+      null,
+      null,
+      null
+     ]
+    },
+    "completeFacelets": null,
+    "cellConfidence": {
+     "U": [
+      0,
+      0,
+      0,
+      0,
+      89,
+      0,
+      0,
+      0,
+      0
+     ],
+     "R": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "F": [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0
+     ],
+     "D": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "L": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "B": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    }
+   },
+   "errors": []
+  }
+ ]
+}
