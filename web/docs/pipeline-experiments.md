@@ -925,6 +925,65 @@ gli altri no.
 
     Dati completi: `bench/results/geometric-neighbor-check.json`.
 
+19. **Implementa la proposta dell'esperimento #18 (dietro flag,
+    `exp/candidate-consensus`) — scartato dopo il bench sui video reali.**
+
+    Tre forme tentate per la regola 2, in ordine (le prime due scartate
+    durante lo sviluppo, prima ancora del bench):
+    1. Erosione sulla qualità aggregata di `considerPartial`: non vede i
+       pareggi che esistono solo a livello di singola faccia (la qualità
+       aggregata li rompe quasi sempre per effetti incidentali su facce
+       diverse). 8→3 sull'oracolo sintetico.
+    2. Una faccia alla volta (tenendo ferme le altre): non vede
+       un'ambiguità condivisa da più facce insieme — misurato su
+       IMG_6299, dove 4-5 facce sono in pareggio simultaneo. 8→1 poi
+       8→6 secondo il caso.
+    3. **Forma definitiva**: enumerazione congiunta di tutte le facce in
+       pareggio insieme (`faceRotationAmbiguityGuard`, fino a 4^6=4096
+       combinazioni o 200ms), impegna solo le caselle unanimi fra le
+       combinazioni fisicamente valide, svuota tutto se nessuna
+       combinazione è valida o il budget è superato.
+
+    La forma 3 porta l'oracolo sintetico (facce ruotate 0/90/180/270° +
+    30/48 caselle casuali, seed 20261012) da **8 a 0** orientamenti
+    sbagliati impegnati, con 4 test aggiuntivi (due sui casi reali della
+    diagnosi, due unitari su `faceRotationAmbiguityGuard`) e bit-identico
+    a flag spento.
+
+    **Bench sui 13 video (flag acceso): 277/702, contro una baseline di
+    462/702 — non adottata.** Non è il calo lieve del criterio "riportalo
+    e fermati": 8 video su 13 collassano a `status: insufficient` (0
+    caselle impegnate oltre i 6 centri). Delta per video: 6107=0,
+    6108=-5, 6258=0, 6260=-43, 6281=0, 6297=-22, 6298=-24, 6299=-8,
+    6300=-31, 6334=0, 6336=-12, 6338=-36, 6341=-4. Su **6338** (baseline
+    100% di precisione, 36/36 caselle impegnate corrette, nessun problema
+    di orientamento) l'intero cubo viene svuotato: prova diretta che il
+    meccanismo spara troppo largo. Tempo: bench completo in ~71 minuti,
+    nessun rallentamento misurabile (il collasso è di correttezza, non di
+    prestazioni).
+
+    **Lezione**: sui video reali il pareggio di punteggio per-faccia
+    (`choices`) nasce dalla confidenza uniforme delle celle di
+    un'osservazione — comune su riprese ben illuminate, non rara come
+    nell'oracolo sintetico (dove è stata costruita apposta per isolare il
+    fenomeno) — e di norma, nella pipeline esistente, **viene già
+    risolto dai vincoli fisici delle altre facce** durante la ricerca
+    piena (è il motivo per cui la baseline arriva a 462/702 nonostante
+    questi pareggi esistano da sempre). La regola "nessuna combinazione
+    valida → svuota tutto" applicata all'insieme (quasi sempre quasi
+    tutte le 6 facce) di facce in pareggio fa collassare l'intero cubo
+    per una sola lettura sbagliata altrove, invece di isolare il danno
+    alla faccia realmente in dubbio.
+
+    **Non adottata**: codice, test e risultato restano solo sul branch
+    `exp/candidate-consensus` (archivio, non cancellato, non unito a
+    `main`). Su `main` passa solo il test oracolo ruotato a copertura
+    parziale, marcato `todo` con il valore attuale (8) — nessun codice di
+    produzione.
+
+    Dati completi: `bench/results/exp19-candidate-consensus.json`
+    (branch `exp/candidate-consensus`).
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico

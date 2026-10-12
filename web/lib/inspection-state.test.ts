@@ -549,3 +549,78 @@ test('esperimento #17 Passo 2: oracolo con facce ruotate (0/90/180/270°), confi
   });
   assert.equal(failures.length, 0, `casi falliti:\n${failures.join('\n')}`);
 });
+
+// Esperimento #19 (vedi docs/pipeline-experiments.md): stesso oracolo del
+// Passo 2 dell'esperimento #17 (facce ruotate 0/90/180/270°) combinato con
+// la copertura parziale della variante 1c (30/48 caselle casuali, seed
+// 20261012) - diagnostica un limite reale, non ancora corretto: quando i
+// candidati completi disaccordano (o non esistono) su una faccia il cui
+// punteggio di rotazione è in pareggio, la ricostruzione può impegnare un
+// orientamento sbagliato invece di lasciarlo vuoto. Tre tentativi di
+// correzione sono stati valutati e scartati (vedi #19 in
+// docs/pipeline-experiments.md): tutti risolvevano l'oracolo sintetico, ma
+// l'ultimo, l'unico testato sul bench reale, faceva collassare interi cubi
+// (277/702 contro una baseline di 462/702) perché il pareggio per-faccia è
+// quasi universale sui dati reali (confidenza uniforme delle celle), non
+// raro come in questo oracolo. Nessun codice di produzione per questo:
+// `{ todo: true }` tiene il numero sotto osservazione senza bloccare la CI.
+function rotatedPartialFaceObservation(
+  cube: CubeState,
+  face: Face,
+  turns: number,
+  revealedTrueIndices: Set<number>,
+): FaceGridObservation {
+  const trueFace = cube.facelets(face);
+  const partialTrue = trueFace.map((color, index) => (
+    index === 4 || revealedTrueIndices.has(index) ? color : null
+  ));
+  return {
+    time: 0,
+    centerColor: CANONICAL_FACE_COLOR[face],
+    colors: rotate(partialTrue, turns),
+    confidence: 95,
+    visibleCells: partialTrue.filter(Boolean).length,
+    sourceFrames: 3,
+  };
+}
+
+test(
+  'esperimento #19 (todo, non risolto): oracolo ruotato a copertura parziale (30/48, seed 20261012) - oggi 8 orientamenti finali sbagliati vengono impegnati invece di lasciati vuoti',
+  { todo: true },
+  () => {
+    const details: string[] = [];
+    let wrongCommitted = 0;
+    BENCH_CASES.forEach(({ id, scramble }, caseIndex) => {
+      const cube = trueCubeState(scramble);
+      const reference = cube.faceletRecord();
+      const random = mulberry32(ORACLE_SEED + caseIndex);
+      const allCells = FACES.flatMap((face) => [0, 1, 2, 3, 5, 6, 7, 8].map((index) => ({ face, index })));
+      for (let i = allCells.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(random() * (i + 1));
+        [allCells[i], allCells[j]] = [allCells[j], allCells[i]];
+      }
+      const revealedByFace = new Map<Face, Set<number>>(FACES.map((face) => [face, new Set<number>()]));
+      allCells.slice(0, 30).forEach((cell) => revealedByFace.get(cell.face)!.add(cell.index));
+      const observations = FACES
+        .map((face, faceIndex) => rotatedPartialFaceObservation(cube, face, (faceIndex + caseIndex) % 4, revealedByFace.get(face)!))
+        .filter((observation) => observation.visibleCells >= 5);
+      const { result } = reconstructWithCandidates(observations);
+      const facelets = result.completeFacelets ?? result.facelets;
+      FACES.forEach((face) => {
+        const committed = facelets[face];
+        const committedNonNull = committed.filter((color, index) => index !== 4 && color !== null).length;
+        if (committedNonNull === 0) return;
+        const countMatches = (grid: Array<CubeColor | null>) => grid.filter((color, index) => (
+          index !== 4 && color !== null && color === reference[face][index]
+        )).length;
+        const actualMatches = countMatches(committed);
+        const bestPossible = Math.max(...[0, 1, 2, 3].map((turns) => countMatches(rotate(committed, turns))));
+        if (actualMatches < committedNonNull && bestPossible > actualMatches) {
+          wrongCommitted += 1;
+          details.push(`${id}/${face}: committed ${actualMatches}/${committedNonNull}, ruotando ${bestPossible}`);
+        }
+      });
+    });
+    assert.equal(wrongCommitted, 8, `valore atteso oggi (8): trovato ${wrongCommitted}\n${details.join('\n')}`);
+  },
+);
