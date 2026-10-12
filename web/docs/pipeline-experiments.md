@@ -812,6 +812,119 @@ gli altri no.
     Dati completi: `bench/results/rotation-tie-check.json`,
     `bench/results/exp17-variantA.json` (branch `exp/rotation-tie-break`).
 
+18. **Chi decide l'orientamento sbagliato, se i pareggi per-faccia passano
+    intatti alla ricerca?** (solo diagnosi, nessuna modifica alla
+    produzione — su `main`, nessun branch: nessun codice di produzione
+    toccato.)
+
+    **Parte 1 — tracciato di 5 delle 39 facce sbagliate**
+    (`bench/rotation-decisive-trace.ts`): riusa gli hook solo-bench già
+    presenti (`__benchChoicesDiag`, `__benchCandidateStatesDiag`,
+    `__benchPartialDiag`), nessuna nuova strumentazione.
+
+    | Caso | Candidati completi | Faccia univoca fra i candidati? | Match finale |
+    |---|---|---|---|
+    | 6258/U | 1 | sì (unico) | 8/8 ✓ |
+    | 6281/L | 100 | sì (tutti d'accordo) | 8/8 ✓ |
+    | 6299/U | 36 | **no, 27 varianti disaccordano** | 0/8 |
+    | 6338/F | 29 | **no, 29 varianti disaccordano** | 2/8 |
+    | 6108/R | 0 (nessun candidato completo) | n/a | 3/8 |
+
+    **Due esiti distinti dallo stesso pareggio iniziale**: su 6258/U e
+    6281/L il pareggio per-faccia non conta — i vincoli dei pezzi delle
+    ALTRE facce, applicati a TUTTI i candidati completi trovati,
+    convergono comunque sulla faccia corretta (`pieceEvidenceValid`/
+    `colorCountValid`, `lib/inspection-state.ts`, funzionano come
+    previsto). Su 6299/U e 6338/F i candidati completi **disaccordano**
+    su questa faccia anche dopo tutti i vincoli: la scelta finale passa a
+    `bestPartial`, costruito da `considerPartial`
+    (`lib/inspection-state.ts:1618`) con un criterio preciso — la PRIMA
+    combinazione che supera STRETTAMENTE (`>`, mai `>=`) la qualità
+    migliore vista finora vince e resta, in un ordine di iterazione fisso
+    (facce in ordine `CUBE_FACES`, ipotesi per faccia nell'ordine di
+    `fuseFaceObservationCandidates`, rotazioni in ordine 0→1→2→3); un
+    pareggio esatto di qualità NON sostituisce mai quella già tenuta — mai
+    verificato contro il consenso dei candidati completi trovati
+    successivamente. Su 6108/R, senza nemmeno un candidato completo,
+    `bestPartial` è l'UNICA fonte, con lo stesso criterio.
+
+    **Criterio quindi**: non i vincoli dei pezzi (che qui non bastano),
+    non un punteggio geometrico consapevole della rotazione — **ordine di
+    iterazione + "primo che supera, mai chi pareggia dopo"**, esattamente
+    come ipotizzato.
+
+    **Parte 2 — oracolo ruotato a copertura parziale (30/48, seed
+    20261012)** (`bench/rotation-partial-oracle-check.ts`, puro Node,
+    nessun browser): **8 orientamenti finali sbagliati E impegnati**
+    (IMG_6108: U, L, B; IMG_6299: R, F, D, L, B) su 78 facce testate; **9
+    facce con evidenza ma correttamente lasciate aperte** (il Passo 2
+    dell'esperimento #16 già protegge QUESTI casi). La quota sbagliata-e-
+    impegnata è reale ma non assoluta: quasi metà delle facce ambigue
+    trovate qui sono già gestite in modo sicuro oggi.
+
+    **Parte 3 — evidenza geometrica multi-faccia**
+    (`bench/geometric-neighbor-check.ts`): sulle 39 facce sbagliate
+    dell'esperimento #17, solo **7/39 (18%) hanno almeno un fotogramma
+    con una faccia adiacente rilevata insieme** (`bundleSize>=2`); le
+    altre 32 non hanno MAI avuto l'opportunità geometrica. Delle 7 con
+    fotogramma multi-faccia, **0/7 hanno ricevuto una correzione**: la
+    funzione che userebbe questa evidenza esiste già ed è già chiamata
+    oggi — `normalizeObservationOrientations`
+    (`lib/inspection-state.ts:362`, invocata all'inizio di
+    `reconstructInspectionState`) — ma in tutti i 7 casi il punteggio
+    geometrico (`sideFromNeighbor`) non supera le soglie già presenti nel
+    codice (`best.score < 0.35 || margin < 0.12`, riga 399): un singolo
+    fotogramma multi-faccia raramente basta, la co-rilevazione di due
+    facce in uno stesso crop è rara E quando capita è quasi sempre
+    un'istanza isolata, non abbastanza per superare la soglia di
+    confidenza già prudente. **L'evidenza geometrica non è la leva
+    giusta per questi 39 casi**: è già usata, ma i dati non la alimentano
+    a sufficienza.
+
+    **Proposta finale (non implementata)**, due regole:
+
+    1. **Se i vincoli non decidono, la faccia resta aperta.** Oggi, nella
+       costruzione di `displayFacelets`
+       (`lib/inspection-state.ts`, intorno a `provisionalDisplay`), il
+       consenso fra candidati completi (`candidateConsensus`, già nulla
+       le caselle in disaccordo) viene usato SOLO quando `!sawTruncation`
+       — ma `sawTruncation` è quasi sempre vero con dati reali rumorosi
+       (confermato: tutti i 5 casi della Parte 1 hanno `truncated=true`).
+       Quando `sawTruncation` è vero, oggi si salta dritti a `bestPartial`
+       senza mai controllarlo contro `candidates`. Correzione: SEMPRE
+       (troncato o no), se `candidates.length > 0`, nullare in
+       `bestPartial` ogni casella che non coincide con il valore unanime
+       fra `candidates` per quella casella — una generalizzazione
+       dell'esperimento #16 Passo 2, non una regola nuova. Per il caso
+       senza nessun candidato completo (6108/R, `candidates.length===0`,
+       nessun riferimento contro cui controllare): usare direttamente
+       l'informazione di pareggio già disponibile nel builder `choices`
+       (oggi esposta solo all'hook diagnostico `__benchChoicesDiag`) — se
+       la faccia aveva un pareggio di punteggio al Passo 1 e nessun
+       vincolo l'ha sciolto, nullarla anziché fidarsi del primo trovato.
+    2. **Se c'è evidenza geometrica affidabile, si usa** (già vero oggi:
+       `normalizeObservationOrientations` pre-ruota e blocca
+       `orientationConfidence` PRIMA che `choices` generi ipotesi di
+       rotazione — una faccia così bloccata non genera nemmeno un
+       pareggio, quindi la regola 1 non la tocca per costruzione). La
+       proposta non cambia questo meccanismo, si limita a non interferire
+       con esso.
+
+    **Piano di bench** (non eseguito): applicare la regola 1 dietro flag,
+    verificare prima che il test della Parte 2 scenda a 0 orientamenti
+    sbagliati impegnati (se non basta, la regola 1b sul caso
+    `candidates.length===0` va rifinita), poi bench sui 13 video, un run
+    alla volta, JSON salvato a ogni run. Criterio di adozione: totale
+    sopra 462/702, nessun video test giù di più di 5. Rischio atteso
+    (coerente con la storia di questo documento): nullare più caselle
+    abbassa quasi certamente la copertura (celle oggi sbagliate ma
+    contate come "corrette per caso" diventano vuote) — se il totale
+    scende ma la precisione sulle caselle impegnate sale, non scartare:
+    riportare e fermarsi, decide l'utente, stesso principio già
+    applicato nell'esperimento #16.
+
+    Dati completi: `bench/results/geometric-neighbor-check.json`.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
