@@ -984,6 +984,83 @@ gli altri no.
     Dati completi: `bench/results/exp19-candidate-consensus.json`
     (branch `exp/candidate-consensus`).
 
+20. **Quanto è fragile la scelta della finestra di ispezione a rumore
+    minimo sul segnale di moto? Solo diagnosi, nessuna modifica alla
+    pipeline.**
+
+    Motivato da un confronto Mac/Windows a codice identico su IMG_6258:
+    decoder, ridimensionamento e modello ONNX identici, ma il segnale di
+    moto grezzo (`cubeDifference`) differiva di un fotogramma di
+    **4.3348 contro 4.3474** — abbastanza per cambiare il numero di fasi
+    della segmentazione (3 contro 2) e quindi la finestra di ispezione
+    (3.78-6.87s contro 0.48-14.27s), con impatto drastico sul punteggio
+    (34/54 contro 54/54). Sul Mac cambiavano 8 video su 13.
+
+    **Catena delle decisioni discrete** (`lib/video-decoder.ts` salvo
+    indicazione): `detectMotionEvents` (soglia di rilevamento picco,
+    righe ~794-905) → `inferVideoSegmentation` (fasi scramble/inspection/
+    solve, righe ~1723-1836, con `denseFaceTurnStart` righe ~1065-1081) →
+    `inferInspectionEnd` (fine della finestra, righe ~1088-1182) →
+    orchestrazione in `lib/inspection-pipeline.ts` (righe ~94-127) che
+    deriva `intervalStart`/`searchEnd`/`intervalEnd`.
+
+    **Strumento** `bench/window-sensitivity.ts`: per i 13 video del
+    bench, un solo passaggio costoso nel browser reale
+    (`decodeVideoMotion` + una `scanInspectionFrames` larga, per avere le
+    vere griglie-colore), poi 12 prove economiche e pure per video
+    (rumore ±1% sul `cubeDifference` di ogni campione + spostamento
+    costante di ±1 fotogramma nominale dei tempi di campionamento, semi
+    dichiarati `20261013 + video*1000 + prova`), che rieseguono SOLO
+    `fuseMotionEvidence → detectMotionEvents → inferVideoSegmentation →
+    inferInspectionEnd` (funzioni di produzione reali, nessuna copia).
+    Cambio "rilevante" = `intervalStart` o `intervalEnd` spostati oltre
+    0.5s, oppure numero di fasi diverso dalla base.
+
+    **Risultato: 10/13 video cambiano in modo rilevante in QUASI OGNI
+    prova.** 9/13 video (6107, 6258, 6260, 6298, 6300, 6334, 6336, 6338,
+    6341) cambiano in 12/12 prove; 1/13 (6297) in 4/12; solo 3/13 (6108,
+    6281, 6299) restano stabili in tutte le 12 prove — ben sotto il
+    criterio di adozione "stabile in almeno 12/13" fissato per questo
+    esperimento, a conferma diretta del divario osservato fra Mac e
+    Windows.
+
+    **Soglia più vicina al filo**: la soglia di rilevamento picco di
+    `detectMotionEvents` (`threshold = max(2.6, min(noiseThreshold,
+    activityCeiling))`). Il campione più vicino a questa soglia dista, in
+    TUTTI e 13 i video senza eccezione, tra lo 0.00% e lo 0.55% della
+    soglia stessa (mediana ~0.08%) — molto sotto il rumore di ±1%
+    applicato. Causa strutturale: `activityCeiling` è il valore di un
+    campione reale preso per rango di percentile (non un'interpolazione
+    morbida), quindi la soglia finisce quasi sempre esattamente appoggiata
+    su un campione vero, non in una zona franca.
+
+    **Correzione proposta, NON implementata** (da verificare prima
+    dell'adozione secondo il criterio sotto):
+    - `detectMotionEvents`: interpolare `activityCeiling` fra i due
+      campioni adiacenti al rango invece di scegliere un campione intero,
+      per smettere di appoggiare la soglia esattamente su un valore
+      osservato; aggiungere un margine d'isteresi minimo fra `threshold`
+      e il campione più vicino prima di impegnare o scartare un picco.
+    - `inferVideoSegmentation`: richiedere un margine (non un semplice
+      `>=`) sui confronti `gap >= pauseThreshold` e sulla soglia
+      `inspectionCut`/`solvedStartLikely`; quando due interpretazioni
+      (numero di fasi, punto di taglio) sono vicine in punteggio, non
+      scegliere la più aggressiva ma allargare la finestra di ispezione
+      scelta all'unione delle candidate vicine.
+    - `inferInspectionEnd`: quando la fonte del confine è `fallback` o
+      `segmentation` (bassa confidenza) piuttosto che `state-change`,
+      allargare `intervalEnd` con un margine di sicurezza esplicito
+      invece di accettare il valore puntuale.
+
+    **Criterio per l'adozione futura** (dichiarato dall'utente, da
+    verificare quando/se la correzione sarà implementata): punteggio
+    totale sopra 462/702, nessun video del gruppo test giù di più di 5
+    caselle, finestra stabile sotto le stesse perturbazioni in almeno
+    12/13 video — oggi, senza correzione, siamo a 3/13.
+
+    Dati completi: `bench/results/window-sensitivity.json` (gitignored,
+    locale — rigenerabile con lo strumento committato).
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
