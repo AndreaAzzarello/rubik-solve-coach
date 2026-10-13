@@ -22,8 +22,8 @@ import { startStaticServer } from './lib/static-server.ts';
 import { startDevServer } from './lib/dev-server.ts';
 import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import { referenceFromScramble } from './lib/score.ts';
-import { colorCountValid, inferForcedPieceFacelets, type PartialFacelets } from '../lib/inspection-state.ts';
-import { CUBE_FACES, CUBE_COLORS, type CubeColor, type Face } from '../lib/cube.ts';
+import { admissibleColors, confirmCellAndPropagate, type PartialFacelets } from '../lib/inspection-state.ts';
+import { CUBE_FACES, type CubeColor, type Face } from '../lib/cube.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -57,41 +57,28 @@ function correctCount(grid: PartialFacelets, reference: Record<Face, CubeColor[]
   return CELL_POSITIONS.filter(({ face, index }) => grid[face][index] === reference[face][index]).length;
 }
 
-function tryInfer(grid: PartialFacelets): ReturnType<typeof inferForcedPieceFacelets> | null {
-  if (!colorCountValid(grid)) return null;
-  const result = inferForcedPieceFacelets(grid);
-  return result.invalid ? null : result;
+function blankFacelets(): PartialFacelets {
+  return Object.fromEntries(FACES.map((face) => [face, Array<CubeColor | null>(9).fill(null)])) as PartialFacelets;
 }
 
-// Ripropagazione (vedi intestazione del file). Le caselle confermate hanno
-// SEMPRE precedenza: se contraddicono una casella già impegnata (non
-// confermata), quest'ultima si nulla - a partire dalla meno affidabile per
-// confidenza - finché i vincoli dei pezzi tornano validi. Ogni casella
-// nullata è una "segnalazione" (conflitto con l'utente).
+function confirmedGridFrom(confirmed: Map<string, CubeColor>): PartialFacelets {
+  const grid = blankFacelets();
+  confirmed.forEach((color, key) => {
+    const [face, indexText] = key.split('#');
+    grid[face as Face][Number(indexText)] = color;
+  });
+  return grid;
+}
+
+// Ripropagazione: wrapper leggero attorno alla funzione di produzione
+// confirmCellAndPropagate (lib/inspection-state.ts), non una copia - questo
+// script misura esattamente il comportamento che finisce nell'app.
 function propagate(
   working: PartialFacelets,
   confirmed: Map<string, CubeColor>,
   confidence: Record<Face, number[]>,
 ): { facelets: PartialFacelets; conflicts: Array<{ face: Face; index: number }> } {
-  const merged = cloneFacelets(working);
-  confirmed.forEach((color, key) => {
-    const [face, indexText] = key.split('#');
-    merged[face as Face][Number(indexText)] = color;
-  });
-  let inference = tryInfer(merged);
-  const conflicts: Array<{ face: Face; index: number }> = [];
-  if (!inference) {
-    const removable = CELL_POSITIONS
-      .filter(({ face, index }) => merged[face][index] !== null && !confirmed.has(cellKey(face, index)))
-      .sort((left, right) => (confidence[left.face]?.[left.index] ?? 0) - (confidence[right.face]?.[right.index] ?? 0));
-    for (const cell of removable) {
-      merged[cell.face][cell.index] = null;
-      conflicts.push(cell);
-      inference = tryInfer(merged);
-      if (inference) break;
-    }
-  }
-  return { facelets: inference ? inference.facelets : merged, conflicts };
+  return confirmCellAndPropagate(working, confirmedGridFrom(confirmed), confidence);
 }
 
 function pickNextCell(
@@ -184,19 +171,7 @@ function admissibleColorCount(
   face: Face,
   index: number,
 ): number {
-  const base = cloneFacelets(working);
-  confirmed.forEach((color, key) => {
-    const [f, i] = key.split('#');
-    base[f as Face][Number(i)] = color;
-  });
-  base[face][index] = null;
-  let count = 0;
-  CUBE_COLORS.forEach((color) => {
-    const trial = cloneFacelets(base);
-    trial[face][index] = color;
-    if (tryInfer(trial)) count += 1;
-  });
-  return count;
+  return admissibleColors(working, confirmedGridFrom(confirmed), face, index).length;
 }
 
 function flowD(

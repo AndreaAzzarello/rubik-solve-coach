@@ -10,7 +10,9 @@ import {
 import { reconstructInspectionFromVideo } from '../lib/inspection-pipeline';
 import { createScrambleFromInspection, type InspectionScramble } from '../lib/inspection-solver';
 import {
+  admissibleColors,
   colorCountValid,
+  confirmCellAndPropagate,
   describeMissingFacelets,
   faceletsToSolverString,
   pieceEvidenceValid,
@@ -22,6 +24,18 @@ import { formatDuration, formatPreciseTime, formatFileSize } from '../lib/format
 import { CubeNet } from '../components/CubeNet';
 
 const FACES = CUBE_FACES;
+
+function createBlankConfidence(): Record<Face, number[]> {
+  return Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(0)])) as Record<Face, number[]>;
+}
+
+function copyConfidence(confidence: Record<Face, number[]>): Record<Face, number[]> {
+  return Object.fromEntries(FACES.map((face) => [face, [...confidence[face]]])) as Record<Face, number[]>;
+}
+
+function knownNonCenterCount(facelets: PartialFacelets): number {
+  return Math.max(0, FACES.reduce((total, face) => total + facelets[face].filter(Boolean).length, 0) - 6);
+}
 
 type ScanStatus = 'idle' | 'running' | 'result' | 'failed';
 type SolverStatus = 'idle' | 'solving' | 'ready' | 'failed';
@@ -41,7 +55,9 @@ export default function Home() {
   const [samples, setSamples] = useState<MotionSample[]>([]);
   const [summary, setSummary] = useState<CubeObservationSummary | null>(null);
   const [cubeDraft, setCubeDraft] = useState<PartialFacelets>(() => createBlankFacelets());
-  const [editedCells, setEditedCells] = useState<Record<Face, boolean[]>>(() => createBlankEditedCells());
+  const [draftConfidence, setDraftConfidence] = useState<Record<Face, number[]>>(() => createBlankConfidence());
+  const [confirmedFacelets, setConfirmedFacelets] = useState<PartialFacelets>(() => createBlankFacelets());
+  const [conflictCells, setConflictCells] = useState<Record<Face, boolean[]>>(() => createBlankEditedCells());
   const [scramble, setScramble] = useState<InspectionScramble | null>(null);
   const [activeInterval, setActiveInterval] = useState<{ start: number; end: number } | null>(null);
   const [error, setError] = useState('');
@@ -79,7 +95,9 @@ export default function Home() {
     setSamples([]);
     setSummary(null);
     setCubeDraft(createBlankFacelets());
-    setEditedCells(createBlankEditedCells());
+    setDraftConfidence(createBlankConfidence());
+    setConfirmedFacelets(createBlankFacelets());
+    setConflictCells(createBlankEditedCells());
     setScramble(null);
     setActiveInterval(null);
     setCopied(false);
@@ -148,7 +166,9 @@ export default function Home() {
       const finalSummary = { ...result.summary, keyframes: [] };
       setSummary(finalSummary);
       setCubeDraft(copyFacelets(finalSummary.reconstruction.facelets));
-      setEditedCells(createBlankEditedCells());
+      setDraftConfidence(copyConfidence(finalSummary.reconstruction.cellConfidence));
+      setConfirmedFacelets(createBlankFacelets());
+      setConflictCells(createBlankEditedCells());
       setSamples(result.samples);
       setRunCount(result.runCount);
       setProgress(1);
@@ -164,30 +184,56 @@ export default function Home() {
     }
   }
 
-  // Corregge una singola casella a mano: aggiorna lo schema e marca la
-  // casella come "corretta manualmente" (vince sempre sulla confidenza
-  // dell'algoritmo in CubeNet). Rivalida subito dopo ogni tap: se lo schema è
-  // pieno (54/54) e ancora coerente, ricalcola lo scramble; altrimenti azzera
-  // uno scramble ormai non più rappresentativo dello schema mostrato.
-  function handleEditCell(face: Face, index: number, color: CubeColor) {
-    const nextDraft = copyFacelets(cubeDraft);
-    nextDraft[face][index] = color;
-    setCubeDraft(nextDraft);
-    setEditedCells((previous) => {
-      const next = copyEditedCells(previous);
-      next[face][index] = true;
+  // Conferma una casella: è un vincolo certo, ha sempre precedenza. Rilancia
+  // l'inferenza dai pezzi (confirmCellAndPropagate); se una casella già
+  // impegnata ma non confermata contraddice la conferma, viene svuotata (le
+  // meno affidabili per confidenza prima) e segnalata come "da ricontrollare".
+  // Rivalida subito dopo ogni conferma: se lo schema è pieno (48/48) e ancora
+  // coerente, ricalcola lo scramble; altrimenti azzera uno scramble ormai non
+  // più rappresentativo dello schema mostrato.
+  function handleConfirmCell(face: Face, index: number, color: CubeColor) {
+    const nextConfirmed = copyFacelets(confirmedFacelets);
+    nextConfirmed[face][index] = color;
+    const { facelets, conflicts } = confirmCellAndPropagate(cubeDraft, nextConfirmed, draftConfidence);
+
+    setDraftConfidence((previous) => {
+      const next = copyConfidence(previous);
+      // Ogni casella il cui valore è cambiato (nuova conferma o ripropagazione)
+      // non riflette più la confidenza della lettura video originale: azzerata,
+      // mostrerà lo stile "dedotta" finché non viene confermata a sua volta.
+      FACES.forEach((current) => facelets[current].forEach((value, cellIndex) => {
+        if (value !== cubeDraft[current][cellIndex]) next[current][cellIndex] = 0;
+      }));
       return next;
     });
+    setConfirmedFacelets(nextConfirmed);
+    setConflictCells((previous) => {
+      const next = copyEditedCells(previous);
+      conflicts.forEach((cell) => { next[cell.face][cell.index] = true; });
+      return next;
+    });
+    setCubeDraft(facelets);
 
-    const knownFacelets = FACES.reduce((total, current) => total + nextDraft[current].filter(Boolean).length, 0) - 6;
+    const knownFacelets = knownNonCenterCount(facelets);
     const generation = ++analysisGeneration.current;
-    if (knownFacelets === 48 && colorCountValid(nextDraft) && pieceEvidenceValid(nextDraft)) {
-      void calculateScrambleFromFacelets(nextDraft as Record<Face, CubeColor[]>, generation);
+    if (knownFacelets === 48 && colorCountValid(facelets) && pieceEvidenceValid(facelets)) {
+      void calculateScrambleFromFacelets(facelets as Record<Face, CubeColor[]>, generation);
     } else {
       setSolverStatus('idle');
       setScramble(null);
       setError('');
     }
+  }
+
+  // Sblocca una casella già confermata (bottone "Modifica" in CubeNet): resta
+  // visibile con il suo ultimo valore finché l'utente non ne tocca uno nuovo,
+  // che la confermerà di nuovo tramite handleConfirmCell.
+  function handleUnlockCell(face: Face, index: number) {
+    setConfirmedFacelets((previous) => {
+      const next = copyFacelets(previous);
+      next[face][index] = null;
+      return next;
+    });
   }
 
   async function copyScramble() {
@@ -322,16 +368,57 @@ export default function Home() {
     [reconstruction],
   );
   const draftKnownFacelets = Math.max(0, FACES.reduce((total, face) => total + cubeDraft[face].filter(Boolean).length, 0) - 6);
-  const hasManualEdits = FACES.some((face) => editedCells[face].some(Boolean));
-  // Rivalidazione live: ricalcolata a ogni tap perché deriva da `cubeDraft`.
-  // Utile solo dopo una correzione manuale: la ricostruzione automatica è
-  // già sempre coerente con questi due vincoli per costruzione.
+  const hasManualEdits = FACES.some((face) => confirmedFacelets[face].some((color) => color !== null));
+  const conflictCount = FACES.reduce((total, face) => total + conflictCells[face].filter(
+    (flagged, index) => flagged && cubeDraft[face][index] === null,
+  ).length, 0);
+  // Rivalidazione live: ricalcolata a ogni conferma perché deriva da
+  // `cubeDraft`. In teoria confirmCellAndPropagate garantisce già uno stato
+  // valido (svuota le caselle in conflitto finché torna coerente); questo
+  // messaggio resta come rete di sicurezza per il solo caso limite in cui due
+  // conferme dell'utente si contraddicano direttamente fra loro.
   const manualValidationIssue = useMemo(() => {
     if (!hasManualEdits) return null;
-    if (!colorCountValid(cubeDraft)) return 'Un colore compare più di 9 volte tra le caselle corrette a mano: rivedi le ultime celle segnate come "corretta manualmente".';
-    if (!pieceEvidenceValid(cubeDraft)) return 'Le caselle corrette finora non possono corrispondere a nessuna combinazione di pezzi reali del cubo: controlla le ultime celle modificate.';
+    if (!colorCountValid(cubeDraft)) return 'Un colore compare più di 9 volte tra le caselle confermate: controlla le ultime caselle confermate.';
+    if (!pieceEvidenceValid(cubeDraft)) return 'Le caselle confermate finora non possono corrispondere a nessuna combinazione di pezzi reali del cubo: controlla le ultime caselle confermate.';
     return null;
   }, [cubeDraft, hasManualEdits]);
+  const admissibleColorsFor = useCallback(
+    (face: Face, index: number) => admissibleColors(cubeDraft, confirmedFacelets, face, index),
+    [cubeDraft, confirmedFacelets],
+  );
+  const confirmedCellFlags = useMemo(
+    () => Object.fromEntries(FACES.map((face) => [face, confirmedFacelets[face].map((color) => color !== null)])) as Record<Face, boolean[]>,
+    [confirmedFacelets],
+  );
+  // `piecesFullyKnown` è definita sotto (serve anche al messaggio di stato),
+  // ma il suggerimento qui sotto deve poterla leggere prima.
+  const piecesFullyKnown = draftKnownFacelets === 48 && Boolean(scramble?.verified);
+  // Suggerimento facoltativo "Inizia da qui": fra le caselle non confermate e
+  // senza contraddizioni, quella il cui numero di caselle note DOPO la
+  // conferma è garantito il più alto possibile indipendentemente da quale, fra
+  // i suoi colori ancora ammessi, risulterà vero (minimax, nessuna verità
+  // consultata - solo i vincoli dei pezzi, come admissibleColors).
+  const suggestedCell = useMemo(() => {
+    if (piecesFullyKnown) return null;
+    const baseline = knownNonCenterCount(cubeDraft);
+    let best: { face: Face; index: number } | null = null;
+    let bestWorstGain = 0;
+    FACES.forEach((face) => [0, 1, 2, 3, 5, 6, 7, 8].forEach((index) => {
+      if (confirmedFacelets[face][index] !== null) return;
+      const colors = admissibleColors(cubeDraft, confirmedFacelets, face, index);
+      if (!colors.length) return;
+      let worstGain = Infinity;
+      colors.forEach((color) => {
+        const trialConfirmed = copyFacelets(confirmedFacelets);
+        trialConfirmed[face][index] = color;
+        const { facelets } = confirmCellAndPropagate(cubeDraft, trialConfirmed, draftConfidence);
+        worstGain = Math.min(worstGain, knownNonCenterCount(facelets) - baseline);
+      });
+      if (worstGain > bestWorstGain) { bestWorstGain = worstGain; best = { face, index }; }
+    }));
+    return best;
+  }, [cubeDraft, confirmedFacelets, draftConfidence, piecesFullyKnown]);
   const resultAvailable = Boolean(reconstruction);
   // `reconstruction` è l'istantanea dell'ultima analisi video: dopo una
   // correzione manuale, `cubeDraft` (mostrato in CubeNet) può diventare più
@@ -340,13 +427,12 @@ export default function Home() {
   // quindi ha sempre la precedenza sulle cifre congelate della ricostruzione:
   // altrimenti l'utente può leggere "48/48 caselle" nel riquadro (live, da
   // cubeDraft) e "41/48, mancano 7" nel messaggio (stale, da reconstruction).
-  const piecesFullyKnown = draftKnownFacelets === 48 && Boolean(scramble?.verified);
   const draftMissingDescription = useMemo(() => describeMissingFacelets(cubeDraft), [cubeDraft]);
   const resultComplete = piecesFullyKnown || reconstruction?.status === 'complete';
   const resultMessage = piecesFullyKnown
     ? 'Stato completo e fisicamente valido nella convenzione bianco sopra, verde frontale.'
     : hasManualEdits
-      ? `Schema corretto a mano (${draftKnownFacelets}/48 caselle).${draftMissingDescription ? ` ${draftMissingDescription}` : ''}`
+      ? `Schema con caselle confermate da te (${draftKnownFacelets}/48 caselle).${draftMissingDescription ? ` ${draftMissingDescription}` : ''}`
       : reconstruction?.message ?? '';
   const resultConfidence = summary?.confidence ?? null;
   const statusLabel = resultComplete
@@ -443,9 +529,9 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950 text-white shadow-[0_35px_90px_-38px_rgba(15,23,42,0.8)] lg:sticky lg:top-6">
+          <section data-testid="result-section" className="overflow-hidden rounded-[32px] border border-slate-800 bg-slate-950 text-white shadow-[0_35px_90px_-38px_rgba(15,23,42,0.8)] lg:sticky lg:top-6">
             <div className="border-b border-white/10 bg-[radial-gradient(circle_at_70%_0%,#29458d_0%,#10172d_38%,#080c18_76%)] p-6 sm:p-8">
-              <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">Stato iniziale</p><h2 className="mt-2 text-2xl font-black tracking-tight">{statusLabel}</h2></div>{resultConfidence !== null ? <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-black">{resultConfidence}%</span> : null}</div>
+              <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-blue-300">Stato iniziale</p><h2 data-testid="status-label" className="mt-2 text-2xl font-black tracking-tight">{statusLabel}</h2></div>{resultConfidence !== null ? <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-black">{resultConfidence}%</span> : null}</div>
               {!resultAvailable ? (
                 <div className="grid min-h-48 place-items-center text-center"><div className="max-w-sm"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-blue-300/20 bg-blue-400/10 text-2xl text-blue-300">◫</div><p className="mt-5 text-sm leading-6 text-slate-400">Qui compariranno soltanto i colori ricostruiti e lo scramble. Il riconoscimento delle mosse e delle fasi è sospeso.</p></div></div>
               ) : (
@@ -456,23 +542,33 @@ export default function Home() {
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-blue-600">Schema del cubo aperto</p><h3 className="mt-1 text-sm font-black">Bianco sopra · verde davanti</h3><p className="mt-1 max-w-md text-[10px] leading-4 text-slate-500">Risultato della fusione automatica dei fotogrammi precedenti alla prima vera mossa del cubo.</p></div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{draftKnownFacelets}/48 caselle</span>
+                  <div className="flex items-center gap-1.5">
+                    {conflictCount > 0 ? (
+                      <span className="rounded-full bg-orange-50 px-2.5 py-1 text-[10px] font-black text-orange-700">{conflictCount} da ricontrollare</span>
+                    ) : null}
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-600">{draftKnownFacelets}/48 caselle</span>
+                  </div>
                 </div>
                 <div className="mt-4">
                   <CubeNet
                     facelets={cubeDraft}
-                    cellConfidence={reconstruction?.cellConfidence}
-                    editedCells={editedCells}
-                    onEdit={handleEditCell}
+                    cellConfidence={draftConfidence}
+                    confirmedCells={confirmedCellFlags}
+                    conflictCells={conflictCells}
+                    suggestedCell={suggestedCell}
+                    admissibleColorsFor={admissibleColorsFor}
+                    onConfirm={handleConfirmCell}
+                    onUnlock={handleUnlockCell}
                     theme="light"
                   />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] font-bold text-slate-500">
                   <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-black/20 bg-slate-200" /> alta confidenza</span>
                   <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-dashed border-amber-400 bg-slate-200" /> bassa confidenza</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-dotted border-slate-400/70 bg-slate-200" /> dedotta, nessuna lettura diretta</span>
-                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-solid border-blue-500 bg-slate-200" /> corretta manualmente</span>
-                  <span className="text-slate-400">· tocca una casella per correggerla</span>
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-dotted border-slate-400/70 bg-slate-200" /> dedotta dai vincoli</span>
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-solid border-blue-500 bg-slate-200" /> confermata da te</span>
+                  <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border-2 border-dashed border-orange-500 bg-slate-200" /> da ricontrollare</span>
+                  <span className="text-slate-400">· tocca una casella per scegliere il colore</span>
                 </div>
                 {manualValidationIssue ? (
                   <p role="alert" className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800">{manualValidationIssue}</p>

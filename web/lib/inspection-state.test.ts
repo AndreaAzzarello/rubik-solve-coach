@@ -9,6 +9,8 @@ import {
   CANONICAL_FACE_COLOR,
   CUBIE_COLOR_SCHEMA,
   CUBE_ORIENTATIONS,
+  admissibleColors,
+  confirmCellAndPropagate,
   cubeOrientationFromFrontAndUp,
   faceletsToSolverString,
   normalizeObservationOrientations,
@@ -624,3 +626,79 @@ test(
     assert.equal(wrongCommitted, 8, `valore atteso oggi (8): trovato ${wrongCommitted}\n${details.join('\n')}`);
   },
 );
+
+// Fase interfaccia, flusso D: confirmCellAndPropagate / admissibleColors
+// (lib/inspection-state.ts). Stato di riferimento: un cubo mischiato reale
+// (non il solved, dove ogni faccia è uniforme e non distingue i pezzi).
+function blankFaceletsGrid(): PartialFacelets {
+  return Object.fromEntries(FACES.map((face) => [face, Array<CubeColor | null>(9).fill(null)])) as PartialFacelets;
+}
+
+function zeroConfidenceGrid(): Record<Face, number[]> {
+  return Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(0)])) as Record<Face, number[]>;
+}
+
+function highConfidenceGrid(except: { face: Face; index: number }, exceptValue: number): Record<Face, number[]> {
+  const grid = Object.fromEntries(FACES.map((face) => [face, Array<number>(9).fill(90)])) as Record<Face, number[]>;
+  grid[except.face][except.index] = exceptValue;
+  return grid;
+}
+
+test('confirmCellAndPropagate: conferma senza conflitto completa la casella mancante', () => {
+  const cube = CubeState.solved().applyMoves(parseAlgorithm("R U F2 L2 D B2 U2 R2"));
+  const full = cube.faceletRecord() as PartialFacelets;
+  const current = full.U.slice() as Array<CubeColor | null>;
+  const missing: PartialFacelets = { ...full, U: current };
+  current[0] = null; // una sola casella non ancora letta, nessun errore altrove
+
+  const confirmed = blankFaceletsGrid();
+  confirmed.U[0] = full.U[0];
+
+  const { facelets, conflicts } = confirmCellAndPropagate(missing, confirmed, zeroConfidenceGrid());
+  assert.deepEqual(conflicts, []);
+  assert.equal(facelets.U[0], full.U[0]);
+  FACES.forEach((face) => assert.deepEqual(facelets[face], full[face]));
+});
+
+test('confirmCellAndPropagate: una casella committed ma errata viene svuotata e la ripropagazione la ricostruisce giusta', () => {
+  const cube = CubeState.solved().applyMoves(parseAlgorithm("R U F2 L2 D B2 U2 R2"));
+  const full = cube.faceletRecord() as PartialFacelets;
+  // Corrompe la casella del corner URF sulla faccia U (indice 8) duplicando
+  // il colore della casella F2 dello stesso corner: nessun corner reale ha
+  // due colori identici, quindi la faccia U rotta supera il conteggio di 9
+  // caselle per colore - un conflitto reale, non costruito ad hoc sui pezzi.
+  assert.notEqual(full.U[8], full.F[2]);
+  const current = { ...full, U: full.U.slice() } as PartialFacelets;
+  current.U[8] = full.F[2];
+
+  const confirmed = blankFaceletsGrid();
+  confirmed.D[0] = full.D[0]; // conferma di una casella qualsiasi, già giusta: innesca comunque la ripropagazione
+
+  const { facelets, conflicts } = confirmCellAndPropagate(current, confirmed, highConfidenceGrid({ face: 'U', index: 8 }, 5));
+  assert.deepEqual(conflicts, [{ face: 'U', index: 8 }]);
+  // I vincoli dei pezzi (corner URF, con R0/F2 noti) ricostruiscono da soli il
+  // vero colore originale, non quello duplicato appena rimosso.
+  assert.equal(facelets.U[8], full.U[8]);
+  FACES.forEach((face) => assert.deepEqual(facelets[face], full[face]));
+});
+
+test('admissibleColors: con 53/54 caselle note resta un solo colore ammesso', () => {
+  const cube = CubeState.solved().applyMoves(parseAlgorithm("R U F2 L2 D B2 U2 R2"));
+  const full = cube.faceletRecord() as PartialFacelets;
+  const current = { ...full, L: full.L.slice() } as PartialFacelets;
+  current.L[1] = null;
+
+  const admissible = admissibleColors(current, blankFaceletsGrid(), 'L', 1);
+  assert.deepEqual(admissible, [full.L[1]]);
+});
+
+test('admissibleColors: palette vuota quando il contesto non confermato contiene già un errore altrove', () => {
+  const cube = CubeState.solved().applyMoves(parseAlgorithm("R U F2 L2 D B2 U2 R2"));
+  const full = cube.faceletRecord() as PartialFacelets;
+  const current = { ...full, U: full.U.slice(), L: full.L.slice() } as PartialFacelets;
+  current.U[8] = full.F[2]; // stesso errore (duplicato) del test precedente, altrove
+  current.L[1] = null; // casella bersaglio, non correlata all'errore
+
+  const admissible = admissibleColors(current, blankFaceletsGrid(), 'L', 1);
+  assert.deepEqual(admissible, []);
+});

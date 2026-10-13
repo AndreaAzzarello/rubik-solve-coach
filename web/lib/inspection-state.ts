@@ -153,6 +153,7 @@ type ObservationGeometry = {
 };
 
 const FACES = CUBE_FACES;
+const CENTER_INDEX = 4;
 const GRID_SIDES: GridSide[] = ['top', 'right', 'bottom', 'left'];
 const ORIENTATION_LOCK_CONFIDENCE = 58;
 
@@ -1056,6 +1057,77 @@ function colorCounts(facelets: PartialFacelets): Record<CubeColor, number> {
 export function colorCountValid(facelets: PartialFacelets) {
   const counts = colorCounts(facelets);
   return Object.values(counts).every((count) => count <= 9);
+}
+
+function tryInferValid(facelets: PartialFacelets): PartialFacelets | null {
+  if (!colorCountValid(facelets)) return null;
+  const result = inferForcedPieceFacelets(facelets);
+  return result.invalid ? null : result.facelets;
+}
+
+export type PropagationConflict = { face: Face; index: number };
+
+export type PropagationResult = {
+  facelets: PartialFacelets;
+  conflicts: PropagationConflict[];
+};
+
+// Fase interfaccia, flusso D (vedi docs/pipeline-experiments.md e
+// bench/correction-repropagation-simulation.ts, da cui questa funzione è
+// stata estratta identica): le caselle confermate dall'utente hanno SEMPRE
+// la precedenza. Se contraddicono caselle già impegnate ma non confermate,
+// queste si nullano - a partire dalla meno affidabile per confidenza -
+// finché i vincoli dei pezzi tornano validi. Ogni casella nullata per
+// questo motivo è un conflitto da segnalare all'utente.
+export function confirmCellAndPropagate(
+  current: PartialFacelets,
+  confirmed: PartialFacelets,
+  confidence: Record<Face, number[]>,
+): PropagationResult {
+  const merged = cloneFacelets(current);
+  FACES.forEach((face) => confirmed[face].forEach((color, index) => {
+    if (color !== null) merged[face][index] = color;
+  }));
+  let inference = tryInferValid(merged);
+  const conflicts: PropagationConflict[] = [];
+  if (!inference) {
+    const removable = FACES
+      .flatMap((face) => merged[face].map((color, index) => ({ face, index, color })))
+      // Il centro (indice 4) non è mai una lettura da rimettere in
+      // discussione: definisce l'orientamento della faccia ed è sempre
+      // noto per convenzione, non una casella "impegnata" come le altre 8.
+      .filter(({ face, index, color }) => index !== CENTER_INDEX && color !== null && confirmed[face][index] === null)
+      .sort((left, right) => (confidence[left.face]?.[left.index] ?? 0) - (confidence[right.face]?.[right.index] ?? 0));
+    for (const cell of removable) {
+      merged[cell.face][cell.index] = null;
+      conflicts.push({ face: cell.face, index: cell.index });
+      inference = tryInferValid(merged);
+      if (inference) break;
+    }
+  }
+  return { facelets: inference ?? merged, conflicts };
+}
+
+// Colori ancora ammessi dai vincoli dei pezzi per una casella, dato lo stato
+// corrente e le caselle già confermate dall'utente (sempre vincolanti).
+// Palette vuota = il contesto non confermato contiene già una casella
+// sbagliata altrove: l'interfaccia lo segnala invece di proporre una scelta.
+export function admissibleColors(
+  current: PartialFacelets,
+  confirmed: PartialFacelets,
+  face: Face,
+  index: number,
+): CubeColor[] {
+  const base = cloneFacelets(current);
+  FACES.forEach((f) => confirmed[f].forEach((color, i) => {
+    if (color !== null) base[f][i] = color;
+  }));
+  base[face][index] = null;
+  return CUBE_COLORS.filter((color) => {
+    const trial = cloneFacelets(base);
+    trial[face][index] = color;
+    return Boolean(tryInferValid(trial));
+  });
 }
 
 const CELL_POSITION_LABEL = [
