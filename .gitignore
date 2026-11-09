@@ -61,3 +61,6 @@ models/generated/
 *.mp4
 *.avi
 *.mkv
+
+# Graphify (grafo locale, rigenerabile)
+graphify-out/

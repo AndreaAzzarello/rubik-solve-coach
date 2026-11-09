@@ -1,0 +1,26 @@
+# Escluso dal grafo Graphify (oltre a .gitignore, che copre node_modules,
+# bench/results, bench/.cache, frames, video e *.onnx).
+legacy-python/
+web/bench/vendor/
+web/public/models/
+web/vision/models/
+web/vision/annotate/frames/
+web/vision/annotate/labels/
+web/vision/dataset/output/
+web/vision/eval/real-preview/
+web/vision/eval/real-finetune-eval/
+web/bench/debug-grids/
+web/bench/results/
+web/bench/.cache/
+web/dist/
+web/.wrangler/
+node_modules/
+*.onnx
+*.mp4
+*.mov
+*.MOV
+*.webm
+*.png
+*.jpg
+*.jpeg
+pnpm-lock.yaml
