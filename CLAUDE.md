@@ -44,3 +44,17 @@ Grafo locale in `graphify-out/` (ignorato da git, solo codice). Consultalo (`gra
 ## Da non fare
 - Lascia stare `legacy-python/` e non riportare in produzione il percorso geometrico: `geometric-sticker-detection.ts` è solo baseline.
 - Non committare video, frame o modelli pesanti, salvo richiesta.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues di AndreaAzzarello/rubik-solve-coach (CLI `gh`). Nessuna azione su GitHub senza ok esplicito. Vedi `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Cinque etichette di default (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix), non ancora create sulla repo. Vedi `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context. Vedi `docs/agents/domain.md`.
