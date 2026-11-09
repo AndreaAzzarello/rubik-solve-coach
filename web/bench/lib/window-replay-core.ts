@@ -142,7 +142,13 @@ export interface FidelityResult {
 
 const normalize = (value: unknown) => JSON.parse(JSON.stringify(value));
 
-/** S0: il replay deve riprodurre ESATTAMENTE gli eventi (e la soglia) di produzione. */
+/**
+ * S0: il replay deve riprodurre ESATTAMENTE gli eventi (e la soglia) di produzione.
+ * `cache.events` / `cache.threshold` sono quelli registrati nel browser, restituiti
+ * da decodeVideoMotion (window-cache.ts); il replay li ricalcola dai soli campioni
+ * fusi con le stesse funzioni, quindi il confronto non e' una semplice idempotenza
+ * di fuseMotionEvidence ma verifica il risultato reale dell'app.
+ */
 export function checkEventFidelity(cache: Pick<VideoCache, 'samples' | 'events' | 'threshold'> & { meta: { sampleInterval: number } }): FidelityResult {
   const replay = detectFromSamples(cache.samples, cache.meta.sampleInterval);
   const replayEvents = normalize(replay.events) as Array<Record<string, unknown>>;
@@ -191,6 +197,22 @@ export function diffWindows(replay: WindowDecision, production: WindowDecision, 
     if (!same) out.push({ field: key, replay: a, production: b });
   }
   return out;
+}
+
+/** Limite dell'arresto S0b: oltre 1 video su 13 con finestra replay diversa da quella di produzione. */
+export const S0B_MAX_MISMATCHED_VIDEOS = 1;
+
+/**
+ * S0b: i video la cui finestra del replay (scansione larga) differisce da quella
+ * di produzione (scansione stretta). "Differisce" = QUALUNQUE campo di
+ * diffWindows (confronto esatto): e' la definizione piu' severa; e' il
+ * titolare a decidere dopo l'arresto. Chi non ha la finestra di produzione
+ * (--no-production-window) non si conta.
+ */
+export function windowMismatchVideos<T extends { caseId: string; production: unknown; windowVsProduction: WindowDiff[] }>(
+  reports: T[],
+): T[] {
+  return reports.filter((report) => report.production && report.windowVsProduction.length > 0);
 }
 
 export interface TrialResult extends WindowDecision {

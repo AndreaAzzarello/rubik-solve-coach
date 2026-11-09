@@ -16,7 +16,9 @@
 //   --seed-base N         seme base (default 20261013; fuori campione: 20261109)
 //   --cases ID,ID         solo alcuni video (i semi usano comunque la posizione in cases.json)
 //
-// Codice di uscita: 0 ok; 3 se la prova di fedelta' S0 fallisce (eventi diversi).
+// Codice di uscita: 0 ok; 3 se la prova di fedelta' S0 fallisce (eventi diversi
+// da quelli registrati nel browser); 4 se scatta S0b (finestra del replay diversa
+// da quella di produzione in piu' di 1 video).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,6 +29,8 @@ import {
   detectFromSamples,
   diffWindows,
   runTrials,
+  S0B_MAX_MISMATCHED_VIDEOS,
+  windowMismatchVideos,
   type TrialSummary,
   type VideoCache,
   type WindowDiff,
@@ -130,7 +134,18 @@ function main(): number {
     const fullyStable = primary.filter((n) => n && n.significantChangeCount === 0).length;
     console.log(`\nCriterio (rumore 1%): video con tutte le prove stabili = ${fullyStable}/${reports.length} (obiettivo: >= 12/13)`);
   }
-  console.log(`Fedelta' S0: ${reports.length - fidelityFailures}/${reports.length} video con eventi esatti`);
+  console.log(`Fedelta' S0: ${reports.length - fidelityFailures}/${reports.length} video con eventi esatti (confronto con gli eventi registrati nel browser)`);
+
+  const mismatched = windowMismatchVideos(reports);
+  const withProduction = reports.filter((r) => r.production).length;
+  console.log(`Finestra replay vs produzione: ${mismatched.length}/${withProduction} video con differenze (limite S0b: > ${S0B_MAX_MISMATCHED_VIDEOS})`);
+  for (const r of mismatched) {
+    console.log(`  ${r.caseId}: ${r.windowVsProduction.map((d) => `${d.field} replay=${d.replay} produzione=${d.production}`).join('; ')}`);
+  }
+  const s0bTriggered = mismatched.length > S0B_MAX_MISMATCHED_VIDEOS;
+  if (s0bTriggered) {
+    console.log("S0b SCATTATA: la finestra del replay non e' quella che l'app usa. FERMARSI e riportare al titolare prima di toccare il codice (P3).");
+  }
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify({
@@ -138,7 +153,8 @@ function main(): number {
     reports,
   }, null, 1));
   console.log(`salvato: ${outPath}`);
-  return fidelityFailures > 0 ? 3 : 0;
+  if (fidelityFailures > 0) return 3; // S0
+  return s0bTriggered ? 4 : 0; // S0b
 }
 
 process.exitCode = main();

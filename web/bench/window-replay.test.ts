@@ -10,6 +10,8 @@ import {
   mulberry32,
   perturbSamples,
   runTrials,
+  S0B_MAX_MISMATCHED_VIDEOS,
+  windowMismatchVideos,
   type WindowDecision,
 } from './lib/window-replay-core.ts';
 
@@ -111,6 +113,19 @@ test('computeWindow restituisce una finestra coerente (inizio < fine, dentro la 
   const window = computeWindow(events, [], 16, 16);
   assert.ok(window.intervalEnd > window.intervalStart);
   assert.ok(window.intervalEnd <= 16);
+});
+
+test('S0b: windowMismatchVideos conta solo i video con produzione e differenze', () => {
+  const diff = [{ field: 'intervalEnd', replay: 7, production: 6 }];
+  const reports = [
+    { caseId: 'A', production: {}, windowVsProduction: [] },
+    { caseId: 'B', production: {}, windowVsProduction: diff },
+    { caseId: 'C', production: null, windowVsProduction: [] },
+    { caseId: 'D', production: {}, windowVsProduction: diff },
+  ];
+  assert.deepEqual(windowMismatchVideos(reports).map((r) => r.caseId), ['B', 'D']);
+  assert.equal(windowMismatchVideos(reports).length > S0B_MAX_MISMATCHED_VIDEOS, true);
+  assert.equal(windowMismatchVideos(reports.slice(0, 2)).length > S0B_MAX_MISMATCHED_VIDEOS, false);
 });
 
 test('diffWindows riporta solo i campi diversi', () => {
