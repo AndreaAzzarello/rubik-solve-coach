@@ -25,7 +25,7 @@ description: Regole obbligatorie prima, durante e dopo qualunque esecuzione che 
 
 ## Esecuzione
 - Dalla radice: `pnpm --dir web bench [CASO]` oppure `node --experimental-strip-types web/bench/<script>.ts`.
-- Timeout esplicito (bench completo ~2 min). Se lungo, usa `run_in_background` e leggi l'output INTERO a fine run.
+- Timeout esplicito: la baseline dura ~2 min, ma le varianti possono richiedere molto di più (#19: ~71 min). Per run lunghi usa `run_in_background` con timeout adeguato e leggi l'output INTERO a fine run.
 - Vietati `| tail`, `| head`, `| grep`, `2>&1 | ...`, riassunti che nascondano errori: l'output completo è la prova. Riporta il codice di uscita originale.
 
 ## Dopo (anche su errore o timeout)
