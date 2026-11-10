@@ -8,11 +8,9 @@
 // Dipende dal browser: `HTMLVideoElement` con seek e un canvas 2D per estrarre
 // i pixel dai fotogrammi.
 
+import { computeInspectionWindow } from './inspection-window.ts';
 import {
   decodeVideoMotion,
-  inferInspectionEnd,
-  inferVideoSegmentation,
-  lastInspectionFrameTime,
   profileAdd,
   profileEnabled,
   scanInspectionFrames,
@@ -91,40 +89,21 @@ export async function reconstructInspectionFromVideo(
   });
   if (cancelled()) return null;
 
-  const segmentation = inferVideoSegmentation(decoded.events, 0, video.duration);
-  const solveWindow = segmentation.windows.find((window) => window.id === segmentation.defaultWindowId);
-  const inspectionStage = solveWindow?.stages.find((stage) => stage.kind === 'inspection');
-  const automaticStart = inspectionStage?.start ?? 0;
-  const intervalStart = Math.max(0, Math.min(automaticStart, video.duration - 0.5));
-  const segmentationHint = inspectionStage?.end ?? solveWindow?.start ?? null;
-  const baseSearchEnd = Math.min(
-    video.duration,
-    Math.max(8, Math.min(25, video.duration * 0.72)),
-  );
-  const hintedSearchEnd = segmentationHint && segmentationHint >= intervalStart + 2
-    ? Math.min(video.duration, segmentationHint + 3)
-    : intervalStart;
-  const searchEnd = Math.max(baseSearchEnd, hintedSearchEnd);
-
-  options.onPhase?.('boundary');
-  const boundarySamples = await scanInspectionFrames(video, intervalStart, searchEnd, {
-    analysisPass: completedRuns,
-    onProgress: (value) => options.onProgress?.(0.34 + value * 0.34),
+  const { plan, scan: boundarySamples, window: inspectionWindow } = await computeInspectionWindow({
+    events: decoded.events,
+    duration: video.duration,
+    scan: (start, end) => {
+      options.onPhase?.('boundary');
+      return scanInspectionFrames(video, start, end, {
+        analysisPass: completedRuns,
+        onProgress: (value) => options.onProgress?.(0.34 + value * 0.34),
+      });
+    },
   });
   if (cancelled()) return null;
 
-  const boundary = inferInspectionEnd(
-    boundarySamples,
-    decoded.events,
-    intervalStart,
-    searchEnd,
-    segmentationHint,
-  );
-  const firstCubeChange = Math.max(intervalStart + 0.5, boundary.time);
-  const intervalEnd = Math.max(
-    intervalStart + 0.5,
-    Math.min(lastInspectionFrameTime(intervalStart, firstCubeChange, 60), video.duration),
-  );
+  const { solveWindow } = plan;
+  const { intervalStart, intervalEnd } = inspectionWindow;
   const interval = { start: intervalStart, end: intervalEnd };
 
   const automaticInspectionSamples = boundarySamples.filter((sample) => sample.time <= intervalEnd);

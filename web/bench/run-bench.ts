@@ -236,6 +236,16 @@ async function main() {
       }, gridAlignmentThreshold);
       log(`filtro indice griglia attivo, soglia: ${gridAlignmentThreshold}`);
     }
+    // Esperimento #21 (lib/inspection-window.ts): BENCH_WINDOW_ROBUST attiva una
+    // variante della finestra di ispezione. Spento di default: senza la
+    // variabile non viene impostato nulla e il comportamento e' quello di produzione.
+    const windowRobust = process.env.BENCH_WINDOW_ROBUST;
+    if (windowRobust) {
+      await page.addInitScript((value) => {
+        (window as unknown as { __benchWindowRobust?: string }).__benchWindowRobust = value;
+      }, windowRobust);
+      log(`variante finestra di ispezione attiva: ${windowRobust}`);
+    }
     const sourceFramesTally = process.env.BENCH_SOURCE_FRAMES_TALLY === '1';
     if (sourceFramesTally) {
       await page.addInitScript(() => {

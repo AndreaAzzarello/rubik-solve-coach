@@ -227,6 +227,7 @@ async function runDeterminism(session: Session, cases: Array<{ id: string; video
       searchEnd: cache.production.searchEnd,
       stageCount: cache.production.stageCount,
       windowCount: cache.production.windowCount,
+      solveWindow: null, // non serve a finishInspectionWindow
     };
     const window = finishWindow(plan, cache.events, first.samples, cache.meta.duration);
     const diff = diffWindows(window, cache.production);

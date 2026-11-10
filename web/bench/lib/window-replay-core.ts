@@ -19,29 +19,23 @@
 // Limite noto (da registrare): il rumore perturba solo cubeDifference e sposta i
 // tempi degli eventi; NON perturba i fotogrammi ne' le griglie colore.
 //
-// computeWindow()/finishWindow() sono una copia temporanea di
-// inspection-pipeline.ts:94-128, da sostituire con la funzione condivisa al P3.
+// La logica della finestra e' quella di produzione: lib/inspection-window.ts
+// (estratta da inspection-pipeline.ts al P3), nessuna copia qui.
 
 import {
   detectMotionEvents,
   fuseMotionEvidence,
-  inferInspectionEnd,
-  inferVideoSegmentation,
-  lastInspectionFrameTime,
   type MotionEvent,
   type MotionSample,
 } from '../../lib/video-decoder.ts';
+import {
+  finishInspectionWindow,
+  planInspectionWindow,
+  type InspectionWindow,
+  type InspectionWindowPlan,
+} from '../../lib/inspection-window.ts';
 
-export interface WindowDecision {
-  intervalStart: number;
-  segmentationHint: number | null;
-  searchEnd: number;
-  boundaryTime: number;
-  boundarySource: string;
-  intervalEnd: number;
-  stageCount: number;
-  windowCount: number;
-}
+export type WindowDecision = InspectionWindow;
 
 /** Solo cio' che inferInspectionEnd legge: tempo e griglie-colore osservate. */
 export type BoundarySample = Pick<MotionSample, 'time' | 'faceGrids'>;
@@ -151,58 +145,21 @@ export function mulberry32(seed: number) {
 
 // ---------------------------------------------------------------- finestra
 
-export interface WindowPlan {
-  intervalStart: number;
-  segmentationHint: number | null;
-  searchEnd: number;
-  stageCount: number;
-  windowCount: number;
-}
+export type WindowPlan = InspectionWindowPlan;
 
-/** Stadio 1: dagli eventi a (intervalStart, searchEnd). Nessun clamp artificiale. */
+/** Stadio 1: dagli eventi a (intervalStart, searchEnd). Codice di produzione. */
 export function planWindow(events: MotionEvent[], duration: number): WindowPlan {
-  const segmentation = inferVideoSegmentation(events, 0, duration);
-  const solveWindow = segmentation.windows.find((w) => w.id === segmentation.defaultWindowId) ?? null;
-  const inspectionStage = solveWindow?.stages.find((s) => s.kind === 'inspection') ?? null;
-  const automaticStart = inspectionStage?.start ?? 0;
-  const intervalStart = Math.max(0, Math.min(automaticStart, duration - 0.5));
-  const segmentationHint = inspectionStage?.end ?? solveWindow?.start ?? null;
-  const baseSearchEnd = Math.min(duration, Math.max(8, Math.min(25, duration * 0.72)));
-  const hintedSearchEnd = segmentationHint !== null && segmentationHint >= intervalStart + 2
-    ? Math.min(duration, segmentationHint + 3)
-    : intervalStart;
-  return {
-    intervalStart,
-    segmentationHint,
-    searchEnd: Math.max(baseSearchEnd, hintedSearchEnd),
-    stageCount: solveWindow?.stages.length ?? 0,
-    windowCount: segmentation.windows.length,
-  };
+  return planInspectionWindow(events, duration);
 }
 
-/** Stadio 2: dalla scansione stretta alla fine dell'ispezione. */
+/** Stadio 2: dalla scansione stretta alla fine dell'ispezione. Codice di produzione. */
 export function finishWindow(
   plan: WindowPlan,
   events: MotionEvent[],
   scan: BoundarySample[],
   duration: number,
 ): WindowDecision {
-  const boundary = inferInspectionEnd(scan as MotionSample[], events, plan.intervalStart, plan.searchEnd, plan.segmentationHint);
-  const firstCubeChange = Math.max(plan.intervalStart + 0.5, boundary.time);
-  const intervalEnd = Math.max(
-    plan.intervalStart + 0.5,
-    Math.min(lastInspectionFrameTime(plan.intervalStart, firstCubeChange, 60), duration),
-  );
-  return {
-    intervalStart: plan.intervalStart,
-    segmentationHint: plan.segmentationHint,
-    searchEnd: plan.searchEnd,
-    boundaryTime: boundary.time,
-    boundarySource: boundary.source,
-    intervalEnd,
-    stageCount: plan.stageCount,
-    windowCount: plan.windowCount,
-  };
+  return finishInspectionWindow(plan, events, scan, duration);
 }
 
 export type WindowOutcome =
