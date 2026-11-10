@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { SOURCE_CODE_LABEL, SOURCE_CODE_URL } from '../lib/legal';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -31,7 +32,17 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="it">
-      <body>{children}</body>
+      <body>
+        {children}
+        <footer className="px-4 pb-6 pt-2 text-center text-sm text-slate-600 sm:px-8 lg:px-12">
+          <a
+            href={SOURCE_CODE_URL}
+            className="inline-block rounded px-2 py-1.5 underline underline-offset-4 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          >
+            {SOURCE_CODE_LABEL}
+          </a>
+        </footer>
+      </body>
     </html>
   );
 }
