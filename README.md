@@ -54,6 +54,12 @@ I filmati personali e gli output di ispezione restano locali e non vengono
 caricati su GitHub. Nel repository restano solo strumenti di analisi e
 metadati non sensibili (scramble, orientamento, timestamp).
 
+## Licenza, privacy e attribuzioni
+
+Licenza GNU AGPL-3.0 ([`LICENSE`](LICENSE)). Copyright [[DA COMPLETARE:
+titolare e anno]]. Bozze di informativa sulla privacy e attribuzioni di terze
+parti in [`docs/legal/`](docs/legal/).
+
 ## Codice legacy
 
 [`legacy-python/`](legacy-python/) contiene un primo motore di riferimento in

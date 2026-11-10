@@ -81,9 +81,13 @@ with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED) as zf:
 
 Discusso nel piano: gestisce nativamente un numero variabile di istanze per
 immagine (1-3 facce visibili), esport ONNX diretto, "nano" abbastanza piccolo
-per l'inferenza CPU/WASM nel browser. Licenza AGPL-3.0 accettata per una repo
-pubblica; solo pesi + codice di inferenza nostro finiscono nel prodotto, non
-il codice di training Ultralytics.
+per l'inferenza CPU/WASM nel browser. Ultralytics YOLOv8 e' distribuito con
+licenza AGPL-3.0: i pesi addestrati con questo framework e il modello ONNX
+esportato vanno trattati come soggetti alla stessa licenza, coerente con la
+licenza AGPL-3.0 del repository (`LICENSE`, `docs/legal/ATTRIBUZIONI.md`). Non
+si assume che i pesi ne siano esclusi. Per usi non compatibili con l'AGPL-3.0
+esiste una licenza commerciale Ultralytics, da valutare prima.
+[[DA COMPLETARE: conferma del titolare su licenza e usi previsti]]
 
 ## flip_idx e ordine dei keypoint
 
