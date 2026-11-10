@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'CubeSolve Coach — Ricostruisci lo scramble',
   description: 'Analizza il video o scansiona le sei facce del cubo 3×3 per ricostruire e verificare lo scramble.',
   manifest: '/manifest.json',
+  icons: { icon: '/favicon.svg' },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
