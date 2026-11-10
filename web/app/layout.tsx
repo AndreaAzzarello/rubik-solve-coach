@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { CONNECT_ONLY_CSP } from '../lib/csp';
 import { SOURCE_CODE_LABEL, SOURCE_CODE_URL } from '../lib/legal';
 import './globals.css';
 
@@ -33,6 +34,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="it">
+      <head>
+        <meta httpEquiv="Content-Security-Policy" content={CONNECT_ONLY_CSP} />
+      </head>
       <body>
         {children}
         <footer className="px-4 pb-6 pt-2 text-center text-sm text-slate-600 sm:px-8 lg:px-12">

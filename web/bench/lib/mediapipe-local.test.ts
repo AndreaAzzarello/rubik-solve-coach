@@ -8,7 +8,7 @@ import {
   MEDIAPIPE_REQUIRED_FILES,
   MEDIAPIPE_TASK_SHA256,
   classifyMediapipeRequest,
-  isMediapipeCdn,
+  externalOrigin,
   mediapipeIntegrityIssues,
 } from './mediapipe-local.ts';
 
@@ -54,12 +54,21 @@ test('l hash atteso e quello del README (modello float16 rev. 1)', () => {
   assert.equal(MEDIAPIPE_TASK_SHA256, 'fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1');
 });
 
-test('classifica le richieste MediaPipe e riconosce i CDN esterni', () => {
+test('externalOrigin: locale e non di rete passano, ogni altra origine e esterna', () => {
+  assert.equal(externalOrigin('http://localhost:3000/bench'), null);
+  assert.equal(externalOrigin('http://127.0.0.1:7690/video.mov'), null);
+  assert.equal(externalOrigin('ws://localhost:3100/_vite_hmr'), null);
+  assert.equal(externalOrigin('blob:http://localhost:3000/abc'), null);
+  assert.equal(externalOrigin('data:text/plain;base64,AA=='), null);
+  assert.equal(externalOrigin('https://odml.pa.googleapis.com/v1/log'), 'https://odml.pa.googleapis.com');
+  assert.equal(externalOrigin('https://cdn.jsdelivr.net/npm/x.wasm'), 'https://cdn.jsdelivr.net');
+  assert.equal(externalOrigin('https://storage.googleapis.com/m/x.task'), 'https://storage.googleapis.com');
+  assert.equal(externalOrigin('http://localhost.evil.example/x'), 'http://localhost.evil.example');
+});
+
+test('classifica le richieste MediaPipe', () => {
   assert.equal(classifyMediapipeRequest('http://localhost:3100/mediapipe/hand_landmarker.task'), 'model');
   assert.equal(classifyMediapipeRequest('http://localhost:3100/mediapipe/wasm/vision_wasm_internal.wasm'), 'wasm');
   assert.equal(classifyMediapipeRequest('http://localhost:3100/mediapipe/wasm/vision_wasm_internal.js'), 'wasm');
   assert.equal(classifyMediapipeRequest('http://localhost:3100/models/cube-face-keypoints.onnx'), 'other');
-  assert.equal(isMediapipeCdn('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/x.wasm'), true);
-  assert.equal(isMediapipeCdn('https://storage.googleapis.com/mediapipe-models/x.task'), true);
-  assert.equal(isMediapipeCdn('http://localhost:3100/mediapipe/hand_landmarker.task'), false);
 });

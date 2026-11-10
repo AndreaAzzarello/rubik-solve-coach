@@ -49,16 +49,28 @@ export function classifyMediapipeRequest(url: string): 'model' | 'wasm' | 'other
   return 'other';
 }
 
-export function isMediapipeCdn(url: string): boolean {
-  const host = new URL(url).hostname;
-  return host === 'cdn.jsdelivr.net' || host === 'storage.googleapis.com';
+/**
+ * Origine esterna di una richiesta, o null se e' locale (localhost, 127.0.0.1,
+ * ::1, qualunque porta: app e server dei video del bench) oppure non e' di rete
+ * (blob:, data:, about:). Qualunque altra origine http(s) e' una risorsa o un
+ * invio di dati verso terzi (CDN, telemetria) e fa fallire la sentinella.
+ */
+export function externalOrigin(url: string): string | null {
+  const parsed = new URL(url);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') {
+    return null;
+  }
+  const host = parsed.hostname;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1') return null;
+  return parsed.origin;
 }
 
-/** Segue le richieste di una pagina: contatori delle risposte 200 e CDN esterni contattati. */
-export function watchMediapipeRequests(page: Page): { counts: { model: number; wasm: number }; cdnRequests: string[] } {
-  const state = { counts: { model: 0, wasm: 0 }, cdnRequests: [] as string[] };
+/** Segue le richieste di una pagina: contatori delle risposte 200 e origini esterne contattate. */
+export function watchMediapipeRequests(page: Page): { counts: { model: number; wasm: number }; externalOrigins: string[] } {
+  const state = { counts: { model: 0, wasm: 0 }, externalOrigins: [] as string[] };
   page.on('request', (request) => {
-    if (isMediapipeCdn(request.url())) state.cdnRequests.push(request.url());
+    const origin = externalOrigin(request.url());
+    if (origin) state.externalOrigins.push(origin);
   });
   page.on('response', (response) => {
     if (response.status() !== 200) return;

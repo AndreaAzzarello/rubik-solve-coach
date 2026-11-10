@@ -145,7 +145,7 @@ async function main() {
   // Sentinelle di determinismo, verificate dopo il run.
   let sawCpuDelegate = false;
   let sawGpuDelegate = false;
-  let mediapipe: ReturnType<typeof watchMediapipeRequests> = { counts: { model: 0, wasm: 0 }, cdnRequests: [] };
+  let mediapipe: ReturnType<typeof watchMediapipeRequests> = { counts: { model: 0, wasm: 0 }, externalOrigins: [] };
   const startedAt = new Date();
   const report: {
     startedAt: string;
@@ -261,7 +261,7 @@ async function main() {
     });
 
     // MediaPipe (runtime WASM + modello mani) arriva da /mediapipe/ dell'app:
-    // si contano le risposte e si segnalano eventuali richieste a CDN esterni.
+    // si contano le risposte e si segnala qualunque richiesta a un'origine non locale.
     mediapipe = watchMediapipeRequests(page);
 
     await page.goto(`${dev.baseUrl}/bench`, { waitUntil: 'load' });
@@ -430,8 +430,8 @@ async function main() {
   if (mediapipe.counts.model === 0) {
     determinismIssues.push('modello mani MediaPipe NON caricato da /mediapipe/hand_landmarker.task (nessuna risposta 200)');
   }
-  if (mediapipe.cdnRequests.length > 0) {
-    determinismIssues.push(`richieste a CDN esterni di MediaPipe: ${[...new Set(mediapipe.cdnRequests)].join(', ')}`);
+  if (mediapipe.externalOrigins.length > 0) {
+    determinismIssues.push(`richieste verso origini esterne (nessuna ammessa a runtime): ${[...new Set(mediapipe.externalOrigins)].join(', ')}`);
   }
   if (!sawCpuDelegate) {
     determinismIssues.push('atteso il delegate TFLite "XNNPACK for CPU": non rilevato nei log del browser');
