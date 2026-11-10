@@ -1,7 +1,7 @@
 # Escluso dal grafo Graphify (oltre a .gitignore, che copre node_modules,
 # bench/results, bench/.cache, frames, video e *.onnx).
 legacy-python/
-web/bench/vendor/
+web/public/mediapipe/
 web/public/models/
 web/vision/models/
 web/vision/annotate/frames/

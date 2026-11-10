@@ -205,8 +205,8 @@ function getSession(): Promise<ort.InferenceSession> {
   if (!sessionPromise) {
     // wasmPaths NON viene sovrascritto: onnxruntime-web e' gia' una
     // dipendenza npm pinnata a lockfile (stessa logica per cui non serve
-    // vendorizzarla come si fa per MediaPipe, che invece dipende da un CDN
-    // esterno soggetto a deriva). Puntare a una copia in public/ rompe
+    // copiarla in public/, a differenza di MediaPipe, i cui file stanno in
+    // public/mediapipe). Puntare a una copia in public/ rompe
     // l'import() dinamico del loader .mjs sotto Vite (visto dal vivo: "no
     // available backend found" nel bench) perche' un file in public/ sta
     // fuori dal grafo di moduli che Vite sa trasformare/servire in dev.

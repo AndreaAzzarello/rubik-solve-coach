@@ -25,18 +25,16 @@ import {
   type ReconstructionScore,
 } from './lib/score.ts';
 import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
+import { mediapipeIntegrityIssues, watchMediapipeRequests } from './lib/mediapipe-local.ts';
 import type { CubeColor, Face } from '../lib/cube.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
 const RESULTS_DIR = path.join(HERE, 'results');
 
-// MediaPipe servito in locale dai file vendorizzati (bench/vendor/mediapipe):
-// niente CDN esterni, niente deriva del modello o del runtime nel tempo.
-const VENDOR_DIR = path.join(HERE, 'vendor', 'mediapipe');
-const VENDOR_WASM_DIR = path.join(VENDOR_DIR, 'wasm');
-const MEDIAPIPE_WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/';
-const MEDIAPIPE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+// MediaPipe e' servito dall'app stessa (web/public/mediapipe): niente CDN
+// esterni, niente deriva del modello o del runtime nel tempo. L'integrita' dei
+// file e le richieste del browser si verificano con bench/lib/mediapipe-local.ts.
 
 type CaseSpec = {
   id: string;
@@ -109,6 +107,10 @@ async function main() {
       throw new Error(`video mancante: ${filePath} (imposta BENCH_VIDEO_DIR)`);
     }
   }
+  const mediapipeIssues = mediapipeIntegrityIssues();
+  if (mediapipeIssues.length) {
+    throw new Error(`file MediaPipe in public/mediapipe non integri: ${mediapipeIssues.join('; ')}`);
+  }
   log(`cartella video: ${config.videoDir}`);
   log(`casi: ${cases.map((entry) => entry.id).join(', ')} · ripetizioni: ${config.repeats}`);
 
@@ -143,8 +145,7 @@ async function main() {
   // Sentinelle di determinismo, verificate dopo il run.
   let sawCpuDelegate = false;
   let sawGpuDelegate = false;
-  let vendorWasmHits = 0;
-  let vendorModelHits = 0;
+  let mediapipe: ReturnType<typeof watchMediapipeRequests> = { counts: { model: 0, wasm: 0 }, cdnRequests: [] };
   const startedAt = new Date();
   const report: {
     startedAt: string;
@@ -259,32 +260,9 @@ async function main() {
       if (message.type() === 'error') log(`console.error: ${text}`);
     });
 
-    // MediaPipe (runtime WASM + modello mani) servito dai file vendorizzati.
-    await page.route(`${MEDIAPIPE_WASM_CDN}**`, async (route) => {
-      const rel = route.request().url().slice(MEDIAPIPE_WASM_CDN.length).split(/[?#]/)[0];
-      const abs = path.join(VENDOR_WASM_DIR, rel);
-      if (!abs.startsWith(VENDOR_WASM_DIR) || !fs.existsSync(abs)) {
-        await route.fulfill({ status: 404, body: `non vendorizzato: ${rel}` });
-        return;
-      }
-      vendorWasmHits += 1;
-      const type = rel.endsWith('.wasm') ? 'application/wasm'
-        : rel.endsWith('.js') ? 'text/javascript'
-        : 'application/octet-stream';
-      await route.fulfill({
-        status: 200,
-        headers: { 'content-type': type, 'access-control-allow-origin': '*' },
-        body: fs.readFileSync(abs),
-      });
-    });
-    await page.route(MEDIAPIPE_MODEL_URL, async (route) => {
-      vendorModelHits += 1;
-      await route.fulfill({
-        status: 200,
-        headers: { 'content-type': 'application/octet-stream', 'access-control-allow-origin': '*' },
-        body: fs.readFileSync(path.join(VENDOR_DIR, 'hand_landmarker.task')),
-      });
-    });
+    // MediaPipe (runtime WASM + modello mani) arriva da /mediapipe/ dell'app:
+    // si contano le risposte e si segnalano eventuali richieste a CDN esterni.
+    mediapipe = watchMediapipeRequests(page);
 
     await page.goto(`${dev.baseUrl}/bench`, { waitUntil: 'load' });
     await page.waitForFunction(() => window.__benchReady === true, null, { timeout: 30000 });
@@ -446,11 +424,14 @@ async function main() {
 
   // --- sentinelle di determinismo ---
   const determinismIssues: string[] = [];
-  if (vendorWasmHits === 0) {
-    determinismIssues.push('runtime WASM MediaPipe NON servito dai file vendorizzati (starebbe scaricando dal CDN)');
+  if (mediapipe.counts.wasm === 0) {
+    determinismIssues.push('runtime WASM MediaPipe NON caricato da /mediapipe/ (nessuna risposta 200)');
   }
-  if (vendorModelHits === 0) {
-    determinismIssues.push('modello mani MediaPipe NON servito dai file vendorizzati (starebbe scaricando da googleapis)');
+  if (mediapipe.counts.model === 0) {
+    determinismIssues.push('modello mani MediaPipe NON caricato da /mediapipe/hand_landmarker.task (nessuna risposta 200)');
+  }
+  if (mediapipe.cdnRequests.length > 0) {
+    determinismIssues.push(`richieste a CDN esterni di MediaPipe: ${[...new Set(mediapipe.cdnRequests)].join(', ')}`);
   }
   if (!sawCpuDelegate) {
     determinismIssues.push('atteso il delegate TFLite "XNNPACK for CPU": non rilevato nei log del browser');

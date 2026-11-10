@@ -28,14 +28,11 @@ import { startDevServer } from './lib/dev-server.ts';
 import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import type { VideoCache } from './lib/window-replay-core.ts';
 import { requireVideoDir } from './lib/video-dir.ts';
+import { mediapipeIntegrityIssues } from './lib/mediapipe-local.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
 const CACHE_DIR = path.join(HERE, 'results', 'window-cache');
-const VENDOR_DIR = path.join(HERE, 'vendor', 'mediapipe');
-const VENDOR_WASM_DIR = path.join(VENDOR_DIR, 'wasm');
-const MEDIAPIPE_WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/';
-const MEDIAPIPE_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 
 const GLOBAL_TIMEOUT_MS = 60 * 60 * 1000;
 const ELEMENT_TIMEOUT_MS = 30_000;
@@ -150,6 +147,9 @@ function git(args: string[]): string {
 }
 
 async function main() {
+  // MediaPipe e' servito dall'app (public/mediapipe): file e hash del modello devono essere quelli fissati.
+  const mediapipeIssues = mediapipeIntegrityIssues();
+  if (mediapipeIssues.length) throw new Error(`file MediaPipe in public/mediapipe non integri: ${mediapipeIssues.join('; ')}`);
   const argv = process.argv.slice(2);
   const force = argv.includes('--force');
   const withProductionWindow = !argv.includes('--no-production-window');
@@ -189,19 +189,6 @@ async function main() {
       const text = m.text();
       if (m.type() === 'error' && !/XNNPACK/i.test(text)) log(`console.error: ${text}`);
     });
-    // MediaPipe servito dai file vendorizzati (come run-bench.ts): niente rete esterna.
-    await page.route(`${MEDIAPIPE_WASM_CDN}**`, async (route) => {
-      const rel = route.request().url().slice(MEDIAPIPE_WASM_CDN.length).split(/[?#]/)[0];
-      const abs = path.join(VENDOR_WASM_DIR, rel);
-      if (!abs.startsWith(VENDOR_WASM_DIR) || !fs.existsSync(abs)) { await route.fulfill({ status: 404, body: rel }); return; }
-      const type = rel.endsWith('.wasm') ? 'application/wasm' : rel.endsWith('.js') ? 'text/javascript' : 'application/octet-stream';
-      await route.fulfill({ status: 200, headers: { 'content-type': type, 'access-control-allow-origin': '*' }, body: fs.readFileSync(abs) });
-    });
-    await page.route(MEDIAPIPE_MODEL_URL, (route) => route.fulfill({
-      status: 200,
-      headers: { 'content-type': 'application/octet-stream', 'access-control-allow-origin': '*' },
-      body: fs.readFileSync(path.join(VENDOR_DIR, 'hand_landmarker.task')),
-    }));
     await page.goto(`${dev.baseUrl}/bench`, { waitUntil: 'load', timeout: ELEMENT_TIMEOUT_MS });
     await page.waitForFunction(() => (window as { __benchReady?: boolean }).__benchReady === true, null, { timeout: ELEMENT_TIMEOUT_MS });
 

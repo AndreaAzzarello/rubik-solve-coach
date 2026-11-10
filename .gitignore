@@ -51,7 +51,7 @@ models/generated/
 *.tflite
 *.mlmodel
 # Eccezione: modello di produzione del rilevatore vertici faccia cubo
-# (12,5MB, committato come i vendor MediaPipe in web/bench/vendor/) - non
+# (12,5MB, committato come i file MediaPipe in web/public/mediapipe/) - non
 # best.onnx ne' altri .onnx di run precedenti.
 !/web/vision/models/cube-face-keypoints.onnx
 !/web/public/models/cube-face-keypoints.onnx

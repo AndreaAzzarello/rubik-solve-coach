@@ -74,8 +74,9 @@ Solo il test dello scorer (veloce, senza browser) fa parte della CI, tramite
 - I **video** restano locali (fuori dal repo). `bench/cases.json` ne elenca
   nomi e scramble; la cartella si imposta con `BENCH_VIDEO_DIR` (obbligatoria,
   nessun percorso personale nel repo).
-- Rete: il modello mani MediaPipe viene scaricato da CDN; se non è
-  raggiungibile la pipeline degrada come in produzione (solo cubo).
+- MediaPipe (runtime WASM e modello mani) è servito dall'app da
+  `public/mediapipe/`, senza rete esterna (vedi `docs/mediapipe-vendor.md`); se
+  il modello non si carica la pipeline degrada come in produzione (solo cubo).
 
 ## cases.json
 

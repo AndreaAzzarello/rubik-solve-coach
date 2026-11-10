@@ -1,3 +1,5 @@
+import { assetUrl } from './asset-url.ts';
+
 export type HandSide = 'left' | 'right' | 'both' | 'unknown';
 
 export type HandDirection = 'left' | 'right' | 'up' | 'down' | 'mixed';
@@ -34,8 +36,10 @@ export type HandMotionTracker = {
 const PALM_LANDMARKS = [0, 5, 9, 13, 17] as const;
 const FINGER_LANDMARKS = [2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15, 16, 18, 19, 20] as const;
 const FINGERTIPS = [4, 8, 12, 16, 20] as const;
-const MEDIAPIPE_WASM_ROOT = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
-const HAND_LANDMARKER_MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+// MediaPipe servito dall'app stessa (public/mediapipe, vedi docs/mediapipe-vendor.md):
+// nessuna risorsa esterna a runtime. Percorsi con il basePath dell'app.
+const MEDIAPIPE_WASM_ROOT = assetUrl('mediapipe/wasm');
+const HAND_LANDMARKER_MODEL = assetUrl('mediapipe/hand_landmarker.task');
 
 const zeroMeasurement = (handCount = 0): HandMotionMeasurement => ({
   handMotion: 0,

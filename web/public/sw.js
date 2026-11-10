@@ -1,6 +1,5 @@
-const CACHE_NAME = "cube-scanner-video-v4";
+const CACHE_NAME = "cube-scanner-video-v5";
 const APP_SHELL = ["/", "/manifest.json", "/favicon.svg"];
-const MEDIAPIPE_ORIGINS = new Set(["https://cdn.jsdelivr.net", "https://storage.googleapis.com"]);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -34,12 +33,14 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  const cacheable = url.origin === self.location.origin || MEDIAPIPE_ORIGINS.has(url.origin);
-  if (!cacheable) return;
+  // Solo risorse della stessa origine (compresi i file MediaPipe di
+  // /mediapipe/, messi in cache solo quando vengono richiesti): niente risposte
+  // cross-origin, quindi nessuna risposta opaca in cache.
+  if (url.origin !== self.location.origin) return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const refresh = fetch(event.request).then((response) => {
-        if (response.ok || response.type === "opaque") {
+        if (response.ok) {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
         }
         return response;
