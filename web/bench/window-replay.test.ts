@@ -1,21 +1,34 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import type { MotionSample } from '../lib/video-decoder.ts';
 import { detectMotionEvents, fuseMotionEvidence } from '../lib/video-decoder.ts';
 import {
   checkEventFidelity,
+  compareScans,
   computeWindow,
   detectFromSamples,
   diffWindows,
+  finishWindow,
+  makeRequest,
+  mergeRequests,
   mulberry32,
   perturbSamples,
+  planWindow,
   runTrials,
   S0B_MAX_MISMATCHED_VIDEOS,
+  scanKey,
   windowMismatchVideos,
+  type BoundarySample,
+  type ScanStore,
   type WindowDecision,
 } from './lib/window-replay-core.ts';
+import { loadScanFile, readRequests, saveScanFile, toStore, writeRequests } from './lib/scan-store-io.ts';
 
 const SAMPLE_INTERVAL = 0.1;
+const DURATION = 16;
 
 // Segnale sintetico: rumore di fondo deterministico + raffiche di movimento.
 function syntheticRawSamples(): MotionSample[] {
@@ -33,6 +46,20 @@ function syntheticRawSamples(): MotionSample[] {
     });
   }
   return samples;
+}
+
+/** Riempie lo store con scansioni vuote per ogni coppia richiesta, finche' non manca piu' nulla. */
+function fillStore(caseId: string, samples: MotionSample[], amplitude: number): ScanStore {
+  const store: ScanStore = new Map();
+  for (let round = 0; round < 8; round += 1) {
+    const summary = runTrials({
+      caseId, samples, store, duration: DURATION, sampleInterval: SAMPLE_INTERVAL, trialCount: 12,
+      seedBase: 20261013, amplitude, frameDuration: 1 / 30, significantShiftS: 0.5,
+    });
+    if (summary.missing.length === 0) return store;
+    for (const request of summary.missing) store.set(request.key, []);
+  }
+  throw new Error('lo store non converge');
 }
 
 test('mulberry32 e\' deterministico per lo stesso seme e diverso per semi diversi', () => {
@@ -74,45 +101,117 @@ test('S0: un evento di produzione diverso viene segnalato con il primo campo dis
   assert.match(result.firstMismatch ?? '', /evento 0, campo peakTime/);
 });
 
-test('senza rumore la prova con spostamento 0 coincide con il baseline (stesso percorso)', () => {
+test('scanKey: esatta, distingue anche start che differiscono di un fotogramma', () => {
+  assert.equal(scanKey(1.2, 20.188), scanKey(1.2, 20.188));
+  assert.notEqual(scanKey(1.2, 20.188), scanKey(1.2 + 1 / 30, 20.188));
+  assert.notEqual(scanKey(1.2, 20.188), scanKey(1.2, 20.188 + 1 / 30));
+});
+
+test('planWindow: nessun clamp, searchEnd = max(base, hint+3) e coerente con la durata', () => {
+  const events = detectFromSamples(fuseMotionEvidence(syntheticRawSamples()), SAMPLE_INTERVAL).events;
+  const plan = planWindow(events, DURATION);
+  const base = Math.min(DURATION, Math.max(8, Math.min(25, DURATION * 0.72)));
+  const hinted = plan.segmentationHint !== null && plan.segmentationHint >= plan.intervalStart + 2
+    ? Math.min(DURATION, plan.segmentationHint + 3) : plan.intervalStart;
+  assert.equal(plan.searchEnd, Math.max(base, hinted));
+  // su un video lungo il limite non e' piu' 28 s come nel replay precedente
+  const long = planWindow(events, 100);
+  assert.ok(long.searchEnd <= 100);
+});
+
+test('computeWindow: con la coppia mancante restituisce la richiesta, senza ripiegare su altro', () => {
+  const events = detectFromSamples(fuseMotionEvidence(syntheticRawSamples()), SAMPLE_INTERVAL).events;
+  const plan = planWindow(events, DURATION);
+  const missing = computeWindow('IMG_X', events, DURATION, new Map());
+  assert.equal(missing.window, null);
+  assert.deepEqual(missing.missing, makeRequest('IMG_X', plan.intervalStart, plan.searchEnd));
+  const store: ScanStore = new Map([[scanKey(plan.intervalStart, plan.searchEnd), []]]);
+  const found = computeWindow('IMG_X', events, DURATION, store);
+  assert.equal(found.missing, null);
+  assert.equal(found.window?.intervalStart, plan.intervalStart);
+  assert.deepEqual(found.window, finishWindow(plan, events, [], DURATION));
+  assert.ok(found.window!.intervalEnd > found.window!.intervalStart);
+  assert.ok(found.window!.intervalEnd <= DURATION);
+});
+
+test('runTrials con store vuoto: nessuna prova inventata, tutto in missing (deduplicato)', () => {
   const fused = fuseMotionEvidence(syntheticRawSamples());
   const summary = runTrials({
-    samples: fused,
-    boundarySamples: [],
-    duration: 16,
-    sampleInterval: SAMPLE_INTERVAL,
-    scanEnd: 16,
-    trialCount: 12,
-    seedBase: 20261013,
-    amplitude: 0,
-    frameDuration: 1 / 30,
-    significantShiftS: 0.5,
+    caseId: 'IMG_X', samples: fused, store: new Map(), duration: DURATION, sampleInterval: SAMPLE_INTERVAL,
+    trialCount: 12, seedBase: 20261013, amplitude: 0.01, frameDuration: 1 / 30, significantShiftS: 0.5,
   });
+  assert.equal(summary.baseline, null);
+  assert.equal(summary.trials.length, 0);
+  assert.ok(summary.missing.length >= 1);
+  assert.equal(new Set(summary.missing.map((m) => m.key)).size, summary.missing.length);
+});
+
+test('senza rumore la prova con spostamento 0 coincide con il baseline (stesso percorso)', () => {
+  const fused = fuseMotionEvidence(syntheticRawSamples());
+  const store = fillStore('IMG_X', fused, 0);
+  const summary = runTrials({
+    caseId: 'IMG_X', samples: fused, store, duration: DURATION, sampleInterval: SAMPLE_INTERVAL,
+    trialCount: 12, seedBase: 20261013, amplitude: 0, frameDuration: 1 / 30, significantShiftS: 0.5,
+  });
+  assert.equal(summary.missing.length, 0);
+  assert.ok(summary.baseline);
   const noShift = summary.trials.filter((t) => t.shiftFrames === 0);
   assert.equal(noShift.length, 4);
   for (const trial of noShift) {
     assert.equal(trial.significant, false);
-    assert.equal(trial.intervalStart, summary.baseline.intervalStart);
-    assert.equal(trial.intervalEnd, summary.baseline.intervalEnd);
-    assert.equal(trial.stageCount, summary.baseline.stageCount);
+    assert.equal(trial.intervalStart, summary.baseline!.intervalStart);
+    assert.equal(trial.intervalEnd, summary.baseline!.intervalEnd);
+    assert.equal(trial.stageCount, summary.baseline!.stageCount);
   }
 });
 
 test('le prove sono riproducibili: stessi semi, stesso risultato', () => {
   const fused = fuseMotionEvidence(syntheticRawSamples());
+  const store = fillStore('IMG_X', fused, 0.01);
   const setup = {
-    samples: fused, boundarySamples: [], duration: 16, sampleInterval: SAMPLE_INTERVAL, scanEnd: 16,
+    caseId: 'IMG_X', samples: fused, store, duration: DURATION, sampleInterval: SAMPLE_INTERVAL,
     trialCount: 12, seedBase: 20261013, amplitude: 0.01, frameDuration: 1 / 30, significantShiftS: 0.5,
   };
   assert.deepEqual(runTrials(setup), runTrials(setup));
 });
 
-test('computeWindow restituisce una finestra coerente (inizio < fine, dentro la durata)', () => {
-  const fused = fuseMotionEvidence(syntheticRawSamples());
-  const events = detectFromSamples(fused, SAMPLE_INTERVAL).events;
-  const window = computeWindow(events, [], 16, 16);
-  assert.ok(window.intervalEnd > window.intervalStart);
-  assert.ok(window.intervalEnd <= 16);
+test('mergeRequests deduplica per video e chiave, non tra video diversi', () => {
+  const a = makeRequest('A', 1, 10);
+  const merged = mergeRequests([a, makeRequest('A', 1, 10), makeRequest('A', 1.0333, 10), makeRequest('B', 1, 10)]);
+  assert.deepEqual(merged.map((r) => `${r.caseId}:${r.key}`), ['A:1|10', 'A:1.0333|10', 'B:1|10']);
+});
+
+test('compareScans: identiche, numero diverso, tempo diverso, griglie diverse', () => {
+  const grid = { centerColor: 'white', colors: ['white', null], confidence: 80, visibleCells: 9 };
+  const base: BoundarySample[] = [
+    { time: 0.5, faceGrids: [grid] as unknown as BoundarySample['faceGrids'] },
+    { time: 1, faceGrids: [] },
+  ];
+  assert.deepEqual(compareScans(base, structuredClone(base)), { identical: true, firstDiff: null });
+  assert.match(compareScans(base, base.slice(0, 1)).firstDiff ?? '', /numero di campioni/);
+  const shifted = structuredClone(base); shifted[1].time = 1.0001;
+  assert.match(compareScans(base, shifted).firstDiff ?? '', /campione 1: time/);
+  const other = structuredClone(base); (other[0].faceGrids as unknown as Array<{ confidence: number }>)[0].confidence = 81;
+  assert.match(compareScans(base, other).firstDiff ?? '', /campione 0 .*faceGrids diverse/);
+});
+
+test('scan-store-io: andata e ritorno su disco senza perdita, richieste incluse', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'window-scan-test-'));
+  try {
+    const request = makeRequest('IMG_X', 0.1 + 0.2, 20.188);
+    const samples: BoundarySample[] = [{ time: 0.3, faceGrids: [] }];
+    const file = loadScanFile(dir, 'IMG_X');
+    file.scans[request.key] = { start: request.start, end: request.end, ms: 1234, samples };
+    saveScanFile(dir, file);
+    const store = toStore(loadScanFile(dir, 'IMG_X'));
+    assert.deepEqual(store.get(scanKey(0.1 + 0.2, 20.188)), samples); // 0.30000000000000004 sopravvive al JSON
+    const requestsFile = path.join(dir, 'requests.json');
+    writeRequests(requestsFile, [request]);
+    assert.deepEqual(readRequests(requestsFile), [request]);
+    assert.equal(loadScanFile(dir, 'ALTRO').scans && Object.keys(loadScanFile(dir, 'ALTRO').scans).length, 0);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('S0b: windowMismatchVideos conta solo i video con produzione e differenze', () => {
@@ -128,12 +227,12 @@ test('S0b: windowMismatchVideos conta solo i video con produzione e differenze',
   assert.equal(windowMismatchVideos(reports.slice(0, 2)).length > S0B_MAX_MISMATCHED_VIDEOS, false);
 });
 
-test('diffWindows riporta solo i campi diversi', () => {
+test('diffWindows riporta solo i campi diversi, searchEnd compreso', () => {
   const base: WindowDecision = {
-    intervalStart: 1, segmentationHint: 5, searchEnd: 12, searchEndClamped: false, boundaryTime: 6,
+    intervalStart: 1, segmentationHint: 5, searchEnd: 12, boundaryTime: 6,
     boundarySource: 'state-change', intervalEnd: 6, stageCount: 3, windowCount: 1,
   };
   assert.deepEqual(diffWindows(base, { ...base }), []);
-  const diff = diffWindows(base, { ...base, boundarySource: 'fallback', intervalEnd: 7 });
-  assert.deepEqual(diff.map((d) => d.field).sort(), ['boundarySource', 'intervalEnd']);
+  const diff = diffWindows(base, { ...base, boundarySource: 'fallback', intervalEnd: 7, searchEnd: 13 });
+  assert.deepEqual(diff.map((d) => d.field).sort(), ['boundarySource', 'intervalEnd', 'searchEnd']);
 });

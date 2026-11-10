@@ -241,7 +241,7 @@ async function main() {
         production: data.production,
       };
       fs.writeFileSync(target, JSON.stringify(cache));
-      log(`[${index + 1}/${cases.length}] ${entry.id}: ${data.samples.length} campioni, ${data.events.length} eventi, ${data.boundarySamples.length} campioni di confine -> ${path.relative(WEB_ROOT, target)}`);
+      log(`[${index + 1}/${cases.length}] ${entry.id}: ${data.samples.length} campioni, ${data.events.length} eventi, ${data.boundarySamples?.length ?? 0} campioni di confine -> ${path.relative(WEB_ROOT, target)}`);
     }
     log('raccolta completata.');
   } finally {
