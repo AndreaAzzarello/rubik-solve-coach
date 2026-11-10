@@ -1061,6 +1061,159 @@ gli altri no.
     Dati completi: `bench/results/window-sensitivity.json` (gitignored,
     locale — rigenerabile con lo strumento committato).
 
+21. **La finestra di ispezione si stabilizza con un reticolo di
+    campionamento ancorato al tempo assoluto (variante D)? → NON ADOTTATA
+    (arresto S4 scattato per D1 e D2); stabilità raggiunta, correttezza
+    della fine non dimostrata. Bench completo (P6) non eseguito.**
+
+    **Motivo.** Chiudere la fragilità misurata nel #20. Prima, però, si è
+    dovuto correggere lo strumento del #20: il suo baseline usava campioni
+    ridotti a 4 campi (senza `cubeEvidence`, `handEvidence`, `coverage`,
+    `centerBias`), le prove il `fuseMotionEvidence` completo, quindi il
+    baseline era sempre `segmentation`/`fallback` e le prove sempre
+    `state-change`/`motion-density`. Molti "12/12 cambiano" del #20 sono
+    artefatti dello strumento: **il "3/13 stabili" del #20 non è affidabile**
+    (la voce #20 non è modificata). In più la scansione larga `[0, 28 s]` del
+    #20 non è la finestra che l'app usa: `buildInspectionSampleTimes`
+    costruisce i tempi a partire da `start`, con passo `durata/N`
+    (`N = clamp(ceil(durata·4,2), 12, 48)`), quindi i fotogrammi letti
+    dipendono da `(start, end)`.
+
+    **Modifiche** (branch `exp/robust-window` da `chore/setup-and-audit`;
+    nessun merge né push):
+    - `41d2d04`, `d0b6d93`, `b810d8b`: replay in Node a due stadi
+      (`bench/window-cache.ts`, `bench/window-scan.ts` in batch,
+      `bench/window-replay.ts`, `bench/lib/window-replay-core.ts`), con
+      cancelli S0, S0b, S0c.
+    - `cff7f7c` (P3): `computeInspectionWindow` in `lib/inspection-window.ts`,
+      estratta da `lib/inspection-pipeline.ts`, con il flag solo-bench
+      `__benchWindowRobust` spento di default. Flag spento = identico bit a
+      bit sulle 13 finestre registrate nel browser (arresto S2 non scattato).
+    - `78e125c` (P4): `buildAnchoredSampleTimes` (multipli assoluti di un
+      passo, indipendenti da `start` e dalla durata, nessun tetto ai
+      fotogrammi), flag `D1` (0,5 s) e `D2` (0,25 s), usati solo dalla
+      scansione stretta della finestra (`scanInspectionFrames` con
+      `gridStep`). Il piano (`intervalStart`, `searchEnd`) e `inferInspectionEnd`
+      non cambiano.
+
+    **Metodo.** Windows 11, Chrome for Testing 153.0.8010.36 pinnato,
+    commit `78e125c` a albero pulito, 2026-11-10. Una raccolta nel browser
+    per i dati, poi il replay in Node: stessi semi del #20 (`20261013 +
+    posizione in cases.json · 1000 + prova`), 12 prove per video, rumore
+    moltiplicativo sul solo `cubeDifference` a 0,3%, 1% e 2% e spostamento
+    di ±1 fotogramma dei tempi. Cambio rilevante = `intervalStart` o
+    `intervalEnd` spostati oltre 0,5 s, oppure numero di fasi diverso.
+    Criterio di stabilità dichiarato: 12/12 prove stabili in almeno 12 video
+    su 13 (a 1%).
+
+    **Cancelli.**
+    - S0 (eventi rigiocati contro quelli registrati nel browser,
+      confronto esatto): 13/13.
+    - S0b (finestra del replay contro la finestra calcolata nel browser,
+      qualunque campo): con la scansione larga 11/13 video diversi (solo
+      `boundaryTime`, sempre più tardi: scarti da 0,1 s a circa 14 s;
+      IMG_6108 anche `searchEnd` 30 s contro 39,12 s per il limite
+      `scanEnd`). Con la scansione stretta della coppia `(intervalStart,
+      searchEnd)` esatta: **0/13**.
+    - S0c (determinismo della scansione stretta, 2 passate in pagine
+      diverse e confronto con la prima raccolta, IMG_6107/6260/6298): 3/3
+      identiche.
+    - S0d (scansione diretta contro sottoinsieme del reticolo unito, bit a
+      bit, IMG_6258 e IMG_6300, passi 0,5 e 0,25, coppie con la `start` più
+      bassa e più alta): 8/8 identiche. I fotogrammi sono indipendenti
+      (nessuno smoothing, tracking o riferimento ai precedenti in
+      `readHighResolutionInspectionFrame`).
+    - S4 (più di 1 video con `intervalEnd` senza perturbazione spostato
+      oltre 0,5 s rispetto al controllo): **scattato per D1 e D2, 8/13
+      video ciascuna**.
+
+    **Controllo (codice attuale, scansione stretta esatta).** Video con 12/12
+    prove stabili: **9/13 a 0,3%, 8/13 a 1%, 7/13 a 2%**. Instabili a 1%:
+    IMG_6258, 6281, 6300 (4/12 ciascuno), 6299 (8/12), 6341 (10/12). Tutte le
+    prove instabili hanno uno spostamento di ±1 fotogramma; con spostamento 0
+    le prove sono stabili. Controfattuale a griglia fissa (stessi eventi, scansione di
+    baseline): 30/156 prove instabili a 1% diventavano 13/156, cioè il peso
+    della griglia è circa il 57%; il resto è la cascata di soglie di
+    `inferInspectionEnd` e, per IMG_6300, la segmentazione (`intervalStart`
+    1,20 s → 0,00 s).
+
+    **Risultato D (raccolta reale).** Video con 12/12 prove stabili,
+    identici per D1 e D2: **13/13 a 0,3%, 12/13 a 1%, 10/13 a 2%**. Unico
+    instabile a 1%: IMG_6300 (11/12). Criterio di stabilità (12/13 a 1%)
+    soddisfatto da entrambe. Scarto di `intervalEnd` D − controllo senza
+    perturbazione (secondi):
+
+    | Video | D1 | D2 |
+    |---|---|---|
+    | 6107 | +0,01 | +0,01 |
+    | 6108 | +0,28 | +1,03 |
+    | 6258 | −7,77 | −7,77 |
+    | 6260 | −0,34 | −3,14 |
+    | 6281 | +3,38 | +3,38 |
+    | 6297 | 0,00 | 0,00 |
+    | 6298 | −1,72 | −1,72 |
+    | 6299 | 0,00 | 0,00 |
+    | 6300 | +2,98 | −2,02 |
+    | 6334 | +5,89 | −1,86 |
+    | 6336 | −1,08 | −1,58 |
+    | 6338 | +5,59 | −0,41 |
+    | 6341 | +0,56 | −0,19 |
+
+    IMG_6108 (`searchEnd` 39,12 s, finestra 26,94–39,12 s = 12,2 s): fine
+    28,98 s con D1 e 29,73 s con D2, contro 28,70 s del controllo; 12/12
+    stabile a tutti i livelli di rumore, 25 e 49 fotogrammi. D1 e D2
+    scelgono una fine diversa di oltre 0,5 s in 6 video (6108, 6260, 6300,
+    6334, 6338, 6341): la fine dipende dal passo del reticolo anche di
+    diversi secondi.
+
+    **Costi.** Finestra più lunga: IMG_6258, 24,55 s = 50 fotogrammi (D1) o
+    99 (D2), contro un massimo di 49 della produzione. Scansione: 0,40 s a
+    fotogramma; produzione ~19,8 s (media di 30 scansioni), D1 15,0 s di
+    media e D2 30,1 s (13 reticoli per passo; 195 s e 392 s in totale; 9,9
+    min la raccolta dei 26). S0d 3,6 min.
+
+    **Verdetto.** NON adottata: S4 scattato (8/13 contro un limite di 1), e
+    P6 non eseguito. Stabilità e correttezza sono cose diverse: il
+    riferimento del controllo è esso stesso instabile (8/13), quindi lo
+    scarto da 0,5 s non dimostra che D sbagli, ma la fine che D sceglie non
+    è verificata da nessuna verità di terreno e dipende dal passo. Solo il
+    bench completo (totale sopra 462/702, nessun video test giù di oltre 5
+    caselle) può decidere. Candidata per il P6, se l'utente lo chiede: D2
+    (densità non inferiore alla produzione, costo ~2× sulla scansione
+    stretta); D1 ha costo pari ma meno fotogrammi in ricostruzione sulle
+    finestre brevi.
+
+    **Limiti.**
+    - Il rumore perturba solo `cubeDifference` e sposta i tempi degli eventi
+      di ±1 fotogramma: **non perturba i fotogrammi né le griglie colore**, e
+      lo spostamento sfasa gli eventi dai fotogrammi, esasperando il caso
+      peggiore. La stabilità misurata non copre la variabilità del
+      rilevamento colore.
+    - IMG_6300 e IMG_6341 hanno un `intervalStart` davvero instabile
+      (fino a 1,20 s e 0,45 s) anche a griglia fissa: sono i casi da non
+      perdere di vista.
+    - `analysisPass`: sotto D la scansione stretta ignora la fase
+      (`gridStep` prevale), quindi a ogni rianalisi la finestra non cambia
+      più per la fase; le scansioni di fusione (stadio 3) restano alla griglia
+      di produzione. Non misurato l'effetto sul punteggio di ricostruzione.
+    - Non provate: A (isteresi sulla soglia di picco e `activityCeiling`
+      interpolato), B (unione delle finestre se la decisione è incerta) e C
+      (margine sulla fine) restano **idee non provate**.
+    - Dato riportato dall'utente, non riverificato: il totale del bench su
+      Mac emerso durante il #20 è 441/702 contro 462/702 su Windows. La
+      differenza Mac/Windows resta un fatto osservato non spiegato e non è
+      confrontabile con la baseline su Windows.
+
+    **Lezione.** Prima di misurare la stabilità di una decisione discreta,
+    verificare che lo strumento riproduca la pipeline vera (S0, S0b) e
+    stimare il peso di ciascuna sorgente di variazione con un controfattuale;
+    una misura stabile non dice che il valore sia quello giusto.
+
+    Dati: `bench/results/window-cache/`, `window-scans/`, `window-lattices/`,
+    `window-determinism.json`, `window-lattice-check.json`,
+    `window-replay.json` (gitignored, locali; rigenerabili con gli strumenti
+    committati). Branch `exp/robust-window`.
+
 ## Diagnosi trasversale (non un esperimento, un fatto osservato)
 
 - Due cause distinte dietro le regressioni di V1: **errore cromatico
