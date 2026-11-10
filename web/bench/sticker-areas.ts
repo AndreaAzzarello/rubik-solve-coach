@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -47,7 +48,7 @@ function log(...parts: unknown[]) {
 
 function loadConfig(): { videoDir: string; cases: CaseSpec[] } {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = process.env.BENCH_VIDEO_DIR || raw.videoDir;
+  const videoDir = requireVideoDir(raw.videoDir);
   if (!videoDir) throw new Error('videoDir non definito: imposta BENCH_VIDEO_DIR o cases.json > videoDir');
   return { videoDir: path.resolve(videoDir), cases: raw.cases as CaseSpec[] };
 }

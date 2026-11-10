@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser } from 'playwright';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -36,8 +37,8 @@ function log(...parts: unknown[]) {
 
 function loadCase(id: string): { videoDir: string; entry: CaseSpec } {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = process.env.BENCH_VIDEO_DIR || raw.videoDir;
-  if (!videoDir) throw new Error('videoDir non definito: imposta BENCH_VIDEO_DIR o cases.json > videoDir');
+  const videoDir = requireVideoDir(raw.videoDir);
+  if (!videoDir) throw new Error('cartella dei video non definita: imposta BENCH_VIDEO_DIR');
   const entry = (raw.cases as CaseSpec[]).find((c) => c.id === id);
   if (!entry) throw new Error(`caso "${id}" non trovato in cases.json`);
   return { videoDir: path.resolve(videoDir), entry };

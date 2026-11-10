@@ -53,7 +53,7 @@ pnpm bench
 # un solo caso
 pnpm bench IMG_6107
 
-# override della cartella dei video / numero di ripetizioni / browser visibile
+# cartella dei video (OBBLIGATORIA) / numero di ripetizioni / browser visibile
 BENCH_VIDEO_DIR="D:/video" BENCH_REPEATS=1 BENCH_HEADFUL=1 pnpm bench
 ```
 
@@ -72,7 +72,8 @@ Solo il test dello scorer (veloce, senza browser) fa parte della CI, tramite
   sistema (`channel: "chrome"`) e ripiega sul Chromium del bundle solo se manca.
   Prima volta: `pnpm exec playwright install chromium`.
 - I **video** restano locali (fuori dal repo). `bench/cases.json` ne elenca
-  nomi, scramble e cartella; `BENCH_VIDEO_DIR` la sovrascrive.
+  nomi e scramble; la cartella si imposta con `BENCH_VIDEO_DIR` (obbligatoria,
+  nessun percorso personale nel repo).
 - Rete: il modello mani MediaPipe viene scaricato da CDN; se non è
   raggiungibile la pipeline degrada come in produzione (solo cubo).
 
@@ -80,7 +81,6 @@ Solo il test dello scorer (veloce, senza browser) fa parte della CI, tramite
 
 ```jsonc
 {
-  "videoDir": "C:/Users/Andrea/Desktop/App/lenti",
   "repeats": 3,
   "cases": [
     { "id": "IMG_6107", "video": "IMG_6107.mp4",

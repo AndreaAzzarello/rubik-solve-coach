@@ -27,6 +27,7 @@ import { startStaticServer } from './lib/static-server.ts';
 import { startDevServer } from './lib/dev-server.ts';
 import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import type { VideoCache } from './lib/window-replay-core.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -156,7 +157,7 @@ async function main() {
   const casesFilter = casesIndex >= 0 ? argv[casesIndex + 1].split(',') : null;
 
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = path.resolve(process.env.BENCH_VIDEO_DIR || raw.videoDir);
+  const videoDir = requireVideoDir(raw.videoDir);
   const allCases: Array<{ id: string; video: string }> = raw.cases;
   const cases = casesFilter ? allCases.filter((c) => casesFilter.includes(c.id)) : allCases;
   const gitCommit = git(['rev-parse', 'HEAD']);

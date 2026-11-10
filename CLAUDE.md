@@ -23,7 +23,7 @@ Analizza da un video la risoluzione di un cubo 3x3: ricostruisce lo stato inizia
 ## Bench ed esperimenti
 - Un solo bench alla volta, anche tra worktree. Mai bench automatici o pianificati: si lanciano solo su richiesta esplicita.
 - Output completo: bench, `test:inspection`, lint e tsc sono esclusi da RTK. Niente `tail`, pipe o riassunti che nascondano errori. Usa timeout con cleanup e nessun processo orfano.
-- Porta 3100 se la 3000 è occupata. `BENCH_VIDEO_DIR=C:/Users/Andrea/Desktop/App/lenti`.
+- Porta 3100 se la 3000 è occupata. `BENCH_VIDEO_DIR` è obbligatoria: percorso locale della cartella dei video, mai nel repo.
 - Una variante si adotta solo se supera il totale della baseline e nessun video test perde più di 5 caselle.
 - Ogni esperimento nel registro unico: ipotesi, modifiche, metriche, conclusione. Prima di riprovare una direzione, controlla che non sia già stata scartata lì. Niente memoria parallela.
 

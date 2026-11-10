@@ -45,6 +45,7 @@ import {
   type WindowDiff,
 } from './lib/window-replay-core.ts';
 import { loadScanFile, readRequests, saveScanFile } from './lib/scan-store-io.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -276,7 +277,7 @@ let activeCleanup: (() => Promise<void>) | null = null;
 
 async function main(): Promise<number> {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = path.resolve(process.env.BENCH_VIDEO_DIR || raw.videoDir);
+  const videoDir = requireVideoDir(raw.videoDir);
   const cases: Array<{ id: string; video: string }> = raw.cases;
   const gitInfo = { commit: git(['rev-parse', 'HEAD']), status: git(['status', '--short']) };
   const maxMinutes = Number(arg('--max-minutes') ?? 90);

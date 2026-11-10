@@ -15,6 +15,7 @@ import { startDevServer } from './lib/dev-server.ts';
 import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import { referenceFromScramble } from './lib/score.ts';
 import type { CubeColor, Face } from '../lib/cube.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -63,7 +64,7 @@ function matches(grid: Array<CubeColor | null>, reference: CubeColor[]): number 
 
 async function main() {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = path.resolve(process.env.BENCH_VIDEO_DIR || raw.videoDir);
+  const videoDir = requireVideoDir(raw.videoDir);
   const targetIds = [...new Set(TARGETS.map((t) => t.video))];
   const cases = (raw.cases as CaseSpec[]).filter((c) => targetIds.includes(c.id));
   for (const entry of cases) {

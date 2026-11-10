@@ -23,11 +23,11 @@ import { pinnedChromeExecutable } from '../../bench/chrome-path.ts';
 import { startStaticServer } from '../../bench/lib/static-server.ts';
 import { filterPlausibleDetections } from '../../lib/face-keypoint-model.ts';
 import { FaceKeypointDetector } from '../inference/detector.ts';
+import { requireVideoDir } from '../../bench/lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(HERE, 'frames');
 const LABELS_DIR = path.join(HERE, 'labels');
-const VIDEO_DIR = process.env.BENCH_VIDEO_DIR || 'C:/Users/Andrea/Desktop/App/lenti';
 
 // EXTRACT_MODE=test estrae per la VALUTAZIONE PCK, non per il training:
 // split forzato a 'test', mai letto da merge-real-annotations.ts (che scarta
@@ -321,7 +321,7 @@ async function main() {
   const existing: FrameEntry[] = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : [];
   const existingIds = existing.map((entry) => entry.id);
 
-  const videoServer = await startStaticServer(VIDEO_DIR);
+  const videoServer = await startStaticServer(requireVideoDir());
 
   const browser = await chromium.launch({ executablePath: pinnedChromeExecutable(), headless: true });
   const capturePage = await browser.newPage();

@@ -13,11 +13,11 @@ import { chromium } from 'playwright';
 import { pinnedChromeExecutable } from '../../bench/chrome-path.ts';
 import { startStaticServer } from '../../bench/lib/static-server.ts';
 import { FaceKeypointDetector, type FaceDetection } from '../inference/detector.ts';
+import { requireVideoDir } from '../../bench/lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..', '..');
 const MODEL_PATH = path.join(WEB_ROOT, 'vision', 'models', process.env.PREVIEW_MODEL || 'best.onnx');
-const VIDEO_DIR = process.env.BENCH_VIDEO_DIR || 'C:/Users/Andrea/Desktop/App/lenti';
 const OUT_DIR = path.join(HERE, 'real-preview');
 
 const CASES = [
@@ -110,7 +110,7 @@ async function drawOverlay(args: { dataUrl: string; detections: FaceDetection[] 
 
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
-  const server = await startStaticServer(VIDEO_DIR);
+  const server = await startStaticServer(requireVideoDir());
   const detector = await FaceKeypointDetector.create(MODEL_PATH);
   const browser = await chromium.launch({ executablePath: pinnedChromeExecutable(), headless: true });
   const page = await browser.newPage();

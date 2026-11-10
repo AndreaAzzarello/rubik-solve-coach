@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import { startStaticServer } from './lib/static-server.ts';
 import { startDevServer } from './lib/dev-server.ts';
 import { pinnedChromeExecutable } from './chrome-path.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -20,7 +21,7 @@ const WEB_ROOT = path.resolve(HERE, '..');
 async function main() {
   const caseId = process.argv[2] ?? 'IMG_6258';
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = process.env.BENCH_VIDEO_DIR || raw.videoDir;
+  const videoDir = requireVideoDir(raw.videoDir);
   const entry = raw.cases.find((c: { id: string }) => c.id === caseId);
   if (!entry) throw new Error(`caso non trovato: ${caseId}`);
   const filePath = path.join(videoDir, entry.video);

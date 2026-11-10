@@ -32,6 +32,7 @@ import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import { referenceFromScramble } from './lib/score.ts';
 import type { BenchBudgetTelemetry, FaceGridObservation, PartialFacelets } from '../lib/inspection-state.ts';
 import { CUBE_FACES, CANONICAL_COLOR_FACE, type CubeColor, type Face } from '../lib/cube.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -176,7 +177,7 @@ function runInWorker(
 
 async function main() {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = path.resolve(process.env.BENCH_VIDEO_DIR || raw.videoDir);
+  const videoDir = requireVideoDir(raw.videoDir);
   const allCases = raw.cases as CaseSpec[];
   const cases = allCases.filter((c) => TARGET_VIDEOS.includes(c.id));
   if (cases.length !== TARGET_VIDEOS.length) {

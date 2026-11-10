@@ -24,6 +24,7 @@ import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import { referenceFromScramble } from './lib/score.ts';
 import { colorCountValid, inferForcedPieceFacelets, type PartialFacelets } from '../lib/inspection-state.ts';
 import { CUBE_FACES, CUBE_COLORS, type CubeColor, type Face } from '../lib/cube.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -252,7 +253,7 @@ const CACHE_PATH = path.join(HERE, 'results', '_correction-repropagation-cache.j
 
 async function captureFromVideos(): Promise<Captured[]> {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = path.resolve(process.env.BENCH_VIDEO_DIR || raw.videoDir);
+  const videoDir = requireVideoDir(raw.videoDir);
   const cases = raw.cases as CaseSpec[];
   for (const entry of cases) {
     if (!fs.existsSync(path.join(videoDir, entry.video))) throw new Error(`video mancante: ${entry.video}`);

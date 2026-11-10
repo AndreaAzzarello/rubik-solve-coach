@@ -78,7 +78,7 @@ function log(...parts: unknown[]) {
 function loadConfig(): BenchConfig {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
   const videoDir = process.env.BENCH_VIDEO_DIR || raw.videoDir;
-  if (!videoDir) throw new Error('videoDir non definito: imposta BENCH_VIDEO_DIR o cases.json > videoDir');
+  if (!videoDir) throw new Error('cartella dei video non definita: imposta BENCH_VIDEO_DIR');
   return {
     videoDir: path.resolve(videoDir),
     repeats: Math.max(1, Number(process.env.BENCH_REPEATS || raw.repeats || 1)),

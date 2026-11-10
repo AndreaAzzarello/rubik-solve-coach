@@ -1,6 +1,5 @@
 {
-  "_comment": "Banco di prova ripetibile per la ricostruzione dello stato. I video restano locali (fuori dal repo). Override della cartella: variabile d'ambiente BENCH_VIDEO_DIR. Convenzione scramble: cubo risolto con bianco sopra e verde davanti. Campo \"group\": test = mai visto da nessun modello (decisioni sul MODELLO contano solo questo gruppo); integration = non in training ma usato a lungo per debug pipeline; seen = fotogrammi del video entrati nel training (decisioni sulla PIPELINE, a modello fisso, contano il totale di tutti i gruppi).",
-  "videoDir": "C:/Users/Andrea/Desktop/App/lenti",
+  "_comment": "Banco di prova ripetibile per la ricostruzione dello stato. I video restano locali (fuori dal repo). La cartella dei video si imposta con la variabile d'ambiente BENCH_VIDEO_DIR (obbligatoria, mai nel repo). Convenzione scramble: cubo risolto con bianco sopra e verde davanti. Campo \"group\": test = mai visto da nessun modello (decisioni sul MODELLO contano solo questo gruppo); integration = non in training ma usato a lungo per debug pipeline; seen = fotogrammi del video entrati nel training (decisioni sulla PIPELINE, a modello fisso, contano il totale di tutti i gruppi).",
   "repeats": 3,
   "cases": [
     {

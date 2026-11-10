@@ -1,5 +1,5 @@
 {
-  "_comment": "Video SOLO training (C:\\Users\\Andrea\\Desktop\\App\\training2). Scramble letti dalla foto csTimer accoppiata per ordine sequenziale (foto poi video successivo). Non usati per il bench. Convenzione: bianco sopra, verde davanti.",
+  "_comment": "Video SOLO training (cartella locale training2, fuori dal repo). Scramble letti dalla foto csTimer accoppiata per ordine sequenziale (foto poi video successivo). Non usati per il bench. Convenzione: bianco sopra, verde davanti.",
   "cases": [
     {
       "id": "IMG_6334",

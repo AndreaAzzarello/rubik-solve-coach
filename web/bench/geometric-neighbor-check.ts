@@ -18,6 +18,7 @@ import { pinnedChromeExecutable, CHROME_BUILD_ID } from './chrome-path.ts';
 import { referenceFromScramble } from './lib/score.ts';
 import { normalizeObservationOrientations, type FaceGridObservation } from '../lib/inspection-state.ts';
 import { type CubeColor, type Face } from '../lib/cube.ts';
+import { requireVideoDir } from './lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '..');
@@ -63,7 +64,7 @@ function log(...parts: unknown[]) { console.log('[geo-neighbor]', ...parts); }
 
 async function main() {
   const raw = JSON.parse(fs.readFileSync(path.join(HERE, 'cases.json'), 'utf8'));
-  const videoDir = path.resolve(process.env.BENCH_VIDEO_DIR || raw.videoDir);
+  const videoDir = requireVideoDir(raw.videoDir);
   const targetIds = Object.keys(WRONG_FACES);
   const cases = (raw.cases as CaseSpec[]).filter((c) => targetIds.includes(c.id));
   for (const entry of cases) {

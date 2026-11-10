@@ -24,6 +24,7 @@ import { filterPlausibleDetections, type FaceCornerDetection } from '../../lib/f
 import { gridAlignmentIndex } from '../../lib/grid-alignment-index.ts';
 import { inspectionCropVariants, mapModelPointToAnalysisSpace } from '../../lib/video-decoder.ts';
 import type { Point } from '../../lib/homography.ts';
+import { requireVideoDir } from '../../bench/lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '../..');
@@ -168,7 +169,7 @@ function resample(
 
 async function main() {
   const casesRaw = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'bench/cases.json'), 'utf8'));
-  const videoDir = process.env.BENCH_VIDEO_DIR || casesRaw.videoDir;
+  const videoDir = requireVideoDir(casesRaw.videoDir);
   const session = await ort.InferenceSession.create(MODEL_PATH);
   const videoServer = await startStaticServer(videoDir);
   const browser = await chromium.launch({ executablePath: pinnedChromeExecutable(), headless: true });

@@ -79,6 +79,7 @@ import {
   inspectionCropVariants,
   mapModelPointToAnalysisSpace,
 } from '../../lib/video-decoder.ts';
+import { requireVideoDir } from '../../bench/lib/video-dir.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.resolve(HERE, '../..');
@@ -365,7 +366,7 @@ function colorBoundaryCount(grid: CubeColor[]): number {
 
 async function main() {
   const casesRaw = JSON.parse(fs.readFileSync(path.join(WEB_ROOT, 'bench/cases.json'), 'utf8'));
-  const videoDir = process.env.BENCH_VIDEO_DIR || casesRaw.videoDir;
+  const videoDir = requireVideoDir(casesRaw.videoDir);
   const candidates = (casesRaw.cases as Array<{ id: string }>).filter((c) => !EXCLUDED_IDS.has(c.id));
   const { chosen, order } = pickSample(candidates, SAMPLE_COUNT, SEED);
 
