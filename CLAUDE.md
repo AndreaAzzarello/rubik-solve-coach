@@ -5,6 +5,7 @@ Analizza da un video la risoluzione di un cubo 3x3: ricostruisce lo stato inizia
 ## Stack
 - `web/`: Next.js + TypeScript (script `vinext`), pnpm. Unico codice vivo.
 - Rilevamento facce: YOLOv8n-pose in ONNX con `onnxruntime-web` (`web/lib/face-keypoint-model.ts`).
+- MediaPipe (mani) servito dall'app da `web/public/mediapipe/` (4 file wasm/js + `hand_landmarker.task`, hash fissato), percorsi con `assetUrl()`; mai CDN. Dettagli e aggiornamento: `web/docs/mediapipe-vendor.md`.
 - `web/vision/`: addestramento, dataset, eval del modello. `legacy-python/`: non mantenuto, non in CI.
 - Build per Cloudflare Workers (`vinext` + `@cloudflare/vite-plugin`) e hosting OpenAI Sites (`@openai/sites-vite-plugin`, `web/.openai/hosting.json`). URL e passaggi di deploy reali non sono documentati nel repo: da completare, mai dedurli.
 - Registro esperimenti: `web/docs/pipeline-experiments.md` (unico). Baseline attuale: 462/702 caselle, gruppo test 155/162.
@@ -17,12 +18,14 @@ Analizza da un video la risoluzione di un cubo 3x3: ricostruisce lo stato inizia
 
 ## Vincoli
 - Non c'è backend.
+- Nessuna richiesta a terzi a runtime. `lib/csp.ts` (meta CSP nel layout) limita `connect-src` a `'self' blob: data:` e blocca la telemetria di MediaPipe verso `odml.pa.googleapis.com`; non aggiungere altre origini senza decisione esplicita.
 - La repo è pubblica: tieni locali, fuori dai commit, i video di test, gli output di ispezione e i dati personali.
 - Banco di prova deterministico: Chrome for Testing pinnato, WASM/modello locali, nessuna GPU.
 
 ## Bench ed esperimenti
 - Un solo bench alla volta, anche tra worktree. Mai bench automatici o pianificati: si lanciano solo su richiesta esplicita.
 - Output completo: bench, `test:inspection`, lint e tsc sono esclusi da RTK. Niente `tail`, pipe o riassunti che nascondano errori. Usa timeout con cleanup e nessun processo orfano.
+- Sentinella in `run-bench.ts`: fa fallire il run (exit 1, baseline non valida) se MediaPipe non arriva da `/mediapipe/` o se il browser contatta qualunque origine non locale (`externalOrigin` in `bench/lib/mediapipe-local.ts`).
 - Porta 3100 se la 3000 è occupata. `BENCH_VIDEO_DIR` è obbligatoria: percorso locale della cartella dei video, mai nel repo.
 - Una variante si adotta solo se supera il totale della baseline e nessun video test perde più di 5 caselle.
 - Ogni esperimento nel registro unico: ipotesi, modifiche, metriche, conclusione. Prima di riprovare una direzione, controlla che non sia già stata scartata lì. Niente memoria parallela.
