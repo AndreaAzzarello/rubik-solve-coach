@@ -1095,6 +1095,12 @@ gli altri no.
       scansione stretta della finestra (`scanInspectionFrames` con
       `gridStep`). Il piano (`intervalStart`, `searchEnd`) e `inferInspectionEnd`
       non cambiano.
+    - **Dove sta il codice (2026-11-10).** `main` contiene gli strumenti di
+      replay e P3, con altri hash: P1 `67dd516`, S0b `e09f3fc`, P2b
+      `8572530`, P3 `9ae5e69`. Il codice di D e di S0d (`--grid`,
+      `--lattice-check`, reticoli) sta solo sul branch `exp/robust-window`,
+      tag `exp21-variante-d` (`78e125c`), non in `main`: da `main` le
+      raccolte D e S0d non si rigenerano.
 
     **Metodo.** Windows 11, Chrome for Testing 153.0.8010.36 pinnato,
     commit `78e125c` a albero pulito, 2026-11-10. Una raccolta nel browser
