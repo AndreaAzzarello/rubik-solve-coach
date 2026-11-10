@@ -37,6 +37,23 @@ self.addEventListener("fetch", (event) => {
   // /mediapipe/, messi in cache solo quando vengono richiesti): niente risposte
   // cross-origin, quindi nessuna risposta opaca in cache.
   if (url.origin !== self.location.origin) return;
+
+  // I file di /mediapipe/ sono immutabili (versione e hash fissati) e pesano
+  // circa 12 MB: cache-first, senza rivalidare in rete a ogni visita. Per
+  // aggiornarli va cambiato CACHE_NAME (vedi docs/mediapipe-vendor.md).
+  if (url.pathname.startsWith("/mediapipe/")) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
+        if (response.status === 200) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      })),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const refresh = fetch(event.request).then((response) => {

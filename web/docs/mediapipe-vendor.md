@@ -44,3 +44,11 @@ curl -L -o web/public/mediapipe/hand_landmarker.task \
 
 Poi aggiornare `MEDIAPIPE_TASK_SHA256` in `bench/lib/mediapipe-local.ts`, questo
 file e `docs/legal/ATTRIBUZIONI.md`.
+
+**Invalidare la cache del browser.** Il service worker (`public/sw.js`) serve i
+file di `/mediapipe/` in cache-first, senza rivalidarli: chi li ha gia' in cache
+non li riscarica da solo. Quando si aggiorna MediaPipe va quindi cambiato il
+nome della cache (`CACHE_NAME`, es. `cube-scanner-video-v6`) oppure il
+percorso dei file (es. `public/mediapipe-1.1.0/`, aggiornando
+`lib/hand-motion.ts`): all'attivazione il service worker elimina le cache
+`cube-scanner-video-*` con un nome diverso.
